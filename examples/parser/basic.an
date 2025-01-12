@@ -1,0 +1,14 @@
+import Foo.Bar
+
+// Programs now require a main function
+main () =
+    a = 32
+    println (a + 7)
+
+type Foo =
+    x: I32
+    y: U32
+
+methods Foo =
+    print self =
+        print "Foo ${self.x} ${self.y}"
