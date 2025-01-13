@@ -9,7 +9,7 @@ pub struct CompileResult<T> {
 
 #[derive(Debug)]
 pub enum Diagnostic {
-    ExpectedToken { message: &'static str, actual: Token },
+    ParserExpected { message: &'static str, actual: Token },
 }
 
 /// A Span is a byte index into a file used for reporting errors.
@@ -17,6 +17,12 @@ pub enum Diagnostic {
 pub struct Span {
     pub start: Position,
     pub end: usize,
+}
+
+impl Span {
+    pub fn merge(&self, span_end: Span) -> Span {
+        Span { start: self.start, end: span_end.end }
+    }
 }
 
 #[derive(Debug)]
@@ -66,9 +72,22 @@ impl Position {
 impl std::fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Diagnostic::ExpectedToken { message, actual } => {
+            Diagnostic::ParserExpected { message, actual } => {
                 write!(f, "Parser expected {message}, but found {actual}")
             },
         }
+    }
+}
+
+/// Whether a type has a default value on error
+pub trait ErrorDefault {
+    fn error_default() -> Self;
+}
+
+// Default when working on Vecs is the empty vec, but this is often undesired.
+// Usually, you'll want to return at least the successes up until the error.
+impl<T> ErrorDefault for Vec<T> {
+    fn error_default() -> Self {
+        Vec::new()
     }
 }

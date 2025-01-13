@@ -1,4 +1,4 @@
-use crate::error::Spanned;
+use crate::{error::{Spanned, ErrorDefault}, lexer::token::IntegerKind};
 
 /// The Concrete Syntax Tree (CST) is the output of parsing a source file.
 /// Unlike the Abstract Syntax Tree (AST), the CST is expected to mirror
@@ -46,6 +46,7 @@ pub struct Function {
 
 #[derive(Debug)]
 pub enum Type {
+    Error,
     Named(Path),
     Unit
 }
@@ -58,8 +59,15 @@ pub struct TypeDefinition {
 
 #[derive(Debug)]
 pub enum TypeDefinitionBody {
+    Error,
     Struct(Vec<(Ident, Type)>),
     Enum(Vec<(Ident, Vec<Type>)>),
+}
+
+impl ErrorDefault for TypeDefinitionBody {
+    fn error_default() -> Self {
+        Self::Error
+    }
 }
 
 #[derive(Debug)]
@@ -70,10 +78,18 @@ pub struct Methods {
 
 #[derive(Debug)]
 pub enum Expr {
+    Error,
     Literal(Literal),
-    Variable(Ident),
+    Variable(Path),
     Sequence(Vec<SequenceItem>),
     Definition(Definition),
+    Call(Call),
+}
+
+impl ErrorDefault for Expr {
+    fn error_default() -> Self {
+        Self::Error
+    }
 }
 
 #[derive(Debug)]
@@ -84,7 +100,7 @@ pub struct SequenceItem {
 
 #[derive(Debug)]
 pub enum Literal {
-    Integer(String),
+    Integer(u64, Option<IntegerKind>),
     String(String),
 }
 
@@ -93,4 +109,16 @@ pub struct Definition {
     pub name: Ident,
     pub typ: Option<Type>,
     pub rhs: Box<Expr>,
+}
+
+impl ErrorDefault for Type {
+    fn error_default() -> Type {
+        Type::Error
+    }
+}
+
+#[derive(Debug)]
+pub struct Call {
+    pub function: Box<Expr>,
+    pub arguments: Vec<Expr>,
 }

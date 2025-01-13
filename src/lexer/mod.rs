@@ -415,7 +415,7 @@ impl<'contents> Lexer<'contents> {
                 self.advance_with(Token::Invalid(error))
             },
 
-            ('/', '/') => self.lex_singleline_comment(),
+            // ('/', '/') => self.lex_singleline_comment(),
             ('/', '*') => self.lex_multiline_comment(),
 
             _ if new_indent > self.current_indent_level => self.lex_indent(new_indent),

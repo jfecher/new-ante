@@ -160,37 +160,6 @@ pub enum Token {
     QuestionMark,       // ?
 }
 
-impl Token {
-    pub fn is_overloadable_operator(&self) -> bool {
-        use Token::*;
-        matches!(
-            self,
-            And | As
-                | At
-                | In
-                | Not
-                | Or
-                | EqualEqual
-                | NotEqual
-                | ApplyLeft
-                | ApplyRight
-                | Append
-                | Index
-                | Modulus
-                | Multiply
-                | Comma
-                | Subtract
-                | Add
-                | LessThan
-                | GreaterThan
-                | LessThanOrEqual
-                | GreaterThanOrEqual
-                | Divide
-                | Range
-        )
-    }
-}
-
 impl Display for LexerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use LexerError::*;
