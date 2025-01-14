@@ -2,6 +2,7 @@ use std::io::Read;
 
 use clap::{CommandFactory, Parser};
 use cli::{Completions, Cli};
+use error::Diagnostic;
 
 mod cli;
 mod lexer;
@@ -34,5 +35,18 @@ fn compile(args: Cli) {
         return;
     }
 
-    dbg!(parser::parse_file(&file_contents));
+    let result = parser::parse_file(&file_contents);
+    println!("{}", result.item);
+
+    if !result.errors.is_empty() {
+        display_errors(&result.errors, &args.file);
+    }
+}
+
+fn display_errors(errors: &[Diagnostic], file: &str) {
+    for error in errors {
+        println!();
+        let span = error.span();
+        println!("{file}:{}:{}: {error}", span.start.line, span.start.column);
+    }
 }

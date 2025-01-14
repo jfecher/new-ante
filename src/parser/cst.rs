@@ -48,7 +48,9 @@ pub struct Function {
 pub enum Type {
     Error,
     Named(Path),
-    Unit
+    Unit,
+    I32,
+    U32,
 }
 
 #[derive(Debug)]
@@ -121,4 +123,17 @@ impl ErrorDefault for Type {
 pub struct Call {
     pub function: Box<Expr>,
     pub arguments: Vec<Expr>,
+}
+
+impl Expr {
+    pub fn is_atom(&self) -> bool {
+        match self {
+            Expr::Error => true,
+            Expr::Literal(_) => true,
+            Expr::Variable(_) => true,
+            Expr::Sequence(_) => false,
+            Expr::Definition(_) => false,
+            Expr::Call(_) => false,
+        }
+    }
 }

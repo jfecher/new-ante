@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::lexer::token::Token;
 
 #[derive(Debug)]
@@ -9,7 +11,15 @@ pub struct CompileResult<T> {
 
 #[derive(Debug)]
 pub enum Diagnostic {
-    ParserExpected { message: &'static str, actual: Token },
+    ParserExpected { message: &'static str, actual: Token, span: Span },
+}
+
+impl Diagnostic {
+    pub fn span(&self) -> Span {
+        match self {
+            Diagnostic::ParserExpected { span, .. } => *span,
+        }
+    }
 }
 
 /// A Span is a byte index into a file used for reporting errors.
@@ -34,6 +44,12 @@ pub struct Spanned<T> {
 impl<T> Spanned<T> {
     pub fn new(item: T, span: Span) -> Self {
         Self { item, span }
+    }
+}
+
+impl<T> Display for Spanned<T> where T: Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.item.fmt(f)
     }
 }
 
@@ -72,7 +88,7 @@ impl Position {
 impl std::fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Diagnostic::ParserExpected { message, actual } => {
+            Diagnostic::ParserExpected { message, actual, span: _ } => {
                 write!(f, "Parser expected {message}, but found {actual}")
             },
         }

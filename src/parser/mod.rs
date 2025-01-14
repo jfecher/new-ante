@@ -1,8 +1,9 @@
-use crate::{error::{CompileResult, Span, Diagnostic, ErrorDefault}, lexer::{Lexer, token::Token}};
+use crate::{error::{CompileResult, Span, Diagnostic, ErrorDefault}, lexer::{Lexer, token::{Token, IntegerKind}}};
 
 use self::cst::{Cst, Import, Path, Ident, TopLevelItem, Methods, TopLevelItemKind, TypeDefinition, Function, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
 
-mod cst;
+pub mod cst;
+pub mod cst_printer;
 
 type ParseResult<T> = Result<T, Diagnostic>;
 
@@ -15,10 +16,7 @@ struct Parser {
 }
 
 pub fn parse_file(file_contents: &str) -> CompileResult<Cst> {
-    let tokens = Lexer::new(&file_contents).collect::<Vec<_>>();
-    for (token, _) in &tokens {
-        eprintln!("{token}");
-    }
+    let tokens = Lexer::new(&file_contents).collect();
     Parser::new(tokens).parse()
 }
 
@@ -41,6 +39,10 @@ impl Parser {
 
     fn current_token(&self) -> &Token {
         &self.tokens[self.token_index].0
+    }
+
+    fn current_token_span(&self) -> Span {
+        self.tokens[self.token_index].1
     }
 
     /// Returns the previous token, if it exists.
@@ -81,7 +83,8 @@ impl Parser {
             true
         } else {
             let actual = self.current_token().clone();
-            self.errors.push(Diagnostic::ParserExpected { message, actual });
+            let span = self.current_token_span();
+            self.errors.push(Diagnostic::ParserExpected { message, actual, span });
             false
         }
     }
@@ -187,10 +190,10 @@ impl Parser {
                 self.advance();
                 Ok(Ident::new(name, span))
             }
-            (other, _) => {
+            (other, span) => {
                 let actual = other.clone();
                 let message = "an identifier or type name";
-                Err(Diagnostic::ParserExpected { message, actual })
+                Err(Diagnostic::ParserExpected { message, actual, span: *span })
             }
         }
     }
@@ -224,7 +227,8 @@ impl Parser {
             Token::Methods => TopLevelItemKind::Methods(self.parse_methods()?),
             other => {
                 let message = "a top-level item";
-                return Err(Diagnostic::ParserExpected { message, actual: other.clone() });
+                let span = self.current_token_span();
+                return Err(Diagnostic::ParserExpected { message, actual: other.clone(), span });
             }
         };
 
@@ -303,8 +307,8 @@ impl Parser {
             // struct
             Token::Identifier(_) => {
                 let fields = self.delimited(|this| {
-                    this.expect(Token::Pipe, "`|`");
-                    let field_name = this.parse_type_name()?;
+                    let field_name = this.parse_ident()?;
+                    this.expect(Token::Colon, "a colon separating the field name from its type");
                     let field_type = this.parse_type()?;
                     this.accept(Token::Comma);
                     Ok((field_name, field_type))
@@ -329,8 +333,8 @@ impl Parser {
             // struct
             Token::Identifier(_) => {
                 let fields = self.delimited(|this| {
-                    this.expect(Token::Pipe, "`|`");
-                    let field_name = this.parse_type_name()?;
+                    let field_name = this.parse_ident()?;
+                    this.expect(Token::Colon, "a colon separating the field name from its type");
                     let field_type = this.parse_type()?;
                     Ok((field_name, field_type))
                 }, Token::Comma, true);
@@ -376,6 +380,14 @@ impl Parser {
                 self.advance();
                 Ok(Type::Unit)
             }
+            Token::IntegerType(IntegerKind::I32) => {
+                self.advance();
+                Ok(Type::I32)
+            }
+            Token::IntegerType(IntegerKind::U32) => {
+                self.advance();
+                Ok(Type::U32)
+            }
             _ => {
                 let path = self.parse_path()?;
                 Ok(Type::Named(path))
@@ -390,10 +402,10 @@ impl Parser {
                 self.advance();
                 Ok(Ident::new(name, span))
             }
-            (other, _) => {
+            (other, span) => {
                 let actual = other.clone();
                 let message = "a capitalized type name";
-                Err(Diagnostic::ParserExpected { message, actual })
+                Err(Diagnostic::ParserExpected { message, actual, span: *span })
             }
         }
     }
@@ -405,10 +417,10 @@ impl Parser {
                 self.advance();
                 Ok(Ident::new(name, span))
             }
-            (other, _) => {
+            (other, span) => {
                 let actual = other.clone();
                 let message = "an identifier";
-                Err(Diagnostic::ParserExpected { message, actual })
+                Err(Diagnostic::ParserExpected { message, actual, span: *span })
             }
         }
     }
@@ -505,7 +517,8 @@ impl Parser {
             Token::Identifier(_) => Ok((self.parse_ident()?, None)),
             other => {
                 let message = "a parameter";
-                Err(Diagnostic::ParserExpected { message, actual: other.clone() })
+                let span = self.current_token_span();
+                Err(Diagnostic::ParserExpected { message, actual: other.clone(), span })
             }
         }
     }
@@ -517,7 +530,7 @@ impl Parser {
                 self.advance();
                 Ok(Expr::Literal(Literal::Integer(value, kind)))
             }
-            Token::StringLiteral(s) => self.parse_string(s),
+            Token::StringLiteral(s) => self.parse_string(s.clone()),
             // definition or variable
             Token::Identifier(_) => {
                 match self.next_token() {
@@ -538,13 +551,14 @@ impl Parser {
                         let comments = this.parse_comments();
                         let expr = this.parse_expr()?;
                         Ok(SequenceItem { comments, expr })
-                    }, Token::Indent, true))
+                    }, Token::Newline, true))
                 })?;
                 Ok(Expr::Sequence(statements))
             }
             other => {
                 let message = "an expression";
-                self.errors.push(Diagnostic::ParserExpected { message, actual: other.clone() });
+                let span = self.current_token_span();
+                self.errors.push(Diagnostic::ParserExpected { message, actual: other.clone(), span });
                 Ok(Expr::Error)
             }
         }
@@ -573,13 +587,14 @@ impl Parser {
                         let comments = this.parse_comments();
                         let expr = this.parse_expr()?;
                         Ok(SequenceItem { comments, expr })
-                    }, Token::Indent, true))
+                    }, Token::Newline, true))
                 })?;
                 Ok(Expr::Sequence(statements))
             }
             other => {
                 let message = "an expression";
-                Err(Diagnostic::ParserExpected { message, actual: other.clone() })
+                let span = self.current_token_span();
+                Err(Diagnostic::ParserExpected { message, actual: other.clone(), span })
             }
         }
     }
@@ -611,15 +626,8 @@ impl Parser {
         Ok(Expr::Call(Call { function, arguments }))
     }
 
-    fn parse_string(&mut self, contents: &str) -> ParseResult<Expr> {
+    fn parse_string(&mut self, contents: String) -> ParseResult<Expr> {
         self.advance();
-
-        let mut contents = contents.to_string();
-
-        while self.accept(Token::InterpolateLeft) {
-
-        }
-
         Ok(Expr::Literal(Literal::String(contents)))
     }
 }

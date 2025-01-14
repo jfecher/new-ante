@@ -3,7 +3,7 @@ import Foo.Bar
 // Programs now require a main function
 main () =
     a = 32
-    println (a + 7)
+    println a
 
 type Foo =
     x: I32
@@ -11,4 +11,7 @@ type Foo =
 
 methods Foo =
     print self =
-        print "Foo ${self.x} ${self.y}"
+        print "Foo "
+        print self.x
+        print " "
+        print self.y
