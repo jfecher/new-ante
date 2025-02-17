@@ -1,4 +1,4 @@
-use crate::{error::{CompileResult, Span, Diagnostic, ErrorDefault}, lexer::{Lexer, token::{Token, IntegerKind}}};
+use crate::{error::{CompileResult, Diagnostic, ErrorDefault, Span, Spanned}, lexer::{Lexer, token::{Token, IntegerKind}}};
 
 use self::cst::{Cst, Import, Path, Ident, TopLevelItem, Methods, TopLevelItemKind, TypeDefinition, Function, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
 
@@ -7,8 +7,8 @@ pub mod cst_printer;
 
 type ParseResult<T> = Result<T, Diagnostic>;
 
-struct Parser {
-    tokens: Vec<(Token, Span)>,
+struct Parser<'tokens> {
+    tokens: &'tokens [(Token, Span)],
     warnings: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
 
@@ -16,12 +16,12 @@ struct Parser {
 }
 
 pub fn parse_file(file_contents: &str) -> CompileResult<Cst> {
-    let tokens = Lexer::new(&file_contents).collect();
-    Parser::new(tokens).parse()
+    let tokens = Lexer::new(&file_contents).collect::<Vec<_>>();
+    Parser::new(&tokens).parse()
 }
 
-impl Parser {
-    fn new(tokens: Vec<(Token, Span)>) -> Self {
+impl<'tokens> Parser<'tokens> {
+    fn new(tokens: &'tokens [(Token, Span)]) -> Self {
         Self {
             tokens,
             warnings: Vec::new(),
@@ -37,7 +37,7 @@ impl Parser {
         CompileResult { item, warnings: self.warnings, errors: self.errors }
     }
 
-    fn current_token(&self) -> &Token {
+    fn current_token(&self) -> &'tokens Token {
         &self.tokens[self.token_index].0
     }
 
@@ -47,17 +47,17 @@ impl Parser {
 
     /// Returns the previous token, if it exists.
     /// Returns the current token otherwise.
-    fn previous_token(&self) -> &Token {
+    fn previous_token(&self) -> &'tokens Token {
         &self.tokens[self.token_index.saturating_sub(1)].0
     }
 
     /// Returns the next token.
     /// Panics if the current token is EOF
-    fn next_token(&self) -> &Token {
+    fn next_token(&self) -> &'tokens Token {
         &self.tokens[self.token_index + 1].0
     }
 
-    fn current_token_and_span(&self) -> &(Token, Span) {
+    fn current_token_and_span(&self) -> &'tokens (Token, Span) {
         &self.tokens[self.token_index]
     }
 
@@ -283,7 +283,7 @@ impl Parser {
         }
         self.expect(Token::Equal, "`=` to begin the function body");
 
-        let body = self.parse_expr().map_err(|error| self.errors.push(error)).ok();
+        let body = self.parse_expression().map_err(|error| self.errors.push(error)).ok();
         Ok(Function { name, parameters, return_type, body })
     }
 
@@ -523,7 +523,88 @@ impl Parser {
         }
     }
 
-    fn parse_expr(&mut self) -> ParseResult<Expr> {
+    /// Returns the precedence of an operator along with
+    /// whether or not it is right-associative.
+    /// Returns None if the given Token is not an operator
+    fn precedence(token: &Token) -> Option<(i8, bool)> {
+        match token {
+            Token::Semicolon => Some((0, false)),
+            Token::ApplyRight => Some((1, false)),
+            Token::ApplyLeft => Some((2, true)),
+            Token::Comma => Some((3, true)),
+            Token::Or => Some((4, false)),
+            Token::And => Some((5, false)),
+            Token::EqualEqual
+            | Token::NotEqual
+            | Token::GreaterThan
+            | Token::LessThan
+            | Token::GreaterThanOrEqual
+            | Token::LessThanOrEqual => Some((7, false)),
+            Token::In => Some((8, false)),
+            Token::Append => Some((9, false)),
+            Token::Range => Some((10, false)),
+            Token::Add | Token::Subtract => Some((11, false)),
+            Token::Multiply | Token::Divide | Token::Modulus => Some((12, false)),
+            Token::Index => Some((14, false)),
+            Token::As => Some((15, false)),
+            _ => None,
+        }
+    }
+
+    /// Should we push this operator onto our operator stack and keep parsing our expression?
+    /// This handles the operator precedence and associativity parts of the shunting-yard algorithm.
+    fn should_continue(operator_on_stack: &Token, r_prec: i8, r_is_right_assoc: bool) -> bool {
+        let (l_prec, _) = Self::precedence(operator_on_stack).unwrap();
+
+        l_prec > r_prec || (l_prec == r_prec && !r_is_right_assoc)
+    }
+
+    fn pop_operator<'c>(operator_stack: &mut Vec<&(Token, Span)>, results: &mut Vec<Expr>) {
+        let rhs = results.pop().unwrap();
+        let lhs = results.pop().unwrap();
+        // let location = lhs_location.union(rhs_location);
+        let (operator, operator_span) = operator_stack.pop().unwrap().clone();
+        let components = vec![Spanned::new(operator.to_string(), operator_span)]; // TODO: Variable::operator
+        let function = Box::new(Expr::Variable(Path { components }));
+        let call = Expr::Call(Call { function, arguments: vec![lhs, rhs] });
+        results.push(call);
+    }
+
+    /// Parse an arbitrary expression using the shunting-yard algorithm
+    fn parse_expression(&mut self) -> ParseResult<Expr> {
+        let value = self.parse_term()?;
+
+        let mut operator_stack: Vec<&(Token, Span)> = vec![];
+        let mut results = vec![value];
+
+        // loop while the next token is an operator
+        while let Some((prec, right_associative)) = Self::precedence(self.current_token()) {
+            while !operator_stack.is_empty()
+                && Self::should_continue(&operator_stack[operator_stack.len() - 1].0, prec, right_associative)
+            {
+                Self::pop_operator(&mut operator_stack, &mut results);
+            }
+
+            operator_stack.push(self.current_token_and_span());
+            self.next_token();
+
+            let value = self.parse_term()?;
+            results.push(value);
+        }
+
+        while !operator_stack.is_empty() {
+            assert!(results.len() >= 2);
+            Self::pop_operator(&mut operator_stack, &mut results);
+        }
+
+        assert!(operator_stack.is_empty());
+        assert!(results.len() == 1);
+        Ok(results.pop().unwrap())
+    }
+
+
+    // Parse expressions via the shunting yard algorithm
+    fn parse_term(&mut self) -> ParseResult<Expr> {
         match self.current_token() {
             Token::IntegerLiteral(value, kind) => {
                 let (value, kind) = (*value, *kind);
@@ -549,7 +630,7 @@ impl Parser {
                 let statements = self.parse_indented(|this| {
                     Ok(this.delimited(|this| {
                         let comments = this.parse_comments();
-                        let expr = this.parse_expr()?;
+                        let expr = this.parse_expression()?;
                         Ok(SequenceItem { comments, expr })
                     }, Token::Newline, true))
                 })?;
@@ -571,11 +652,7 @@ impl Parser {
                 self.advance();
                 Ok(Expr::Literal(Literal::Integer(value, kind)))
             }
-            Token::StringLiteral(s) => {
-                let s = s.clone();
-                self.advance();
-                Ok(Expr::Literal(Literal::String(s.clone())))
-            }
+            Token::StringLiteral(s) => self.parse_string(s.clone()),
             // definition or variable
             Token::Identifier(_) => {
                 let path = self.parse_path()?;
@@ -585,7 +662,7 @@ impl Parser {
                 let statements = self.parse_indented(|this| {
                     Ok(this.delimited(|this| {
                         let comments = this.parse_comments();
-                        let expr = this.parse_expr()?;
+                        let expr = this.parse_expression()?;
                         Ok(SequenceItem { comments, expr })
                     }, Token::Newline, true))
                 })?;
@@ -615,8 +692,7 @@ impl Parser {
 
         self.expect(Token::Equal, "`=` to define a variable");
 
-        let rhs = self.parse_with_recovery(Self::parse_expr, Token::Newline, &[])?;
-
+        let rhs = self.parse_with_recovery(Self::parse_expression, Token::Newline, &[])?;
         Ok(Expr::Definition(Definition { name, typ, rhs: Box::new(rhs) }))
     }
 
