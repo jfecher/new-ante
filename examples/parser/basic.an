@@ -9,9 +9,8 @@ type Foo =
     x: I32
     y: U32
 
-methods Foo =
-    print self =
-        print "Foo "
-        print self.x
-        print " "
-        print self.y
+Foo.print self =
+    print "Foo "
+    print self.x
+    print " "
+    print self.y

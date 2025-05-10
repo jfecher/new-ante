@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use super::cst::{Cst, Path, TopLevelItem, TopLevelItemKind, Function, TypeDefinition, Methods, Type, TypeDefinitionBody, Expr, Literal, SequenceItem, Definition, Call};
+use super::cst::{Call, Cst, Definition, Expr, Function, Index, Literal, MemberAccess, OwnershipMode, Path, SequenceItem, TopLevelItem, TopLevelItemKind, Type, TypeDefinition, TypeDefinitionBody};
 
 struct CstDisplayContext {
     indent_level: u32,
@@ -51,7 +51,6 @@ impl CstDisplayContext {
         match &item.kind {
             TopLevelItemKind::FunctionGroup(functions) => self.fmt_functions(functions, f),
             TopLevelItemKind::TypeDefinition(type_definition) => self.fmt_type_definition(type_definition, f),
-            TopLevelItemKind::Methods(methods) => self.fmt_methods(methods, f),
         }
     }
 
@@ -71,7 +70,7 @@ impl CstDisplayContext {
     }
 
     fn fmt_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{}", function.name)?;
+        write!(f, "{}", function.path)?;
 
         for (name, typ) in &function.parameters {
             if name.item.is_empty() {
@@ -143,17 +142,6 @@ impl CstDisplayContext {
         writeln!(f)
     }
 
-    fn fmt_methods(&mut self, methods: &Methods, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "methods ")?;
-        self.fmt_type(&methods.typ, f)?;
-        write!(f, " =")?;
-        self.indent_level += 1;
-        self.newline(f)?;
-        self.fmt_functions(&methods.functions, f)?;
-        self.indent_level -= 1;
-        Ok(())
-    }
-
     fn fmt_type(&self, typ: &Type, f: &mut Formatter<'_>) -> std::fmt::Result {
         match typ {
             Type::Error => write!(f, "(error)"),
@@ -174,6 +162,8 @@ impl CstDisplayContext {
             Expr::Sequence(seq) => self.fmt_sequence(seq, f),
             Expr::Definition(definition) => self.fmt_definition(definition, f),
             Expr::Call(call) => self.fmt_call(call, f),
+            Expr::MemberAccess(access) => self.fmt_member_access(access, f),
+            Expr::Index(index) => self.fmt_index(index, f),
         }
     }
 
@@ -215,5 +205,40 @@ impl CstDisplayContext {
         }
 
         Ok(())
+    }
+
+    fn fmt_member_access(&mut self, access: &MemberAccess, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        if access.object.is_atom() {
+            self.fmt_expr(&access.object, f)?;
+        } else {
+            write!(f, "(")?;
+            self.fmt_expr(&access.object, f)?;
+            write!(f, ")")?;
+        }
+
+        match access.ownership {
+            OwnershipMode::Owned => write!(f, ".{}", access.member),
+            OwnershipMode::Borrow => write!(f, ".&{}", access.member),
+            OwnershipMode::BorrowMut => write!(f, ".!{}", access.member),
+        }
+    }
+
+    fn fmt_index(&mut self, index: &Index, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        if index.object.is_atom() {
+            self.fmt_expr(&index.object, f)?;
+        } else {
+            write!(f, "(")?;
+            self.fmt_expr(&index.object, f)?;
+            write!(f, ")")?;
+        }
+
+        match index.ownership {
+            OwnershipMode::Owned => write!(f, ".[")?,
+            OwnershipMode::Borrow => write!(f, ".&[")?,
+            OwnershipMode::BorrowMut => write!(f, ".![")?,
+        }
+
+        self.fmt_expr(&index.index, f)?;
+        write!(f, "]")
     }
 }

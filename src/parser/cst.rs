@@ -1,4 +1,4 @@
-use crate::{error::{Spanned, ErrorDefault}, lexer::token::IntegerKind};
+use crate::{error::{ErrorDefault, Spanned}, lexer::token::{IntegerKind, Token}};
 
 /// The Concrete Syntax Tree (CST) is the output of parsing a source file.
 /// Unlike the Abstract Syntax Tree (AST), the CST is expected to mirror
@@ -9,6 +9,39 @@ use crate::{error::{Spanned, ErrorDefault}, lexer::token::IntegerKind};
 pub struct Cst {
     pub imports: Vec<Import>,
     pub top_level_items: Vec<TopLevelItem>,
+}
+
+#[derive(Debug)]
+pub enum Expr {
+    Error,
+    Literal(Literal),
+    Variable(Path),
+    Sequence(Vec<SequenceItem>),
+    Definition(Definition),
+    MemberAccess(MemberAccess),
+    Index(Index),
+    Call(Call),
+}
+
+impl ErrorDefault for Expr {
+    fn error_default() -> Self {
+        Self::Error
+    }
+}
+
+impl Expr {
+    pub fn is_atom(&self) -> bool {
+        match self {
+            Expr::Error => true,
+            Expr::Literal(_) => true,
+            Expr::Variable(_) => true,
+            Expr::Sequence(_) => false,
+            Expr::Definition(_) => false,
+            Expr::Call(_) => false,
+            Expr::MemberAccess(_) => true,
+            Expr::Index(_) => true,
+        }
+    }
 }
 
 pub type Ident = Spanned<String>;
@@ -33,12 +66,11 @@ pub struct TopLevelItem {
 pub enum TopLevelItemKind {
     FunctionGroup(Vec<Function>),
     TypeDefinition(TypeDefinition),
-    Methods(Methods),
 }
 
 #[derive(Debug)]
 pub struct Function {
-    pub name: Ident,
+    pub path: Path,
     pub parameters: Vec<(Ident, Option<Type>)>,
     pub return_type: Option<Type>,
     pub body: Option<Expr>,
@@ -67,28 +99,6 @@ pub enum TypeDefinitionBody {
 }
 
 impl ErrorDefault for TypeDefinitionBody {
-    fn error_default() -> Self {
-        Self::Error
-    }
-}
-
-#[derive(Debug)]
-pub struct Methods {
-    pub typ: Type,
-    pub functions: Vec<Function>,
-}
-
-#[derive(Debug)]
-pub enum Expr {
-    Error,
-    Literal(Literal),
-    Variable(Path),
-    Sequence(Vec<SequenceItem>),
-    Definition(Definition),
-    Call(Call),
-}
-
-impl ErrorDefault for Expr {
     fn error_default() -> Self {
         Self::Error
     }
@@ -125,15 +135,34 @@ pub struct Call {
     pub arguments: Vec<Expr>,
 }
 
-impl Expr {
-    pub fn is_atom(&self) -> bool {
-        match self {
-            Expr::Error => true,
-            Expr::Literal(_) => true,
-            Expr::Variable(_) => true,
-            Expr::Sequence(_) => false,
-            Expr::Definition(_) => false,
-            Expr::Call(_) => false,
+#[derive(Debug)]
+pub struct MemberAccess {
+    pub object: Box<Expr>,
+    pub member: Spanned<String>,
+    pub ownership: OwnershipMode,
+}
+
+#[derive(Debug)]
+pub struct Index {
+    pub object: Box<Expr>,
+    pub index: Box<Expr>,
+    pub ownership: OwnershipMode,
+}
+
+#[derive(Debug)]
+pub enum OwnershipMode {
+    Owned,
+    Borrow,
+    BorrowMut,
+}
+
+impl OwnershipMode {
+    pub fn from_token(token: &Token) -> Option<Self> {
+        match token {
+            Token::MemberAccess | Token::Index => Some(Self::Owned),
+            Token::MemberRef | Token::IndexRef => Some(Self::Borrow),
+            Token::MemberMut | Token::IndexMut => Some(Self::BorrowMut),
+            _ => None,
         }
     }
 }

@@ -65,6 +65,7 @@ pub enum Token {
     Newline,
     Indent,
     Unindent,
+
     LineComment(String),
 
     Identifier(String),
@@ -92,6 +93,7 @@ pub enum Token {
     And,
     As,
     Block,
+    Can,
     Do,
     Effect,
     Else,
@@ -105,11 +107,11 @@ pub enum Token {
     In,
     Loop,
     Match,
-    Methods,
     Module,
     Not,
     Or,
     Owned,
+    Pure,
     Ref,
     Return,
     Shared,
@@ -130,7 +132,6 @@ pub enum Token {
     ApplyLeft,          // <|
     ApplyRight,         // |>
     Append,             // ++
-    Index,              // #
     Modulus,            // %
     Multiply,           // *
     ParenthesisLeft,    // (
@@ -147,7 +148,7 @@ pub enum Token {
     Comma,              // ,
     MemberAccess,       // .
     MemberRef,          // .&
-    MemberMutRef,       // .!
+    MemberMut,          // .!
     LessThan,           // <
     GreaterThan,        // >
     LessThanOrEqual,    // <=
@@ -158,6 +159,43 @@ pub enum Token {
     At,                 // @
     ExclamationMark,    // !
     QuestionMark,       // ?
+    Index,              // .[]
+    IndexRef,           // .&[]
+    IndexMut,           // .![]
+}
+
+impl Token {
+    #[allow(unused)]
+    pub fn is_overloadable_operator(&self) -> bool {
+        use Token::*;
+        matches!(
+            self,
+            And | As
+                | At
+                | In
+                | Not
+                | Or
+                | EqualEqual
+                | NotEqual
+                | ApplyLeft
+                | ApplyRight
+                | Append
+                | Modulus
+                | Multiply
+                | Comma
+                | Subtract
+                | Add
+                | LessThan
+                | GreaterThan
+                | LessThanOrEqual
+                | GreaterThanOrEqual
+                | Divide
+                | Range
+                | Index
+                | IndexRef
+                | IndexMut
+        )
+    }
 }
 
 impl Display for LexerError {
@@ -220,7 +258,8 @@ impl Display for Token {
             Token::Newline => write!(f, "a newline"),
             Token::Indent => write!(f, "an indent"),
             Token::Unindent => write!(f, "an unindent"),
-            Token::LineComment(s) => write!(f, "//`{s}`"),
+
+            Token::LineComment(s) => write!(f, "`//{s}`"),
 
             Token::Identifier(_) => write!(f, "an identifier"),
             Token::StringLiteral(_) => write!(f, "a string literal"),
@@ -247,6 +286,7 @@ impl Display for Token {
             Token::And => write!(f, "'and'"),
             Token::As => write!(f, "'as'"),
             Token::Block => write!(f, "'block'"),
+            Token::Can => write!(f, "'can'"),
             Token::Do => write!(f, "'do'"),
             Token::Effect => write!(f, "'effect'"),
             Token::Else => write!(f, "'else'"),
@@ -260,11 +300,11 @@ impl Display for Token {
             Token::In => write!(f, "'in'"),
             Token::Loop => write!(f, "'loop'"),
             Token::Match => write!(f, "'match'"),
-            Token::Methods => write!(f, "'methods'"),
             Token::Module => write!(f, "'module'"),
             Token::Not => write!(f, "'not'"),
             Token::Or => write!(f, "'or'"),
             Token::Owned => write!(f, "'owned'"),
+            Token::Pure => write!(f, "'pure'"),
             Token::Return => write!(f, "'return'"),
             Token::Ref => write!(f, "'ref'"),
             Token::Shared => write!(f, "'shared'"),
@@ -285,7 +325,6 @@ impl Display for Token {
             Token::ApplyLeft => write!(f, "'<|'"),
             Token::ApplyRight => write!(f, "'|>'"),
             Token::Append => write!(f, "'++'"),
-            Token::Index => write!(f, "'#'"),
             Token::Modulus => write!(f, "'%'"),
             Token::Multiply => write!(f, "'*'"),
             Token::ParenthesisLeft => write!(f, "'('"),
@@ -302,7 +341,7 @@ impl Display for Token {
             Token::Comma => write!(f, "','"),
             Token::MemberAccess => write!(f, "'.'"),
             Token::MemberRef => write!(f, "'.&'"),
-            Token::MemberMutRef => write!(f, "'.!'"),
+            Token::MemberMut => write!(f, "'.!'"),
             Token::LessThan => write!(f, "'<'"),
             Token::GreaterThan => write!(f, "'>'"),
             Token::LessThanOrEqual => write!(f, "'<='"),
@@ -313,6 +352,67 @@ impl Display for Token {
             Token::At => write!(f, "'@'"),
             Token::ExclamationMark => write!(f, "'!'"),
             Token::QuestionMark => write!(f, "'?'"),
+            Token::Index => write!(f, "'.[]'"),
+            Token::IndexRef => write!(f, "'.&[]'"),
+            Token::IndexMut => write!(f, "'.![]'"),
         }
+    }
+}
+
+pub fn lookup_keyword(word: &str) -> Option<Token> {
+    match word {
+        "I8" => Some(Token::IntegerType(IntegerKind::I8)),
+        "I16" => Some(Token::IntegerType(IntegerKind::I16)),
+        "I32" => Some(Token::IntegerType(IntegerKind::I32)),
+        "I64" => Some(Token::IntegerType(IntegerKind::I64)),
+        "Isz" => Some(Token::IntegerType(IntegerKind::Isz)),
+        "U8" => Some(Token::IntegerType(IntegerKind::U8)),
+        "U16" => Some(Token::IntegerType(IntegerKind::U16)),
+        "U32" => Some(Token::IntegerType(IntegerKind::U32)),
+        "U64" => Some(Token::IntegerType(IntegerKind::U64)),
+        "Usz" => Some(Token::IntegerType(IntegerKind::Usz)),
+        "F32" => Some(Token::FloatType(FloatKind::F32)),
+        "F64" => Some(Token::FloatType(FloatKind::F64)),
+        "Int" => Some(Token::PolymorphicIntType),
+        "Float" => Some(Token::PolymorphicFloatType),
+        "Char" => Some(Token::CharType),
+        "String" => Some(Token::StringType),
+        "Ptr" => Some(Token::PointerType),
+        "Bool" => Some(Token::BooleanType),
+        "Unit" => Some(Token::UnitType),
+        "mut" => Some(Token::Mut),
+        "true" => Some(Token::BooleanLiteral(true)),
+        "false" => Some(Token::BooleanLiteral(false)),
+        "and" => Some(Token::And),
+        "as" => Some(Token::As),
+        "block" => Some(Token::Block),
+        "can" => Some(Token::Can),
+        "do" => Some(Token::Do),
+        "effect" => Some(Token::Effect),
+        "else" => Some(Token::Else),
+        "extern" => Some(Token::Extern),
+        "fn" => Some(Token::Fn),
+        "given" => Some(Token::Given),
+        "handle" => Some(Token::Handle),
+        "if" => Some(Token::If),
+        "impl" => Some(Token::Impl),
+        "import" => Some(Token::Import),
+        "in" => Some(Token::In),
+        "loop" => Some(Token::Loop),
+        "match" => Some(Token::Match),
+        "module" => Some(Token::Module),
+        "not" => Some(Token::Not),
+        "or" => Some(Token::Or),
+        "owned" => Some(Token::Owned),
+        "pure" => Some(Token::Pure),
+        "ref" => Some(Token::Ref),
+        "return" => Some(Token::Return),
+        "shared" => Some(Token::Shared),
+        "then" => Some(Token::Then),
+        "trait" => Some(Token::Trait),
+        "type" => Some(Token::Type),
+        "while" => Some(Token::While),
+        "with" => Some(Token::With),
+        _ => None,
     }
 }

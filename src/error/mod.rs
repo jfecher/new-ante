@@ -2,9 +2,12 @@ use std::fmt::Display;
 
 use crate::lexer::token::Token;
 
+pub mod location;
+
 #[derive(Debug)]
 pub struct CompileResult<T> {
     pub item: T,
+    #[allow(unused)]
     pub warnings: Vec<Diagnostic>,
     pub errors: Vec<Diagnostic>,
 }
@@ -38,6 +41,7 @@ impl Span {
 #[derive(Debug)]
 pub struct Spanned<T> {
     pub item: T,
+    #[allow(unused)]
     pub span: Span,
 }
 
