@@ -1,42 +1,74 @@
-use cst::{Index, MemberAccess, OwnershipMode};
+use std::{collections::HashMap, sync::Arc};
 
-use crate::{error::{CompileResult, Diagnostic, ErrorDefault, Span, Spanned}, lexer::{Lexer, token::{Token, IntegerKind}}};
+use cst::{Index, Lambda, MemberAccess, OwnershipMode, Pattern};
+use ids::{ExprId, PatternId, TopLevelId};
 
-use self::cst::{Cst, Import, Path, Ident, TopLevelItem, TopLevelItemKind, TypeDefinition, Function, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
+use crate::{errors::{Diagnostic, ErrorDefault, Location, Span}, lexer::{token::Token, Lexer}, vecmap::VecMap};
+
+use self::cst::{Cst, Import, Path, Ident, TopLevelItem, TopLevelItemKind, TypeDefinition, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
 
 pub mod cst;
 pub mod cst_printer;
+pub mod ids;
 
-type ParseResult<T> = Result<T, Diagnostic>;
+pub struct ParseResult {
+    pub cst: Cst,
+    pub diagnostics: Vec<Diagnostic>,
+    pub top_level_data: HashMap<TopLevelId, TopLevelContext>,
+}
+
+/// Metadata associated with a top level statement
+#[derive(Default)]
+pub struct TopLevelContext {
+    pub exprs: VecMap<ExprId, Expr>,
+    pub patterns: VecMap<PatternId, Pattern>,
+    pub expr_locations: VecMap<ExprId, Location>,
+    pub pattern_locations: VecMap<PatternId, Location>,
+}
+
+type Result<T> = std::result::Result<T, Diagnostic>;
 
 struct Parser<'tokens> {
+    file_path: Arc<String>,
     tokens: &'tokens [(Token, Span)],
-    warnings: Vec<Diagnostic>,
-    errors: Vec<Diagnostic>,
+    diagnostics: Vec<Diagnostic>,
+    top_level_data: HashMap<TopLevelId, TopLevelContext>,
+
+    /// Keep track of any name collisions in the top level items
+    top_level_item_count: HashMap<String, /*collision count:*/u32>,
+
+    current_context: TopLevelContext,
 
     token_index: usize,
 }
 
-pub fn parse_file(file_contents: &str) -> CompileResult<Cst> {
+pub fn parse_file(file_path: Arc<String>, file_contents: &str) -> ParseResult {
     let tokens = Lexer::new(&file_contents).collect::<Vec<_>>();
-    Parser::new(&tokens).parse()
+    Parser::new(file_path, &tokens).parse()
 }
 
 impl<'tokens> Parser<'tokens> {
-    fn new(tokens: &'tokens [(Token, Span)]) -> Self {
+    fn new(file_path: Arc<String>, tokens: &'tokens [(Token, Span)]) -> Self {
         Self {
+            file_path,
             tokens,
-            warnings: Vec::new(),
-            errors: Vec::new(),
+            diagnostics: Vec::new(),
             token_index: 0,
+            top_level_data: Default::default(),
+            top_level_item_count: Default::default(),
+            current_context: Default::default(),
         }
     }
 
-    fn parse(mut self) -> CompileResult<Cst> {
+    fn parse(mut self) -> ParseResult {
         let imports = self.parse_imports();
         let top_level_items = self.parse_top_level_items();
-        let item = Cst { imports, top_level_items };
-        CompileResult { item, warnings: self.warnings, errors: self.errors }
+        let cst = Cst { imports, top_level_items };
+        ParseResult {
+            cst,
+            diagnostics: self.diagnostics,
+            top_level_data: self.top_level_data,
+        }
     }
 
     fn current_token(&self) -> &'tokens Token {
@@ -45,6 +77,10 @@ impl<'tokens> Parser<'tokens> {
 
     fn current_token_span(&self) -> Span {
         self.tokens[self.token_index].1
+    }
+
+    fn current_token_location(&self) -> Location {
+        self.current_token_span().in_file(self.file_path.clone())
     }
 
     /// Returns the previous token, if it exists.
@@ -84,20 +120,60 @@ impl<'tokens> Parser<'tokens> {
         match self.try_expect(token, message) {
             Ok(_) => true,
             Err(error) => {
-                self.errors.push(error);
+                self.diagnostics.push(error);
                 false
             }
         }
     }
 
-    fn try_expect(&mut self, token: Token, message: &'static str) -> ParseResult<()> {
+    fn try_expect(&mut self, token: Token, message: &'static str) -> Result<()> {
         if self.accept(token) {
             Ok(())
         } else {
             let actual = self.current_token().clone();
-            let span = self.current_token_span();
-            Err(Diagnostic::ParserExpected { message, actual, span })
+            let location = self.current_token_span().in_file(self.file_path.clone());
+            Err(Diagnostic::ParserExpected { message, actual, location })
         }
+    }
+
+    /// Reserve a space for an expression.
+    /// This can be more cache efficient to reserve the spaces for parent expressions
+    /// before their children.
+    fn reserve_expr(&mut self) -> ExprId {
+        let id = self.current_context.exprs.push(Expr::Error);
+        let id2 = self.current_context.expr_locations.push(self.current_token_location());
+        assert_eq!(id, id2);
+        id
+    }
+
+    fn insert_expr(&mut self, id: ExprId, expr: Expr, location: Location) {
+        self.current_context.exprs[id] = expr;
+        self.current_context.expr_locations[id] = location;
+    }
+
+    fn push_expr(&mut self, expr: Expr, location: Location) -> ExprId {
+        let id = self.current_context.exprs.push(expr);
+        let id2 = self.current_context.expr_locations.push(location);
+        assert_eq!(id, id2);
+        id
+    }
+
+    /// Create a new TopLevelId from the name of a given top level item.
+    /// In the case of definitions, this name will be only the last element in their path.
+    fn new_top_level_id(&mut self, name: String) -> TopLevelId {
+        // Check for previous name collisions to disambiguate the resulting hash
+        let collision = *self.top_level_item_count.entry(name.clone())
+            .and_modify(|count| *count += 1)
+            .or_default();
+
+        let id = TopLevelId::new_named(self.file_path.clone(), &name, collision);
+        self.top_level_data.insert(id.clone(), std::mem::take(&mut self.current_context));
+        id
+    }
+
+    /// Return the location of an ExprId within the current context
+    fn expr_location(&self, expr: ExprId) -> Location {
+        self.current_context.expr_locations[expr].clone()
     }
 
     /// Skip all tokens up to the next newline (or unindent) token.
@@ -160,13 +236,47 @@ impl<'tokens> Parser<'tokens> {
     /// Note that this will also attempt to match indents to unindents.
     /// So any newlines within indented blocks will be skipped until an
     /// unbalanced unindent or newline on the same indentation level is found.
-    fn try_parse_or_recover_to_newline<T>(&mut self, parser: impl FnOnce(&mut Self) -> ParseResult<T>) -> Option<T> {
+    fn try_parse_or_recover_to_newline<T>(&mut self, parser: impl FnOnce(&mut Self) -> Result<T>) -> Option<T> {
         match parser(self) {
             Ok(item) => Some(item),
             Err(error) => {
-                self.errors.push(error);
+                self.diagnostics.push(error);
                 self.recover_to_next_newline();
                 None
+            }
+        }
+    }
+
+    /// Try to parse an item, pushing the parse error on failure and returning the ErrorDefault
+    /// value for the given type. This makes no attempt to recover on parse failure - the input
+    /// will be left at the same position.
+    fn try_parse<T: ErrorDefault>(&mut self, parser: impl FnOnce(&mut Self) -> Result<T>) -> T {
+        match parser(self) {
+            Ok(item) => item,
+            Err(error) => {
+                self.diagnostics.push(error);
+                T::error_default()
+            }
+        }
+    }
+
+    /// Run the given parse function and return its result on success.
+    ///
+    /// On error, try to recover to the given token, stopping short if any of
+    /// the `too_far` tokens (or EOF) are found first. On a successful recovery,
+    /// return the given default error value. Otherwise return the original error.
+    fn parse_with_recovery<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>, recover_to: Token, too_far: &[Token]) -> Result<T>
+        where T: ErrorDefault
+    {
+        match f(self) {
+            Ok(typ) => Ok(typ),
+            Err(error) => {
+                if self.recover_to(recover_to, too_far) {
+                    self.diagnostics.push(error);
+                    Ok(T::error_default())
+                } else {
+                    Err(error)
+                }
             }
         }
     }
@@ -185,7 +295,7 @@ impl<'tokens> Parser<'tokens> {
     }
 
     // value_path: (typename '.')* ident
-    fn parse_value_path(&mut self) -> ParseResult<Path> {
+    fn parse_value_path(&mut self) -> Result<Path> {
         let mut components = Vec::new();
 
         while let Ok(typename) = self.parse_type_name() {
@@ -198,7 +308,7 @@ impl<'tokens> Parser<'tokens> {
     }
 
     // type_path: (typename '.')* typename
-    fn parse_type_path(&mut self) -> ParseResult<Path> {
+    fn parse_type_path(&mut self) -> Result<Path> {
         let mut components = vec![self.parse_type_name()?];
 
         while self.accept(Token::MemberAccess) {
@@ -209,7 +319,7 @@ impl<'tokens> Parser<'tokens> {
     }
 
     // type_or_value_path: (typename '.')* (ident | typename)
-    fn parse_type_or_value_path(&mut self) -> ParseResult<Path> {
+    fn parse_type_or_value_path(&mut self) -> Result<Path> {
         let mut components = Vec::new();
 
         while let Ok(typename) = self.parse_type_name() {
@@ -239,27 +349,34 @@ impl<'tokens> Parser<'tokens> {
         items
     }
 
-    fn parse_top_level_item(&mut self) -> ParseResult<TopLevelItem> {
+    fn parse_top_level_item(&mut self) -> Result<TopLevelItem> {
         let comments = self.parse_comments();
+        let id: TopLevelId;
 
         let kind = match self.current_token() {
             Token::Identifier(_) | Token::TypeName(_) => {
-                let functions = self.parse_functions();
-                // parse_functions can eat the trailing newline
+                let definition = self.parse_definition()?;
+                // parse_definition can eat the trailing newline
                 if *self.previous_token() == Token::Newline {
                     self.token_index -= 1;
                 }
-                TopLevelItemKind::FunctionGroup(functions)
+
+                id = self.new_top_level_id(definition.path.last().clone());
+                TopLevelItemKind::Definition(definition)
             }
-            Token::Type => TopLevelItemKind::TypeDefinition(self.parse_type_definition()?),
+            Token::Type => {
+                let definition = self.parse_type_definition()?;
+                id = self.new_top_level_id(definition.name.clone());
+                TopLevelItemKind::TypeDefinition(definition)
+            }
             other => {
                 let message = "a top-level item";
-                let span = self.current_token_span();
-                return Err(Diagnostic::ParserExpected { message, actual: other.clone(), span });
+                let location = self.current_token_location();
+                return Err(Diagnostic::ParserExpected { message, actual: other.clone(), location });
             }
         };
 
-        Ok(TopLevelItem { comments, kind })
+        Ok(TopLevelItem { id, comments, kind })
     }
 
     fn parse_comments(&mut self) -> Vec<String> {
@@ -274,40 +391,57 @@ impl<'tokens> Parser<'tokens> {
         comments
     }
 
-    fn parse_functions(&mut self) -> Vec<Function> {
-        self.delimited(Self::parse_function, Token::Newline, true)
-    }
+    fn parse_definition(&mut self) -> Result<Definition> {
+        let mutable = self.accept(Token::Mut);
 
-    fn parse_function(&mut self) -> ParseResult<Function> {
+        let start_location = self.current_token_location();
         let path = self.parse_value_path()?;
-        let parameters = self.parse_function_parameters()?;
+        let parameters = self.parse_function_parameters();
 
-        let mut return_type = None;
+        // If this is a lambda, reserve the lambda's expr id ahead of time so it is allocated
+        // before the body for better cache performance
+        let lambda = (parameters.len() != 0).then(|| self.reserve_expr());
+
+        let mut typ = None;
         if self.accept(Token::Colon) {
-            return_type = self.parse_with_recovery(Self::parse_type, Token::Equal, &[Token::Newline, Token::Indent]).ok();
+            typ = self.parse_with_recovery(Self::parse_type, Token::Equal, &[Token::Newline, Token::Indent]).ok();
         }
         self.expect(Token::Equal, "`=` to begin the function body");
 
-        let body = self.parse_expression().map_err(|error| self.errors.push(error)).ok();
-        Ok(Function { path, parameters, return_type, body })
+        let rhs = self.try_parse_or_recover_to_newline(|this| this.parse_expression()).unwrap_or_else(|| {
+            self.push_expr(Expr::Error, self.current_token_location())
+        });
+
+        if let Some(id) = lambda {
+            let lambda = Expr::Lambda(Lambda {
+                parameters,
+                return_type: typ,
+                body: rhs,
+            });
+            self.insert_expr(id, lambda, start_location);
+            Ok(Definition { mutable, path, typ: None, rhs: id })
+        } else {
+            Ok(Definition { mutable, path, typ, rhs })
+        }
     }
 
-    fn parse_type_definition(&mut self) -> ParseResult<TypeDefinition> {
+    fn parse_type_definition(&mut self) -> Result<TypeDefinition> {
         self.expect(Token::Type, "`type`");
         let name = self.parse_type_name()?;
+        let generics = self.many0(|this| this.parse_ident());
         self.expect(Token::Equal, "`=` to begin the type definition");
         let body = self.parse_type_body()?;
-        Ok(TypeDefinition { name, body })
+        Ok(TypeDefinition { name, generics, body })
     }
 
-    fn parse_type_body(&mut self) -> ParseResult<TypeDefinitionBody> {
+    fn parse_type_body(&mut self) -> Result<TypeDefinitionBody> {
         match self.current_token() {
             Token::Indent => self.parse_indented(Self::parse_indented_type_body),
             _ => self.parse_non_indented_type_body(),
         }
     }
 
-    fn parse_indented_type_body(&mut self) -> ParseResult<TypeDefinitionBody> {
+    fn parse_indented_type_body(&mut self) -> Result<TypeDefinitionBody> {
         match self.current_token() {
             // struct
             Token::Identifier(_) => {
@@ -333,7 +467,7 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
-    fn parse_non_indented_type_body(&mut self) -> ParseResult<TypeDefinitionBody> {
+    fn parse_non_indented_type_body(&mut self) -> Result<TypeDefinitionBody> {
         match self.current_token() {
             // struct
             Token::Identifier(_) => {
@@ -360,7 +494,7 @@ impl<'tokens> Parser<'tokens> {
 
     /// Parse an indented block using the given failable parser.
     /// On failure recovers to the unindent token.
-    fn parse_indented<T>(&mut self, parser: impl FnOnce(&mut Self) -> ParseResult<T>) -> ParseResult<T>
+    fn parse_indented<T>(&mut self, parser: impl FnOnce(&mut Self) -> Result<T>) -> Result<T>
         where T: ErrorDefault
     {
         self.expect(Token::Indent, "an indent");
@@ -379,19 +513,15 @@ impl<'tokens> Parser<'tokens> {
         result
     }
 
-    fn parse_type(&mut self) -> ParseResult<Type> {
+    fn parse_type(&mut self) -> Result<Type> {
         match self.current_token() {
             Token::UnitType => {
                 self.advance();
                 Ok(Type::Unit)
             }
-            Token::IntegerType(IntegerKind::I32) => {
+            Token::IntegerType(kind) => {
                 self.advance();
-                Ok(Type::I32)
-            }
-            Token::IntegerType(IntegerKind::U32) => {
-                self.advance();
-                Ok(Type::U32)
+                Ok(Type::Integer(*kind))
             }
             _ => {
                 let path = self.parse_type_path()?;
@@ -400,7 +530,7 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
-    fn parse_type_name(&mut self) -> ParseResult<Ident> {
+    fn parse_type_name(&mut self) -> Result<Ident> {
         match self.current_token_and_span() {
             (Token::TypeName(name), span) => {
                 let (name, span) = (name.clone(), *span);
@@ -410,28 +540,29 @@ impl<'tokens> Parser<'tokens> {
             (other, span) => {
                 let actual = other.clone();
                 let message = "a capitalized type name";
-                Err(Diagnostic::ParserExpected { message, actual, span: *span })
+                let location = span.in_file(self.file_path.clone());
+                Err(Diagnostic::ParserExpected { message, actual, location })
             }
         }
     }
 
-    fn parse_ident(&mut self) -> ParseResult<Ident> {
-        match self.current_token_and_span() {
-            (Token::Identifier(name), span) => {
-                let (name, span) = (name.clone(), *span);
+    fn parse_ident(&mut self) -> Result<String> {
+        match self.current_token() {
+            Token::Identifier(name) => {
                 self.advance();
-                Ok(Ident::new(name, span))
+                Ok(name.clone())
             }
-            (other, span) => {
+            other => {
                 let actual = other.clone();
                 let message = "an identifier";
-                Err(Diagnostic::ParserExpected { message, actual, span: *span })
+                let location = self.current_token_location();
+                Err(Diagnostic::ParserExpected { message, actual, location })
             }
         }
     }
 
     /// Parse 0 or more of `parser` items
-    fn many0<T>(&mut self, mut parser: impl FnMut(&mut Self) -> ParseResult<T>) -> Vec<T> {
+    fn many0<T>(&mut self, mut parser: impl FnMut(&mut Self) -> Result<T>) -> Vec<T> {
         let mut items = Vec::new();
         while let Ok(item) = parser(self) {
             items.push(item);
@@ -440,7 +571,7 @@ impl<'tokens> Parser<'tokens> {
     }
 
     /// Parse 1 or more of `parser` items
-    fn many1<T>(&mut self, mut parser: impl FnMut(&mut Self) -> ParseResult<T>) -> ParseResult<Vec<T>> {
+    fn many1<T>(&mut self, mut parser: impl FnMut(&mut Self) -> Result<T>) -> Result<Vec<T>> {
         let mut items = vec![parser(self)?];
         while let Ok(item) = parser(self) {
             items.push(item);
@@ -449,7 +580,7 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn delimited<T>(&mut self,
-        mut parser: impl FnMut(&mut Self) -> ParseResult<T>,
+        mut parser: impl FnMut(&mut Self) -> Result<T>,
         delimiter: Token,
         allow_trailing: bool,
     ) -> Vec<T> {
@@ -465,7 +596,7 @@ impl<'tokens> Parser<'tokens> {
                 Ok(item) => items.push(item),
                 Err(_) if allow_trailing => break,
                 Err(error) => {
-                    self.errors.push(error);
+                    self.diagnostics.push(error);
                     break;
                 }
             }
@@ -474,39 +605,18 @@ impl<'tokens> Parser<'tokens> {
         items
     }
 
-    fn parse_function_parameters(&mut self) -> ParseResult<Vec<(Ident, Option<Type>)>> {
-        self.many1(Self::parse_function_parameter)
+    fn parse_function_parameters(&mut self) -> Vec<(Ident, Option<Type>)> {
+        self.many0(Self::parse_function_parameter)
     }
 
-    /// Run the given parse function and return its result on success.
-    ///
-    /// On error, try to recover to the given token, stopping short if any of
-    /// the `too_far` tokens (or EOF) are found first. On a successful recovery,
-    /// return the given default error value. Otherwise return the original error.
-    fn parse_with_recovery<T>(&mut self, f: impl FnOnce(&mut Self) -> ParseResult<T>, recover_to: Token, too_far: &[Token]) -> ParseResult<T>
-        where T: ErrorDefault
-    {
-        match f(self) {
-            Ok(typ) => Ok(typ),
-            Err(error) => {
-                if self.recover_to(recover_to, too_far) {
-                    self.errors.push(error);
-                    Ok(T::error_default())
-                } else {
-                    Err(error)
-                }
-            }
-        }
-    }
-
-    fn parse_function_parameter(&mut self) -> ParseResult<(Ident, Option<Type>)> {
+    fn parse_function_parameter(&mut self) -> Result<(Ident, Option<Type>)> {
         match self.current_token() {
             Token::UnitLiteral => {
                 // TODO: Remove 'no name' hack for unit literal parameter
                 self.advance();
                 let span_start = self.tokens[self.token_index - 2].1;
                 let span_end = self.tokens[self.token_index - 1].1;
-                let no_name = Ident::new(String::new(), span_start.merge(span_end));
+                let no_name = Ident::new(String::new(), span_start.to(&span_end));
                 Ok((no_name, Some(Type::Unit)))
             }
             Token::ParenthesisLeft => {
@@ -522,8 +632,8 @@ impl<'tokens> Parser<'tokens> {
             Token::Identifier(_) => Ok((self.parse_ident()?, None)),
             other => {
                 let message = "a parameter";
-                let span = self.current_token_span();
-                Err(Diagnostic::ParserExpected { message, actual: other.clone(), span })
+                let location = self.current_token_location();
+                Err(Diagnostic::ParserExpected { message, actual: other.clone(), location })
             }
         }
     }
@@ -564,19 +674,27 @@ impl<'tokens> Parser<'tokens> {
         l_prec > r_prec || (l_prec == r_prec && !r_is_right_assoc)
     }
 
-    fn pop_operator<'c>(operator_stack: &mut Vec<&(Token, Span)>, results: &mut Vec<Expr>) {
+    fn pop_operator<'c>(&mut self, operator_stack: &mut Vec<&(Token, Span)>, results: &mut Vec<ExprId>) {
         let rhs = results.pop().unwrap();
         let lhs = results.pop().unwrap();
-        // let location = lhs_location.union(rhs_location);
-        let (operator, operator_span) = operator_stack.pop().unwrap().clone();
-        let components = vec![Spanned::new(operator.to_string(), operator_span)]; // TODO: Variable::operator
-        let function = Box::new(Expr::Variable(Path { components }));
-        let call = Expr::Call(Call { function, arguments: vec![lhs, rhs] });
+        let location = self.expr_location(lhs).to(&self.expr_location(rhs));
+
+        let call = self.reserve_expr();
+        let function = self.reserve_expr();
+
+        let (operator, span) = operator_stack.pop().unwrap().clone();
+        let function_location = span.in_file(self.file_path.clone());
+
+        let components = vec![operator.to_string()]; // TODO: Variable::operator
+        self.insert_expr(function, Expr::Variable(Path { components }), function_location);
+
+        let call_expr = Expr::Call(Call { function, arguments: vec![lhs, rhs] });
+        self.insert_expr(call, call_expr, location);
         results.push(call);
     }
 
     /// Parse an arbitrary expression using the shunting-yard algorithm
-    fn parse_expression(&mut self) -> ParseResult<Expr> {
+    fn parse_expression(&mut self) -> Result<ExprId> {
         let value = self.parse_term()?;
 
         let mut operator_stack: Vec<&(Token, Span)> = vec![];
@@ -587,7 +705,7 @@ impl<'tokens> Parser<'tokens> {
             while !operator_stack.is_empty()
                 && Self::should_continue(&operator_stack[operator_stack.len() - 1].0, prec, right_associative)
             {
-                Self::pop_operator(&mut operator_stack, &mut results);
+                self.pop_operator(&mut operator_stack, &mut results);
             }
 
             operator_stack.push(self.current_token_and_span());
@@ -599,7 +717,7 @@ impl<'tokens> Parser<'tokens> {
 
         while !operator_stack.is_empty() {
             assert!(results.len() >= 2);
-            Self::pop_operator(&mut operator_stack, &mut results);
+            self.pop_operator(&mut operator_stack, &mut results);
         }
 
         assert!(operator_stack.is_empty());
@@ -607,22 +725,15 @@ impl<'tokens> Parser<'tokens> {
         Ok(results.pop().unwrap())
     }
 
-
-    // Parse expressions via the shunting yard algorithm
-    fn parse_term(&mut self) -> ParseResult<Expr> {
+    fn parse_term(&mut self) -> Result<ExprId> {
         match self.current_token() {
             // definition, variable, function call
             Token::Identifier(_) | Token::TypeName(_) => {
-                match self.next_token() {
-                    Token::Equal => self.parse_definition(),
-                    _ => {
-                        if let Ok(call) = self.parse_function_call() {
-                            return Ok(call);
-                        }
-
-                        self.parse_atom()
-                    }
+                if let Ok(call) = self.parse_function_call() {
+                    return Ok(call);
                 }
+
+                self.parse_atom()
             }
             Token::Subtract | Token::Ampersand | Token::ExclamationMark | Token::At => {
                 self.parse_unary()
@@ -631,7 +742,7 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
-    fn parse_unary(&mut self) -> ParseResult<Expr> {
+    fn parse_unary(&mut self) -> Result<Expr> {
         match self.current_token() {
             operator @ (Token::Subtract | Token::ExclamationMark | Token::Ampersand | Token::At) => {
                 let operator_span = self.current_token_span();
@@ -647,7 +758,7 @@ impl<'tokens> Parser<'tokens> {
 
     /// Very similar to `parse_unary` but excludes unary minus since otherwise
     /// we may parse `{function_name} -{arg}` instead of `{lhs} - {rhs}`.
-    fn parse_function_arg(&mut self) -> ParseResult<Expr> {
+    fn parse_function_arg(&mut self) -> Result<Expr> {
         match self.current_token() {
             operator @ (Token::ExclamationMark | Token::Ampersand | Token::At) => {
                 let operator_span = self.current_token_span();
@@ -663,7 +774,7 @@ impl<'tokens> Parser<'tokens> {
 
     /// An atom is a very small unit of parsing, but one that can still be divided further.
     /// In this case it is made up of quarks connected by `.` or unary expressions
-    fn parse_atom(&mut self) -> ParseResult<Expr> {
+    fn parse_atom(&mut self) -> Result<Expr> {
         let mut result = self.parse_quark()?;
 
         loop {
@@ -691,7 +802,7 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
-    fn parse_quark(&mut self) -> ParseResult<Expr> {
+    fn parse_quark(&mut self) -> Result<Expr> {
         match self.current_token() {
             Token::IntegerLiteral(value, kind) => {
                 let (value, kind) = (*value, *kind);
@@ -718,12 +829,13 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
-    fn parse_variable(&mut self) -> ParseResult<Expr> {
+    fn parse_variable(&mut self) -> Result<Expr> {
         let path = self.parse_value_path()?;
         Ok(Expr::Variable(path))
     }
 
-    fn parse_definition(&mut self) -> ParseResult<Expr> {
+    fn parse_definition(&mut self) -> Result<Expr> {
+        let mutable = self.accept(Token::Mut);
         let name = self.parse_ident()?;
 
         let mut typ = None;
@@ -731,7 +843,7 @@ impl<'tokens> Parser<'tokens> {
             match self.parse_with_recovery(Self::parse_type, Token::Equal, &[Token::Newline]) {
                 Ok(recovered) => typ = Some(recovered),
                 Err(error) => {
-                    self.errors.push(error);
+                    self.diagnostics.push(error);
                     return Ok(Expr::Error);
                 }
             }
@@ -740,16 +852,16 @@ impl<'tokens> Parser<'tokens> {
         self.expect(Token::Equal, "`=` to define a variable");
 
         let rhs = self.parse_with_recovery(Self::parse_expression, Token::Newline, &[])?;
-        Ok(Expr::Definition(Definition { name, typ, rhs: Box::new(rhs) }))
+        Ok(Expr::Definition(Definition { mutable, name, typ, rhs: Box::new(rhs) }))
     }
 
-    fn parse_function_call(&mut self) -> ParseResult<Expr> {
+    fn parse_function_call(&mut self) -> Result<Expr> {
         let function = Box::new(self.parse_atom()?);
         let arguments = self.many1(Self::parse_function_arg)?;
         Ok(Expr::Call(Call { function, arguments }))
     }
 
-    fn parse_string(&mut self, contents: String) -> ParseResult<Expr> {
+    fn parse_string(&mut self, contents: String) -> Result<Expr> {
         self.advance();
         Ok(Expr::Literal(Literal::String(contents)))
     }

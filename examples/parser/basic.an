@@ -2,8 +2,8 @@ import Foo.Bar
 
 // Programs now require a main function
 main () =
-    a = 32
-    println a
+    mut a = 32
+    println &a
 
 type Foo =
     x: I32
@@ -11,6 +11,7 @@ type Foo =
 
 Foo.print self =
     print "Foo "
+    // Comments are only allowed between statements
     print self.x
     print " "
     print self.y

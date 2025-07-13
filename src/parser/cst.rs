@@ -1,17 +1,85 @@
-use crate::{error::{ErrorDefault, Spanned}, lexer::token::{IntegerKind, Token}};
+use crate::{errors::ErrorDefault, lexer::token::{IntegerKind, Token}};
+
+use super::ids::{ExprId, TopLevelId};
 
 /// The Concrete Syntax Tree (CST) is the output of parsing a source file.
-/// Unlike the Abstract Syntax Tree (AST), the CST is expected to mirror
-/// the source file without any constructs being desugared or removed.
-/// This makes the CST the ideal candidate for pretty-printing back to a file
-/// since no constructs should be removed in the process - including comments.
-#[derive(Debug)]
+/// This is expected to mirror the source file without removing too much information.
+/// This isn't a perfect mirroring - we keep only enough information for pretty-printing
+/// the CST back into a file. So while things like comments are kept, certain syntax
+/// constructs like `foo = fn a -> expr` may be sugared into `foo x = expr`.
 pub struct Cst {
     pub imports: Vec<Import>,
     pub top_level_items: Vec<TopLevelItem>,
 }
 
-#[derive(Debug)]
+pub struct TopLevelItem {
+    pub comments: Vec<String>,
+    pub kind: TopLevelItemKind,
+    pub id: TopLevelId,
+}
+
+pub enum TopLevelItemKind {
+    Definition(Definition),
+    TypeDefinition(TypeDefinition),
+    TraitDefinition(TraitDefinition),
+    TraitImpl(TraitImpl),
+    EffectDefinition(EffectDefinition),
+    Extern(Extern),
+}
+
+pub struct TopLevelDefinition {
+    pub path: Path,
+}
+
+pub enum Type {
+    Error,
+    Unit,
+    Named(Path),
+    Integer(IntegerKind),
+    Function(FunctionType),
+    TypeApplication(Box<Type>, Vec<Type>),
+}
+
+impl ErrorDefault for Type {
+    fn error_default() -> Self {
+        Self::Error
+    }
+}
+
+pub struct FunctionType {
+    pub parameters: Vec<Type>,
+    pub return_type: Box<Type>,
+
+    /// Any effects that were specified on this function.
+    /// - `None` means none were specified
+    /// - `Some(Vec::new())` means it was specified to be `pure`
+    pub effects: Option<Vec<EffectType>>,
+}
+
+pub enum EffectType {
+    Known(Path, Vec<Type>),
+    Variable(String),
+}
+
+pub struct TypeDefinition {
+    pub name: String,
+    pub generics: Vec<String>,
+    pub body: TypeDefinitionBody,
+}
+
+pub enum TypeDefinitionBody {
+    Error,
+    Struct(Vec<(String, Type)>),
+    Enum(Vec<(String, Vec<Type>)>),
+}
+
+impl ErrorDefault for TypeDefinitionBody {
+    fn error_default() -> Self {
+        Self::Error
+    }
+}
+
+
 pub enum Expr {
     Error,
     Literal(Literal),
@@ -21,6 +89,11 @@ pub enum Expr {
     MemberAccess(MemberAccess),
     Index(Index),
     Call(Call),
+    Lambda(Lambda),
+    If(If),
+    Match(Match),
+    Reference(Reference),
+    TypeAnnotation(TypeAnnotation),
 }
 
 impl ErrorDefault for Expr {
@@ -30,126 +103,72 @@ impl ErrorDefault for Expr {
 }
 
 impl Expr {
+    /// Are parenthesis not required when printing this Expr within another?
     pub fn is_atom(&self) -> bool {
         match self {
             Expr::Error => true,
             Expr::Literal(_) => true,
             Expr::Variable(_) => true,
-            Expr::Sequence(_) => false,
-            Expr::Definition(_) => false,
-            Expr::Call(_) => false,
             Expr::MemberAccess(_) => true,
             Expr::Index(_) => true,
+            Expr::Reference(_) => true,
+            _ => false,
         }
     }
 }
 
-pub type Ident = Spanned<String>;
-
-#[derive(Debug)]
+/// Path Can't contain any ExprIds since it is used for hashing top-level definition names
+///
+/// A path is always guaranteed to have at least 1 component
+#[derive(Hash)]
 pub struct Path {
-    pub components: Vec<Ident>,
+    pub components: Vec<String>,
 }
 
-#[derive(Debug)]
+impl Path {
+    pub fn last(&self) -> &String {
+        self.components.last().unwrap()
+    }
+}
+
 pub struct Import {
     pub path: Path,
 }
 
-#[derive(Debug)]
-pub struct TopLevelItem {
-    pub comments: Vec<String>,
-    pub kind: TopLevelItemKind,
-}
-
-#[derive(Debug)]
-pub enum TopLevelItemKind {
-    FunctionGroup(Vec<Function>),
-    TypeDefinition(TypeDefinition),
-}
-
-#[derive(Debug)]
-pub struct Function {
-    pub path: Path,
-    pub parameters: Vec<(Ident, Option<Type>)>,
-    pub return_type: Option<Type>,
-    pub body: Option<Expr>,
-}
-
-#[derive(Debug)]
-pub enum Type {
-    Error,
-    Named(Path),
-    Unit,
-    I32,
-    U32,
-}
-
-#[derive(Debug)]
-pub struct TypeDefinition {
-    pub name: Ident,
-    pub body: TypeDefinitionBody,
-}
-
-#[derive(Debug)]
-pub enum TypeDefinitionBody {
-    Error,
-    Struct(Vec<(Ident, Type)>),
-    Enum(Vec<(Ident, Vec<Type>)>),
-}
-
-impl ErrorDefault for TypeDefinitionBody {
-    fn error_default() -> Self {
-        Self::Error
-    }
-}
-
-#[derive(Debug)]
 pub struct SequenceItem {
     pub comments: Vec<String>,
-    pub expr: Expr,
+    pub expr: ExprId,
 }
 
-#[derive(Debug)]
 pub enum Literal {
     Integer(u64, Option<IntegerKind>),
     String(String),
 }
 
-#[derive(Debug)]
 pub struct Definition {
-    pub name: Ident,
+    pub mutable: bool,
+    pub path: Path,
     pub typ: Option<Type>,
-    pub rhs: Box<Expr>,
+    pub rhs: ExprId,
 }
 
-impl ErrorDefault for Type {
-    fn error_default() -> Type {
-        Type::Error
-    }
-}
-
-#[derive(Debug)]
 pub struct Call {
-    pub function: Box<Expr>,
-    pub arguments: Vec<Expr>,
+    pub function: ExprId,
+    pub arguments: Vec<ExprId>,
 }
 
-#[derive(Debug)]
 pub struct MemberAccess {
-    pub object: Box<Expr>,
-    pub member: Spanned<String>,
+    pub object: ExprId,
+    pub member: String,
     pub ownership: OwnershipMode,
 }
 
-#[derive(Debug)]
 pub struct Index {
-    pub object: Box<Expr>,
-    pub index: Box<Expr>,
+    pub object: ExprId,
+    pub index: ExprId,
     pub ownership: OwnershipMode,
 }
 
-#[derive(Debug)]
 pub enum OwnershipMode {
     Owned,
     Borrow,
@@ -165,4 +184,66 @@ impl OwnershipMode {
             _ => None,
         }
     }
+}
+
+pub struct Lambda {
+    pub parameters: Vec<(String, Option<Type>)>,
+    pub return_type: Option<Type>,
+    pub body: ExprId,
+}
+
+pub struct If {
+    pub condition: ExprId,
+    pub then: ExprId,
+    pub else_: Option<ExprId>,
+}
+
+pub struct Match {
+    /// The expression being matched
+    pub expression: ExprId,
+    pub cases: Vec<(Pattern, ExprId)>,
+}
+
+/// `&rhs`, `!rhs`
+pub struct Reference {
+    pub rhs: ExprId,
+}
+
+pub enum Pattern {
+    Variable(ExprId, Path),
+    Literal(ExprId, Literal),
+    Constructor(ExprId, Path, Vec<ExprId>),
+}
+
+pub struct TypeAnnotation {
+    pub lhs: ExprId,
+    pub rhs: Type,
+}
+
+pub struct Declaration {
+    pub ident: String,
+    pub typ: Type,
+}
+
+pub struct TraitDefinition {
+    pub name: String,
+    pub generics: Vec<String>,
+    pub functional_dependencies: Vec<String>,
+    pub body: Vec<Declaration>,
+}
+
+pub struct TraitImpl {
+    pub trait_name: String,
+    pub arguments: Vec<String>,
+    pub body: Vec<Definition>,
+}
+
+pub struct EffectDefinition {
+    pub name: String,
+    pub generics: Vec<String>,
+    pub body: Vec<Declaration>,
+}
+
+pub struct Extern {
+    pub declarations: Vec<Declaration>,
 }

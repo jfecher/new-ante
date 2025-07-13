@@ -1,9 +1,11 @@
-use std::fmt::{Display, Formatter};
+use std::{collections::HashMap, fmt::{Display, Formatter}};
 
-use super::cst::{Call, Cst, Definition, Expr, Function, Index, Literal, MemberAccess, OwnershipMode, Path, SequenceItem, TopLevelItem, TopLevelItemKind, Type, TypeDefinition, TypeDefinitionBody};
+use super::{cst::{Call, Cst, Definition, Expr, Index, Literal, MemberAccess, OwnershipMode, Path, Pattern, SequenceItem, TopLevelItem, TopLevelItemKind, Type, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId}};
 
-struct CstDisplayContext {
+struct CstDisplayContext<'a> {
     indent_level: u32,
+    exprs: &'a HashMap<ExprId, Expr>,
+    patterns: &'a HashMap<PatternId, Pattern>,
 }
 
 impl Display for Cst {
@@ -179,6 +181,9 @@ impl CstDisplayContext {
     }
 
     fn fmt_definition(&mut self, definition: &Definition, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        if definition.mutable {
+            write!(f, "mut ")?;
+        }
         write!(f, "{}", definition.name)?;
         if let Some(typ) = &definition.typ {
             write!(f, ": ")?;

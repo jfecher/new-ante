@@ -38,7 +38,7 @@
 //!       is how expressions can be continued in ante despite most ending on a Newline.
 pub mod token;
 
-use crate::error::{Span, Position};
+use crate::errors::{Span, Position};
 use std::str::Chars;
 use token::{lookup_keyword, FloatKind, IntegerKind, LexerError, Token};
 
@@ -97,8 +97,8 @@ impl<'contents> Lexer<'contents> {
             current,
             next,
             file_contents,
-            current_position: Position::begin(),
-            token_start_position: Position::begin(),
+            current_position: Position::start(),
+            token_start_position: Position::start(),
             indent_levels: vec![IndentLevel { column: 0, ignored: false }],
             current_indent_level: 0,
             return_newline: false,
@@ -135,14 +135,18 @@ impl<'contents> Lexer<'contents> {
         let ret = self.current;
         self.current = self.next;
         self.next = self.chars.next().unwrap_or('\0');
-        self.current_position.advance(ret.len_utf8(), ret == '\n');
+        self.current_position.byte_index += ret.len_utf8();
+        if ret == '\n' {
+            self.current_position.column_number = 0;
+            self.current_position.line_number += 1;
+        }
         ret
     }
 
     fn locate(&self) -> Span {
         Span {
             start: self.token_start_position,
-            end: self.current_position.index,
+            end: self.current_position,
         }
     }
 
@@ -157,7 +161,7 @@ impl<'contents> Lexer<'contents> {
     }
 
     fn get_slice_containing_current_token(&self) -> &'contents str {
-        &self.file_contents[self.token_start_position.index..self.current_position.index]
+        &self.file_contents[self.token_start_position.byte_index..self.current_position.byte_index]
     }
 
     fn expect(&mut self, expected: char, token: Token) -> IterElem {
@@ -179,23 +183,23 @@ impl<'contents> Lexer<'contents> {
     }
 
     fn lex_integer(&mut self) -> String {
-        let start = self.current_position.index;
+        let start = self.current_position.byte_index;
 
         while !self.at_end_of_input() && (self.current.is_ascii_digit() || self.current == '_') {
             self.advance();
         }
 
-        let end = self.current_position.index;
+        let end = self.current_position.byte_index;
         self.file_contents[start..end].replace('_', "")
     }
 
     fn lex_integer_suffix(&mut self) -> Result<Option<IntegerKind>, Token> {
-        let start = self.current_position.index;
+        let start = self.current_position.byte_index;
         while self.current.is_alphanumeric() || self.current == '_' {
             self.advance();
         }
 
-        let word = &self.file_contents[start..self.current_position.index];
+        let word = &self.file_contents[start..self.current_position.byte_index];
         Ok(Some(match word {
             "i8" => IntegerKind::I8,
             "u8" => IntegerKind::U8,
@@ -213,14 +217,13 @@ impl<'contents> Lexer<'contents> {
     }
 
     fn lex_float_suffix(&mut self) -> Result<Option<FloatKind>, Token> {
-        let start = self.current_position.index;
+        let start = self.current_position.byte_index;
         while self.current.is_alphanumeric() || self.current == '_' {
             self.advance();
         }
 
-        let word = &self.file_contents[start..self.current_position.index];
+        let word = &self.file_contents[start..self.current_position.byte_index];
         match word {
-            "f" => Ok(Some(FloatKind::F32)),
             "f32" => Ok(Some(FloatKind::F32)),
             "f64" => Ok(Some(FloatKind::F64)),
             "" => Ok(None),
@@ -472,7 +475,7 @@ impl<'contents> Iterator for Lexer<'contents> {
                 if self.current_indent_level != 0 {
                     // Issue any pending unindent tokens before EndOfInput
                     self.lex_unindent(0)
-                } else if self.current_position.index > self.file_contents.len() {
+                } else if self.current_position.byte_index > self.file_contents.len() {
                     None
                 } else {
                     self.advance_with(Token::EndOfInput)
