@@ -1,6 +1,6 @@
 use crate::{errors::ErrorDefault, lexer::token::{IntegerKind, Token}};
 
-use super::ids::{ExprId, TopLevelId};
+use super::ids::{ExprId, PatternId, TopLevelId};
 
 /// The Concrete Syntax Tree (CST) is the output of parsing a source file.
 /// This is expected to mirror the source file without removing too much information.
@@ -201,18 +201,44 @@ pub struct If {
 pub struct Match {
     /// The expression being matched
     pub expression: ExprId,
-    pub cases: Vec<(Pattern, ExprId)>,
+    pub cases: Vec<(PatternId, ExprId)>,
 }
 
 /// `&rhs`, `!rhs`
 pub struct Reference {
+    pub mode: BorrowMode,
     pub rhs: ExprId,
 }
 
+#[derive(Copy, Clone)]
+pub enum BorrowMode {
+    Immutable(SharedMode),
+    Mutable(SharedMode),
+}
+
+impl BorrowMode {
+    pub fn shared_mode(self) -> SharedMode {
+        match self {
+            BorrowMode::Immutable(shared_mode) => shared_mode,
+            BorrowMode::Mutable(shared_mode) => shared_mode,
+        }
+    }
+
+    pub fn is_shared(self) -> bool {
+        matches!(self.shared_mode(), SharedMode::Shared)
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum SharedMode {
+    Shared,
+    Owned,
+}
+
 pub enum Pattern {
-    Variable(ExprId, Path),
-    Literal(ExprId, Literal),
-    Constructor(ExprId, Path, Vec<ExprId>),
+    Variable(Path),
+    Literal(Literal),
+    Constructor(Path, Vec<PatternId>),
 }
 
 pub struct TypeAnnotation {
@@ -221,7 +247,7 @@ pub struct TypeAnnotation {
 }
 
 pub struct Declaration {
-    pub ident: String,
+    pub name: String,
     pub typ: Type,
 }
 
@@ -234,7 +260,7 @@ pub struct TraitDefinition {
 
 pub struct TraitImpl {
     pub trait_name: String,
-    pub arguments: Vec<String>,
+    pub arguments: Vec<Type>,
     pub body: Vec<Definition>,
 }
 

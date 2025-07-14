@@ -1,11 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
-use cst::{Index, Lambda, MemberAccess, OwnershipMode, Pattern};
+use cst::{BorrowMode, Index, Lambda, MemberAccess, OwnershipMode, Pattern, SharedMode};
 use ids::{ExprId, PatternId, TopLevelId};
 
 use crate::{errors::{Diagnostic, ErrorDefault, Location, Span}, lexer::{token::Token, Lexer}, vecmap::VecMap};
 
-use self::cst::{Cst, Import, Path, Ident, TopLevelItem, TopLevelItemKind, TypeDefinition, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
+use self::cst::{Cst, Import, Path, TopLevelItem, TopLevelItemKind, TypeDefinition, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
 
 pub mod cst;
 pub mod cst_printer;
@@ -87,6 +87,12 @@ impl<'tokens> Parser<'tokens> {
     /// Returns the current token otherwise.
     fn previous_token(&self) -> &'tokens Token {
         &self.tokens[self.token_index.saturating_sub(1)].0
+    }
+
+    /// Returns the previous token's span, if it exists.
+    /// Returns the current token's span otherwise.
+    fn previous_token_span(&self) -> Span {
+        self.tokens[self.token_index.saturating_sub(1)].1
     }
 
     /// Returns the next token.
@@ -436,7 +442,7 @@ impl<'tokens> Parser<'tokens> {
 
     fn parse_type_body(&mut self) -> Result<TypeDefinitionBody> {
         match self.current_token() {
-            Token::Indent => self.parse_indented(Self::parse_indented_type_body),
+            Token::Indent => Ok(self.parse_indented(Self::parse_indented_type_body)),
             _ => self.parse_non_indented_type_body(),
         }
     }
@@ -493,8 +499,8 @@ impl<'tokens> Parser<'tokens> {
     }
 
     /// Parse an indented block using the given failable parser.
-    /// On failure recovers to the unindent token.
-    fn parse_indented<T>(&mut self, parser: impl FnOnce(&mut Self) -> Result<T>) -> Result<T>
+    /// On failure recovers to the unindent token and returns T::error_default.
+    fn parse_indented<T>(&mut self, parser: impl FnOnce(&mut Self) -> Result<T>) -> T
         where T: ErrorDefault
     {
         self.expect(Token::Indent, "an indent");
@@ -510,7 +516,7 @@ impl<'tokens> Parser<'tokens> {
             self.advance();
         }
 
-        result
+        result.unwrap_or(T::error_default())
     }
 
     fn parse_type(&mut self) -> Result<Type> {
@@ -530,17 +536,16 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
-    fn parse_type_name(&mut self) -> Result<Ident> {
-        match self.current_token_and_span() {
-            (Token::TypeName(name), span) => {
-                let (name, span) = (name.clone(), *span);
+    fn parse_type_name(&mut self) -> Result<String> {
+        match self.current_token() {
+            Token::TypeName(name) => {
                 self.advance();
-                Ok(Ident::new(name, span))
+                Ok(name.clone())
             }
-            (other, span) => {
+            other => {
                 let actual = other.clone();
                 let message = "a capitalized type name";
-                let location = span.in_file(self.file_path.clone());
+                let location = self.current_token_location();
                 Err(Diagnostic::ParserExpected { message, actual, location })
             }
         }
@@ -605,18 +610,16 @@ impl<'tokens> Parser<'tokens> {
         items
     }
 
-    fn parse_function_parameters(&mut self) -> Vec<(Ident, Option<Type>)> {
+    fn parse_function_parameters(&mut self) -> Vec<(String, Option<Type>)> {
         self.many0(Self::parse_function_parameter)
     }
 
-    fn parse_function_parameter(&mut self) -> Result<(Ident, Option<Type>)> {
+    fn parse_function_parameter(&mut self) -> Result<(String, Option<Type>)> {
         match self.current_token() {
             Token::UnitLiteral => {
                 // TODO: Remove 'no name' hack for unit literal parameter
                 self.advance();
-                let span_start = self.tokens[self.token_index - 2].1;
-                let span_end = self.tokens[self.token_index - 1].1;
-                let no_name = Ident::new(String::new(), span_start.to(&span_end));
+                let no_name = String::new();
                 Ok((no_name, Some(Type::Unit)))
             }
             Token::ParenthesisLeft => {
@@ -742,15 +745,23 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
-    fn parse_unary(&mut self) -> Result<Expr> {
+    fn parse_unary(&mut self) -> Result<ExprId> {
         match self.current_token() {
             operator @ (Token::Subtract | Token::ExclamationMark | Token::Ampersand | Token::At) => {
-                let operator_span = self.current_token_span();
+                let call_id = self.reserve_expr();
+                let function_id = self.reserve_expr();
+
+                let operator_span = self.current_token_location();
                 self.advance();
                 let rhs = self.parse_unary()?;
-                let components = vec![Spanned::new(operator.to_string(), operator_span)];
-                let function = Box::new(Expr::Variable(Path { components }));
-                Ok(Expr::Call(Call { function, arguments: vec![rhs] }))
+                let location = operator_span.to(&self.expr_location(rhs));
+
+                let components = vec![operator.to_string()];
+                self.insert_expr(function_id, Expr::Variable(Path { components }), location.clone());
+
+                let call = Expr::Call(Call { function: function_id, arguments: vec![rhs] });
+                self.insert_expr(call_id, call, location);
+                Ok(call_id)
             }
             _ => self.parse_atom(),
         }
@@ -758,15 +769,31 @@ impl<'tokens> Parser<'tokens> {
 
     /// Very similar to `parse_unary` but excludes unary minus since otherwise
     /// we may parse `{function_name} -{arg}` instead of `{lhs} - {rhs}`.
-    fn parse_function_arg(&mut self) -> Result<Expr> {
+    fn parse_function_arg(&mut self) -> Result<ExprId> {
         match self.current_token() {
-            operator @ (Token::ExclamationMark | Token::Ampersand | Token::At) => {
-                let operator_span = self.current_token_span();
-                self.advance();
-                let rhs = self.parse_unary()?;
-                let components = vec![Spanned::new(operator.to_string(), operator_span)];
-                let function = Box::new(Expr::Variable(Path { components }));
-                Ok(Expr::Call(Call { function, arguments: vec![rhs] }))
+            Token::At => {
+                self.with_expr_id_and_location(|this| {
+                    let operator_location = this.current_token_location();
+                    this.advance();
+                    let rhs = this.parse_unary()?;
+                    let components = vec![Token::At.to_string()];
+                    let function = Expr::Variable(Path { components });
+                    let function = this.push_expr(function, operator_location);
+                    Ok(Expr::Call(Call { function, arguments: vec![rhs] }))
+                })
+            }
+            operator @ (Token::ExclamationMark | Token::Ampersand) => {
+                let mode = match operator {
+                    Token::ExclamationMark => BorrowMode::Mutable(SharedMode::Shared),
+                    Token::Ampersand => BorrowMode::Immutable(SharedMode::Shared),
+                    _ => unreachable!(),
+                };
+
+                self.with_expr_id_and_location(|this| {
+                    this.advance();
+                    let rhs = this.parse_unary()?;
+                    Ok(Expr::Reference(cst::Reference { mode, rhs }))
+                })
             }
             _ => self.parse_atom(),
         }
@@ -774,7 +801,7 @@ impl<'tokens> Parser<'tokens> {
 
     /// An atom is a very small unit of parsing, but one that can still be divided further.
     /// In this case it is made up of quarks connected by `.` or unary expressions
-    fn parse_atom(&mut self) -> Result<Expr> {
+    fn parse_atom(&mut self) -> Result<ExprId> {
         let mut result = self.parse_quark()?;
 
         loop {
@@ -783,86 +810,107 @@ impl<'tokens> Parser<'tokens> {
                 Token::MemberAccess
                 | Token::MemberRef
                 | Token::MemberMut => {
-                    self.advance();
-                    let ownership = OwnershipMode::from_token(token).unwrap();
-                    let member = self.parse_ident()?;
-                    result = Expr::MemberAccess(MemberAccess { object: Box::new(result), member, ownership });
+                    result = self.with_expr_id_and_location(|this| {
+                        this.advance();
+                        let ownership = OwnershipMode::from_token(token).unwrap();
+                        let member = this.parse_ident()?;
+                        Ok(Expr::MemberAccess(MemberAccess { object: result, member, ownership }))
+                    })?;
                 },
                 Token::Index
                 | Token::IndexRef
                 | Token::IndexMut => {
-                    self.advance();
-                    let ownership = OwnershipMode::from_token(token).unwrap();
-                    let index = Box::new(self.parse_expression()?);
-                    self.try_expect(Token::BracketRight, "a `]` to terminate the index expression")?;
-                    result = Expr::Index(Index { object: Box::new(result), index, ownership });
+                    result = self.with_expr_id_and_location(|this| {
+                        this.advance();
+                        let ownership = OwnershipMode::from_token(token).unwrap();
+                        let index = this.parse_expression()?;
+                        this.try_expect(Token::BracketRight, "a `]` to terminate the index expression")?;
+                        Ok(Expr::Index(Index { object: result, index, ownership }))
+                    })?;
                 },
                 _ => break Ok(result),
             }
         }
     }
 
-    fn parse_quark(&mut self) -> Result<Expr> {
+    fn parse_quark(&mut self) -> Result<ExprId> {
         match self.current_token() {
             Token::IntegerLiteral(value, kind) => {
                 let (value, kind) = (*value, *kind);
+                let location = self.current_token_location();
                 self.advance();
-                Ok(Expr::Literal(Literal::Integer(value, kind)))
+                let expr = Expr::Literal(Literal::Integer(value, kind));
+                Ok(self.push_expr(expr, location))
             }
             Token::StringLiteral(s) => self.parse_string(s.clone()),
             Token::Identifier(_) | Token::TypeName(_) => self.parse_variable(),
             Token::Indent => {
-                let statements = self.parse_indented(|this| {
-                    Ok(this.delimited(|this| {
-                        let comments = this.parse_comments();
-                        let expr = this.parse_expression()?;
-                        Ok(SequenceItem { comments, expr })
-                    }, Token::Newline, true))
+                let (expr, location) = self.with_location(|this| {
+                    Ok(this.parse_indented(|this| {
+                        let statements = this.delimited(Self::parse_sequence_item, Token::Newline, true);
+                        Ok(Expr::Sequence(statements))
+                    }))
                 })?;
-                Ok(Expr::Sequence(statements))
+                Ok(self.push_expr(expr, location))
             }
             other => {
                 let message = "an expression";
-                let span = self.current_token_span();
-                Err(Diagnostic::ParserExpected { message, actual: other.clone(), span })
+                let location= self.current_token_location();
+                Err(Diagnostic::ParserExpected { message, actual: other.clone(), location})
             }
         }
     }
 
-    fn parse_variable(&mut self) -> Result<Expr> {
-        let path = self.parse_value_path()?;
-        Ok(Expr::Variable(path))
+    fn parse_sequence_item(&mut self) -> Result<SequenceItem> {
+        let comments = self.parse_comments();
+        let expr = self.parse_statement()?;
+        Ok(SequenceItem { comments, expr })
     }
 
-    fn parse_definition(&mut self) -> Result<Expr> {
-        let mutable = self.accept(Token::Mut);
-        let name = self.parse_ident()?;
-
-        let mut typ = None;
-        if self.accept(Token::Colon) {
-            match self.parse_with_recovery(Self::parse_type, Token::Equal, &[Token::Newline]) {
-                Ok(recovered) => typ = Some(recovered),
-                Err(error) => {
-                    self.diagnostics.push(error);
-                    return Ok(Expr::Error);
-                }
-            }
-        }
-
-        self.expect(Token::Equal, "`=` to define a variable");
-
-        let rhs = self.parse_with_recovery(Self::parse_expression, Token::Newline, &[])?;
-        Ok(Expr::Definition(Definition { mutable, name, typ, rhs: Box::new(rhs) }))
+    fn parse_statement(&mut self) -> Result<ExprId> {
+        todo!()
     }
 
-    fn parse_function_call(&mut self) -> Result<Expr> {
-        let function = Box::new(self.parse_atom()?);
-        let arguments = self.many1(Self::parse_function_arg)?;
-        Ok(Expr::Call(Call { function, arguments }))
+    fn with_expr_id(&mut self, f: impl FnOnce(&mut Self) -> Result<(Expr, Location)>) -> Result<ExprId> {
+        let id = self.reserve_expr();
+        let (expr, location) = f(self)?;
+        self.insert_expr(id, expr, location);
+        Ok(id)
     }
 
-    fn parse_string(&mut self, contents: String) -> Result<Expr> {
+    fn with_expr_id_and_location(&mut self, f: impl FnOnce(&mut Self) -> Result<Expr>) -> Result<ExprId> {
+        self.with_expr_id(|this| this.with_location(f))
+    }
+
+    /// Create a location from the current token before running the given parse function to the
+    /// current token (end exclusive) after running the given parse function.
+    fn with_location<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<(T, Location)> {
+        let start = self.current_token_span();
+        let ret = f(self)?;
+        let end = self.previous_token_span();
+        Ok((ret, start.to(&end).in_file(self.file_path.clone())))
+    }
+
+    fn parse_variable(&mut self) -> Result<ExprId> {
+        let (path, location) = self.with_location(|this| this.parse_value_path())?;
+        Ok(self.push_expr(Expr::Variable(path), location))
+    }
+
+    fn parse_function_call(&mut self) -> Result<ExprId> {
+        self.with_expr_id(|this| {
+            let function = this.parse_atom()?;
+            let arguments = this.many1(Self::parse_function_arg)?;
+
+            let last_arg_location = this.expr_location(*arguments.last().unwrap());
+            let location = this.expr_location(function).to(&last_arg_location);
+
+            Ok((Expr::Call(Call { function, arguments }), location))
+        })
+    }
+
+    fn parse_string(&mut self, contents: String) -> Result<ExprId> {
+        let location = self.current_token_location();
         self.advance();
-        Ok(Expr::Literal(Literal::String(contents)))
+        Ok(self.push_expr(Expr::Literal(Literal::String(contents)), location))
     }
 }
