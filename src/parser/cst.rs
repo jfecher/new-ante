@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{errors::ErrorDefault, lexer::token::{IntegerKind, Token}};
 
 use super::ids::{ExprId, PatternId, TopLevelId};
@@ -9,15 +11,17 @@ use super::ids::{ExprId, PatternId, TopLevelId};
 /// constructs like `foo = fn a -> expr` may be sugared into `foo x = expr`.
 pub struct Cst {
     pub imports: Vec<Import>,
-    pub top_level_items: Vec<TopLevelItem>,
+    pub top_level_items: Vec<Arc<TopLevelItem>>,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct TopLevelItem {
     pub comments: Vec<String>,
     pub kind: TopLevelItemKind,
     pub id: TopLevelId,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum TopLevelItemKind {
     Definition(Definition),
     TypeDefinition(TypeDefinition),
@@ -31,6 +35,7 @@ pub struct TopLevelDefinition {
     pub path: Path,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum Type {
     Error,
     Unit,
@@ -46,6 +51,7 @@ impl ErrorDefault for Type {
     }
 }
 
+#[derive(PartialEq, Eq)]
 pub struct FunctionType {
     pub parameters: Vec<Type>,
     pub return_type: Box<Type>,
@@ -56,17 +62,20 @@ pub struct FunctionType {
     pub effects: Option<Vec<EffectType>>,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum EffectType {
     Known(Path, Vec<Type>),
     Variable(String),
 }
 
+#[derive(PartialEq, Eq)]
 pub struct TypeDefinition {
     pub name: String,
     pub generics: Vec<String>,
     pub body: TypeDefinitionBody,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum TypeDefinitionBody {
     Error,
     Struct(Vec<(String, Type)>),
@@ -120,7 +129,7 @@ impl Expr {
 /// Path Can't contain any ExprIds since it is used for hashing top-level definition names
 ///
 /// A path is always guaranteed to have at least 1 component
-#[derive(Hash)]
+#[derive(Hash, PartialEq, Eq)]
 pub struct Path {
     pub components: Vec<String>,
 }
@@ -145,6 +154,7 @@ pub enum Literal {
     String(String),
 }
 
+#[derive(PartialEq, Eq)]
 pub struct Definition {
     pub mutable: bool,
     pub path: Path,
@@ -246,11 +256,13 @@ pub struct TypeAnnotation {
     pub rhs: Type,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct Declaration {
     pub name: String,
     pub typ: Type,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct TraitDefinition {
     pub name: String,
     pub generics: Vec<String>,
@@ -258,18 +270,21 @@ pub struct TraitDefinition {
     pub body: Vec<Declaration>,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct TraitImpl {
     pub trait_name: String,
     pub arguments: Vec<Type>,
     pub body: Vec<Definition>,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct EffectDefinition {
     pub name: String,
     pub generics: Vec<String>,
     pub body: Vec<Declaration>,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct Extern {
     pub declarations: Vec<Declaration>,
 }

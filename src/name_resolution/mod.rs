@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::{Diagnostic, Errors},
-    incremental::{self, CompilerHandle, GetStatement, Resolve, VisibleDefinitions},
+    incremental::{self, DbHandle, GetStatement, Resolve, VisibleDefinitions},
     parser::{
         cst::{Expr, TopLevelItem},
         ids::{ExprId, TopLevelId},
@@ -25,7 +25,7 @@ struct Resolver<'local, 'inner> {
     errors: Errors,
     names_in_global_scope: BTreeMap<Arc<String>, TopLevelId>,
     parameters_in_scope: BTreeMap<Arc<String>, ExprId>,
-    compiler: &'local CompilerHandle<'inner>,
+    compiler: &'local DbHandle<'inner>,
 }
 
 /// Where was this variable defined?
@@ -38,7 +38,7 @@ pub enum Origin {
     Parameter(ExprId),
 }
 
-pub fn resolve_impl(context: &Resolve, compiler: &CompilerHandle) -> ResolutionResult {
+pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
     incremental::enter_query();
     let statement = GetStatement(context.0.clone()).get(compiler);
     incremental::println(format!("Resolving {statement}"));
@@ -62,7 +62,7 @@ pub fn resolve_impl(context: &Resolve, compiler: &CompilerHandle) -> ResolutionR
 
 impl<'local, 'inner> Resolver<'local, 'inner> {
     fn new(
-        compiler: &'local CompilerHandle<'inner>, item: TopLevelId,
+        compiler: &'local DbHandle<'inner>, item: TopLevelId,
         names_in_scope: BTreeMap<Arc<String>, TopLevelId>,
     ) -> Self {
         Self {

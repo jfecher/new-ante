@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::Location,
-    incremental::{CompilerHandle, Parse},
+    incremental::{DbHandle, Parse},
 };
 
 /// A `TopLevelId` is a 64-bit hash uniquely identifying a particular
@@ -40,7 +40,7 @@ impl TopLevelId {
         hash(file_path, (name, collision))
     }
 
-    pub(crate) fn location(&self, db: &CompilerHandle) -> Location {
+    pub(crate) fn location(&self, db: &DbHandle) -> Location {
         let result = db.get(Parse { file_name: self.file_path.clone() });
         result.top_level_data[self].location.clone()
     }
@@ -87,7 +87,7 @@ impl ExprId {
         self.0
     }
 
-    pub(crate) fn location(&self, item: &TopLevelId, db: &CompilerHandle) -> Location {
+    pub(crate) fn location(&self, item: &TopLevelId, db: &DbHandle) -> Location {
         let result = db.get(Parse { file_name: item.file_path.clone() });
         result.top_level_data[item].expr_locations[self].clone()
     }

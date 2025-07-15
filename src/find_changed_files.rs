@@ -1,6 +1,6 @@
 use std::{collections::BTreeSet, sync::Arc};
 
-use crate::{errors::{Diagnostic, Errors, Location}, incremental::{set_source_file, Compiler, GetImports}, read_file};
+use crate::{errors::{Diagnostic, Errors, Location}, incremental::{set_source_file, Db, GetImports}, read_file};
 
 /// One limitation of query systems is that you cannot change inputs during an incremental
 /// computation. For a compiler, this means dynamically discovering new files (inputs) to parse is
@@ -17,7 +17,7 @@ use crate::{errors::{Diagnostic, Errors, Location}, incremental::{set_source_fil
 /// many source files - we can distribute work to parse many of them at once. The implementation
 /// for this could be more efficient though. For example, the parser could accept the shared `queue`
 /// of files to parse as an argument, and push to this queue immediately when it finds an import.
-pub fn collect_all_changed_files(start_file: Arc<String>, compiler: &mut Compiler) -> (BTreeSet<Arc<String>>, Errors) {
+pub fn collect_all_changed_files(start_file: Arc<String>, compiler: &mut Db) -> (BTreeSet<Arc<String>>, Errors) {
     let mut finder = Finder::new();
     let mut remaining_files = BTreeSet::new();
     remaining_files.insert(start_file);
@@ -49,7 +49,7 @@ impl Finder {
     /// updating any new inputs, even though this limits concurrency, because it is not possible
     /// to update inputs while incremental computations are running in general (inc-complete
     /// forbids this, salsa cancels ongoing computations, etc). 
-    fn find_files_step(&mut self, files: BTreeSet<FileName>, compiler: &mut Compiler) -> BTreeSet<FileName> {
+    fn find_files_step(&mut self, files: BTreeSet<FileName>, compiler: &mut Db) -> BTreeSet<FileName> {
         self.thread_pool.scope(|scope| {
             for file in files {
                 if self.done.contains(&file) {

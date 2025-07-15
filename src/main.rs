@@ -20,7 +20,7 @@
 //! - `src/errors.rs`: Defines each error used in the program as well as the `Location` struct
 //! - `src/incremental.rs`: Some plumbing for the inc-complete library which also defines
 //!   which functions we're caching the result of.
-use incremental::{set_source_file, CompileFile, Compiler};
+use incremental::{set_source_file, CompileFile, Db};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::BTreeSet,
@@ -51,10 +51,10 @@ const METADATA_FILE: &str = "incremental_metadata.ron";
 
 // Deserialize the compiler from our metadata file.
 // If we fail, just default to a fresh compiler with no cached compilations.
-fn make_compiler() -> Compiler {
+fn make_compiler() -> Db {
     match read_file(METADATA_FILE) {
         Ok(text) => ron::from_str(&text).unwrap_or_default(),
-        Err(_) => Compiler::default(),
+        Err(_) => Db::default(),
     }
 }
 
@@ -95,7 +95,7 @@ fn main() {
 /// Compile all the files in the set to python files. In a real compiler we may want
 /// to compile each as an independent llvm or cranelift module then link them all
 /// together at the end.
-fn compile_all(files: BTreeSet<Arc<String>>, compiler: &mut Compiler) -> Errors {
+fn compile_all(files: BTreeSet<Arc<String>>, compiler: &mut Db) -> Errors {
     files.into_par_iter().flat_map(|file| {
         let output_file = file.replace(".ex", ".py");
         let (text, errors) = CompileFile { file_name: file }.get(compiler);
@@ -117,7 +117,7 @@ fn write_file(file_name: &str, text: &str) -> Result<(), String> {
 
 /// This could be changed so that we only write if the metadata actually
 /// changed but to simplify things we just always write.
-fn write_metadata(compiler: Compiler) -> Result<(), String> {
+fn write_metadata(compiler: Db) -> Result<(), String> {
     // Using `to_writer` here would avoid the intermediate step of creating the string
     let serialized = ron::to_string(&compiler).map_err(|error| format!("Failed to serialize database:\n{error}"))?;
     write_file(METADATA_FILE, &serialized)

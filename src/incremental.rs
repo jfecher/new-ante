@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     backend, definition_collection, errors::{Errors, Location}, name_resolution::{self, ResolutionResult}, parser::{
-        self, ast::{Ast, TopLevelStatement}, ids::TopLevelId, ParserResult
+        self, cst::TopLevelItem, ids::TopLevelId, ParseResult,
     }, type_inference::{self, types::TopLevelDefinitionType, TypeCheckResult}
 };
 
 /// A wrapper over inc-complete's database with our specific storage type to hold
 /// all the results of our incremental computations. See docs on `Storage` for a
 /// list of all the computations we cache in this way.
-pub type Compiler = inc_complete::Db<Storage>;
+pub type Db = inc_complete::Db<Storage>;
 
 /// Although we have a `Db` object in `main`, each incremental computation
 /// only has access to a `DbHandle` which still allows them to retrieve other
@@ -20,7 +20,7 @@ pub type Compiler = inc_complete::Db<Storage>;
 /// incremental computation. These two types are specific to inc-complete but
 /// any reasonable library should either prevent updating inputs while incremental
 /// computations are running or cancel the running computations.
-pub type CompilerHandle<'db> = inc_complete::DbHandle<'db, Storage>;
+pub type DbHandle<'db> = inc_complete::DbHandle<'db, Storage>;
 
 /// Here we define which functions we want to cache (through wrapper structs defined below)
 /// as well as what storage we want to use for each. We don't really care for specifics so
@@ -97,11 +97,11 @@ pub struct SourceFile {
 // `Storage` is just the overall storage type to store results in.
 define_input!(0, SourceFile -> String, Storage);
 
-pub fn set_source_file(file_name: Arc<String>, text: String, db: &mut Compiler) {
+pub fn set_source_file(file_name: Arc<String>, text: String, db: &mut Db) {
     SourceFile { file_name }.set(db, text);
 }
 
-pub fn get_source_file<'c>(file_name: Arc<String>, db: &'c CompilerHandle) -> String {
+pub fn get_source_file<'c>(file_name: Arc<String>, db: &'c DbHandle) -> String {
     SourceFile { file_name }.get(db)
 }
 
@@ -119,13 +119,7 @@ pub fn get_source_file<'c>(file_name: Arc<String>, db: &'c CompilerHandle) -> St
 pub struct Parse {
     pub file_name: Arc<String>,
 }
-define_intermediate!(1, Parse -> ParserResult, Storage, parser::parse_impl);
-
-/// Parse the program (unless we have already done so), ignoring some extra metadata in the full ParserResult
-pub fn parse<'c>(file_name: Arc<String>, db: &'c CompilerHandle) -> (Ast, Errors) {
-    let result = Parse { file_name }.get(db);
-    (result.ast, result.errors)
-}
+define_intermediate!(1, Parse -> Arc<ParseResult>, Storage, parser::parse_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Collect all the visible definitions within a file. These are the definitions that can be
@@ -191,12 +185,12 @@ define_intermediate!(5, Resolve -> ResolutionResult, Storage, name_resolution::r
 pub struct GetStatement(pub TopLevelId);
 
 // This one is quick and simple, let's just define it here.
-define_intermediate!(6, GetStatement -> TopLevelStatement, Storage, |context, compiler| {
+define_intermediate!(6, GetStatement -> Arc<TopLevelItem>, Storage, |context, db| {
     let target_id = &context.0;
-    let ast = parse(target_id.file_path.clone(), compiler).0;
+    let ast = Parse { file_name: target_id.file_path.clone() }.get(db);
 
-    for statement in ast.statements.iter() {
-        if statement.id() == target_id {
+    for statement in ast.cst.top_level_items.iter() {
+        if statement.id == *target_id {
             return statement.clone();
         }
     }

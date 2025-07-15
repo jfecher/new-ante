@@ -2,8 +2,9 @@ use std::{collections::HashMap, sync::Arc};
 
 use cst::{BorrowMode, Index, Lambda, MemberAccess, OwnershipMode, Pattern, SharedMode};
 use ids::{ExprId, PatternId, TopLevelId};
+use serde::{Deserialize, Serialize};
 
-use crate::{errors::{Diagnostic, ErrorDefault, Location, Span}, lexer::{token::Token, Lexer}, vecmap::VecMap};
+use crate::{errors::{Diagnostic, ErrorDefault, Location, Span}, incremental::{self, get_source_file}, lexer::{token::Token, Lexer}, vecmap::VecMap};
 
 use self::cst::{Cst, Import, Path, TopLevelItem, TopLevelItemKind, TypeDefinition, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
 
@@ -11,6 +12,7 @@ pub mod cst;
 pub mod cst_printer;
 pub mod ids;
 
+#[derive(Serialize, Deserialize)]
 pub struct ParseResult {
     pub cst: Cst,
     pub diagnostics: Vec<Diagnostic>,
@@ -18,7 +20,7 @@ pub struct ParseResult {
 }
 
 /// Metadata associated with a top level statement
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct TopLevelContext {
     pub exprs: VecMap<ExprId, Expr>,
     pub patterns: VecMap<PatternId, Pattern>,
@@ -42,9 +44,10 @@ struct Parser<'tokens> {
     token_index: usize,
 }
 
-pub fn parse_file(file_path: Arc<String>, file_contents: &str) -> ParseResult {
+pub fn parse_impl(ctx: &incremental::Parse, db: &incremental::DbHandle) -> Arc<ParseResult> {
+    let file_contents = get_source_file(ctx.file_name.clone(), db);
     let tokens = Lexer::new(&file_contents).collect::<Vec<_>>();
-    Parser::new(file_path, &tokens).parse()
+    Arc::new(Parser::new(ctx.file_name.clone(), &tokens).parse())
 }
 
 impl<'tokens> Parser<'tokens> {
@@ -342,12 +345,12 @@ impl<'tokens> Parser<'tokens> {
         Ok(Path { components })
     }
 
-    fn parse_top_level_items(&mut self) -> Vec<TopLevelItem> {
+    fn parse_top_level_items(&mut self) -> Vec<Arc<TopLevelItem>> {
         let mut items = Vec::new();
 
         while *self.current_token() != Token::EndOfInput {
             if let Some(item) = self.try_parse_or_recover_to_newline(Self::parse_top_level_item) {
-                items.push(item);
+                items.push(Arc::new(item));
             }
             self.expect(Token::Newline, "a newline after the top level item");
         }

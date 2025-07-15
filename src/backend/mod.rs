@@ -1,7 +1,7 @@
-use crate::{errors::Errors, incremental::{self, parse, CompileFile, CompilerHandle, TypeCheck, VisibleDefinitions}, parser::ast::{Expression, TopLevelStatement}};
+use crate::{errors::Errors, incremental::{self, parse, CompileFile, DbHandle, TypeCheck, VisibleDefinitions}, parser::ast::{Expression, TopLevelStatement}};
 
 /// Compile a given source file to python, returning any errors in the file.
-pub fn compile_file_impl(context: &CompileFile, compiler: &CompilerHandle) -> (String, Errors) {
+pub fn compile_file_impl(context: &CompileFile, compiler: &DbHandle) -> (String, Errors) {
     incremental::enter_query();
     incremental::println(format!("Compiling {}", context.file_name));
 

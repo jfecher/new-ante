@@ -5,7 +5,7 @@ use types::TypeBindings;
 
 use crate::{
     errors::{Diagnostic, Errors},
-    incremental::{self, CompilerHandle, GetStatement, GetType, Resolve, TypeCheck},
+    incremental::{self, DbHandle, GetStatement, GetType, Resolve, TypeCheck},
     name_resolution::{Origin, ResolutionResult},
     parser::{
         ast::{Expression, TopLevelStatement},
@@ -24,7 +24,7 @@ pub mod types;
 /// and we don't want other definitions to depend on the contents of another definition
 /// if the other definition provides a type annotation. Without type annotations the two
 /// functions should be mostly equivalent.
-pub fn get_type_impl(context: &GetType, compiler: &CompilerHandle) -> TopLevelDefinitionType {
+pub fn get_type_impl(context: &GetType, compiler: &DbHandle) -> TopLevelDefinitionType {
     incremental::enter_query();
     let statement = compiler.get(GetStatement(context.0.clone()));
     incremental::println(format!("Get type of {statement}"));
@@ -48,7 +48,7 @@ pub fn get_type_impl(context: &GetType, compiler: &CompilerHandle) -> TopLevelDe
 /// Actually type check a statement and its contents.
 /// Unlike `get_type_impl`, this always type checks the expressions inside a statement
 /// to ensure they type check correctly.
-pub fn type_check_impl(context: &TypeCheck, compiler: &CompilerHandle) -> TypeCheckResult {
+pub fn type_check_impl(context: &TypeCheck, compiler: &DbHandle) -> TypeCheckResult {
     incremental::enter_query();
     let statement = GetStatement(context.0.clone()).get(compiler);
     incremental::println(format!("Type checking {statement}"));
@@ -87,7 +87,7 @@ pub struct TypeCheckResult {
 }
 
 struct TypeChecker<'local, 'inner> {
-    compiler: &'local CompilerHandle<'inner>,
+    compiler: &'local DbHandle<'inner>,
     origins: BTreeMap<ExprId, Origin>,
     expr_types: BTreeMap<ExprId, Type>,
     bindings: TypeBindings,
@@ -97,7 +97,7 @@ struct TypeChecker<'local, 'inner> {
 }
 
 impl<'local, 'inner> TypeChecker<'local, 'inner> {
-    fn new(item: TopLevelId, resolve: ResolutionResult, compiler: &'local CompilerHandle<'inner>) -> Self {
+    fn new(item: TopLevelId, resolve: ResolutionResult, compiler: &'local DbHandle<'inner>) -> Self {
         Self {
             compiler,
             item,
