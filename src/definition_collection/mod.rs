@@ -1,17 +1,17 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use crate::{
     errors::{Diagnostic, Errors, Location},
     incremental::{
-        self, parse, DbHandle, Definitions, ExportedDefinitions, GetImports, Parse, VisibleDefinitions
-    }, parser::cst::{TopLevelItem, TopLevelItemKind},
+        self, DbHandle, Definitions, ExportedDefinitions, GetImports, Parse, VisibleDefinitions
+    }, parser::cst::TopLevelItemKind,
 };
 
 /// Collect all definitions which should be visible to expressions within this file.
 /// This includes all top-level definitions within this file, as well as any imported ones.
 pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> (Definitions, Errors) {
     incremental::enter_query();
-    incremental::println(format!("Collecting visible definitions in {}", context.file_name));
+    incremental::println(format!("Collecting visible definitions in {}", context.file_name.display()));
 
     let (mut definitions, mut errors) = ExportedDefinitions { file_name: context.file_name.clone() }.get(db);
 
@@ -29,7 +29,7 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
                 // This reports the location the item was defined in, not the location it was imported at.
                 // I could improve this but instead I'll leave it as an exercise for the reader!
                 let first_location = existing.location(db);
-                let second_location = import_id.location(db);
+                let second_location = import.location.clone();
                 let name = exported_name;
                 errors.push(Diagnostic::ImportedNameAlreadyInScope { name, first_location, second_location });
             } else {
@@ -43,10 +43,9 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
 }
 
 /// Collect only the exported definitions within a file.
-/// For this small example language, this is all top-level definitions in a file, except for imported ones.
 pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -> (Definitions, Errors) {
     incremental::enter_query();
-    incremental::println(format!("Collecting exported definitions in {}", context.file_name));
+    incremental::println(format!("Collecting exported definitions in {}", context.file_name.display()));
 
     let result = Parse { file_name: context.file_name.clone() }.get(db);
     let mut definitions = Definitions::default();
@@ -54,6 +53,15 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
 
     // Collect each definition, issuing an error if there is a duplicate name (imports are not counted)
     for item in result.cst.top_level_items.iter() {
+        match &item.kind {
+            TopLevelItemKind::Definition(definition) => todo!(),
+            TopLevelItemKind::TypeDefinition(type_definition) => todo!(),
+            TopLevelItemKind::TraitDefinition(trait_definition) => todo!(),
+            TopLevelItemKind::TraitImpl(trait_impl) => todo!(),
+            TopLevelItemKind::EffectDefinition(effect_definition) => todo!(),
+            TopLevelItemKind::Extern(_) => todo!(),
+        }
+
         if let TopLevelItemKind::Definition(definition) = &item.kind {
             if let Some(existing) = definitions.get(&definition.path) {
                 let first_location = existing.location(db);
@@ -71,9 +79,9 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
 }
 
 /// Collects the file names of all imports within this file.
-pub fn get_imports_impl(context: &GetImports, db: &DbHandle) -> Vec<(Arc<String>, Location)> {
+pub fn get_imports_impl(context: &GetImports, db: &DbHandle) -> Vec<(Arc<PathBuf>, Location)> {
     incremental::enter_query();
-    incremental::println(format!("Collecting imports of {}", context.file_name));
+    incremental::println(format!("Collecting imports of {}", context.file_name.display()));
 
     // Ignore parse errors for now, we can report them later
     let result = Parse { file_name: context.file_name.clone() }.get(db);

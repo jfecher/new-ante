@@ -1,10 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::{BTreeMap, HashMap}, path::PathBuf, sync::Arc};
 
 use cst::{BorrowMode, Index, Lambda, MemberAccess, OwnershipMode, Pattern, SharedMode};
 use ids::{ExprId, PatternId, TopLevelId};
 use serde::{Deserialize, Serialize};
 
-use crate::{errors::{Diagnostic, ErrorDefault, Location, Span}, incremental::{self, get_source_file}, lexer::{token::Token, Lexer}, vecmap::VecMap};
+use crate::{errors::{Diagnostic, ErrorDefault, Location, LocationData, Span}, incremental::{self, get_source_file}, lexer::{token::Token, Lexer}, vecmap::VecMap};
 
 use self::cst::{Cst, Import, Path, TopLevelItem, TopLevelItemKind, TypeDefinition, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
 
@@ -12,29 +12,42 @@ pub mod cst;
 pub mod cst_printer;
 pub mod ids;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ParseResult {
     pub cst: Cst,
     pub diagnostics: Vec<Diagnostic>,
-    pub top_level_data: HashMap<TopLevelId, TopLevelContext>,
+    pub top_level_data: BTreeMap<TopLevelId, TopLevelContext>,
 }
 
 /// Metadata associated with a top level statement
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TopLevelContext {
+    pub location: Location,
     pub exprs: VecMap<ExprId, Expr>,
     pub patterns: VecMap<PatternId, Pattern>,
     pub expr_locations: VecMap<ExprId, Location>,
     pub pattern_locations: VecMap<PatternId, Location>,
 }
 
+impl TopLevelContext {
+    fn new(file_path: Arc<PathBuf>) -> Self {
+        Self {
+            location: LocationData::placeholder(file_path),
+            exprs: VecMap::default(),
+            patterns: VecMap::default(),
+            expr_locations: VecMap::default(),
+            pattern_locations: VecMap::default(),
+        }
+    }
+}
+
 type Result<T> = std::result::Result<T, Diagnostic>;
 
 struct Parser<'tokens> {
-    file_path: Arc<String>,
+    file_path: Arc<PathBuf>,
     tokens: &'tokens [(Token, Span)],
     diagnostics: Vec<Diagnostic>,
-    top_level_data: HashMap<TopLevelId, TopLevelContext>,
+    top_level_data: BTreeMap<TopLevelId, TopLevelContext>,
 
     /// Keep track of any name collisions in the top level items
     top_level_item_count: HashMap<String, /*collision count:*/u32>,
@@ -51,15 +64,15 @@ pub fn parse_impl(ctx: &incremental::Parse, db: &incremental::DbHandle) -> Arc<P
 }
 
 impl<'tokens> Parser<'tokens> {
-    fn new(file_path: Arc<String>, tokens: &'tokens [(Token, Span)]) -> Self {
+    fn new(file_path: Arc<PathBuf>, tokens: &'tokens [(Token, Span)]) -> Self {
         Self {
+            current_context: TopLevelContext::new(file_path.clone()),
             file_path,
             tokens,
             diagnostics: Vec::new(),
             token_index: 0,
             top_level_data: Default::default(),
             top_level_item_count: Default::default(),
-            current_context: Default::default(),
         }
     }
 
@@ -141,6 +154,7 @@ impl<'tokens> Parser<'tokens> {
         } else {
             let actual = self.current_token().clone();
             let location = self.current_token_span().in_file(self.file_path.clone());
+            let message = message.to_string();
             Err(Diagnostic::ParserExpected { message, actual, location })
         }
     }
@@ -176,7 +190,9 @@ impl<'tokens> Parser<'tokens> {
             .or_default();
 
         let id = TopLevelId::new_named(self.file_path.clone(), &name, collision);
-        self.top_level_data.insert(id.clone(), std::mem::take(&mut self.current_context));
+        let empty_context = TopLevelContext::new(self.file_path.clone());
+        let old_context = std::mem::replace(&mut self.current_context, empty_context);
+        self.top_level_data.insert(id.clone(), old_context);
         id
     }
 
@@ -293,9 +309,23 @@ impl<'tokens> Parser<'tokens> {
     fn parse_imports(&mut self) -> Vec<Import> {
         let mut imports = Vec::new();
 
-        while self.accept(Token::Import) {
+        loop {
+            let position_before_comments = self.token_index;
+            let comments = self.parse_comments();
+
+            if !self.accept(Token::Import) {
+                // The comments, if any, should be attached to the next top level item
+                // since there is no import here.
+                self.token_index = position_before_comments;
+                break;
+            }
+
+            let start = self.current_token_span();
             if let Some(path) = self.try_parse_or_recover_to_newline(Self::parse_type_or_value_path) {
-                imports.push(Import { path });
+                let end = self.previous_token_span();
+                let location = start.to(&end).in_file(self.file_path.clone());
+                let path = path.into_file_path();
+                imports.push(Import { comments, path, location });
             }
             self.expect(Token::Newline, "newline after import");
         }
@@ -379,7 +409,7 @@ impl<'tokens> Parser<'tokens> {
                 TopLevelItemKind::TypeDefinition(definition)
             }
             other => {
-                let message = "a top-level item";
+                let message = "a top-level item".to_string();
                 let location = self.current_token_location();
                 return Err(Diagnostic::ParserExpected { message, actual: other.clone(), location });
             }
@@ -547,7 +577,7 @@ impl<'tokens> Parser<'tokens> {
             }
             other => {
                 let actual = other.clone();
-                let message = "a capitalized type name";
+                let message = "a capitalized type name".to_string();
                 let location = self.current_token_location();
                 Err(Diagnostic::ParserExpected { message, actual, location })
             }
@@ -562,7 +592,7 @@ impl<'tokens> Parser<'tokens> {
             }
             other => {
                 let actual = other.clone();
-                let message = "an identifier";
+                let message = "an identifier".to_string();
                 let location = self.current_token_location();
                 Err(Diagnostic::ParserExpected { message, actual, location })
             }
@@ -637,7 +667,7 @@ impl<'tokens> Parser<'tokens> {
             }
             Token::Identifier(_) => Ok((self.parse_ident()?, None)),
             other => {
-                let message = "a parameter";
+                let message = "a parameter".to_string();
                 let location = self.current_token_location();
                 Err(Diagnostic::ParserExpected { message, actual: other.clone(), location })
             }
@@ -857,7 +887,7 @@ impl<'tokens> Parser<'tokens> {
                 Ok(self.push_expr(expr, location))
             }
             other => {
-                let message = "an expression";
+                let message = "an expression".to_string();
                 let location= self.current_token_location();
                 Err(Diagnostic::ParserExpected { message, actual: other.clone(), location})
             }

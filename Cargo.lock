@@ -220,9 +220,9 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "inc-complete"
-version = "0.5.3"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49975d532ca6b64c8227feb34a9fbb0669208ea90147e981d90fe3af2872cf68"
+checksum = "cce089cf65476171a0f4f2d2ca27435721aa5f26e839d6193c44c69051cd2d45"
 dependencies = [
  "dashmap",
  "parking_lot",

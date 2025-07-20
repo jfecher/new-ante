@@ -1,6 +1,8 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
-use crate::{errors::ErrorDefault, lexer::token::{IntegerKind, Token}};
+use serde::{Deserialize, Serialize};
+
+use crate::{errors::{ErrorDefault, Location}, lexer::token::{IntegerKind, Token}};
 
 use super::ids::{ExprId, PatternId, TopLevelId};
 
@@ -9,19 +11,20 @@ use super::ids::{ExprId, PatternId, TopLevelId};
 /// This isn't a perfect mirroring - we keep only enough information for pretty-printing
 /// the CST back into a file. So while things like comments are kept, certain syntax
 /// constructs like `foo = fn a -> expr` may be sugared into `foo x = expr`.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Cst {
     pub imports: Vec<Import>,
     pub top_level_items: Vec<Arc<TopLevelItem>>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TopLevelItem {
     pub comments: Vec<String>,
     pub kind: TopLevelItemKind,
     pub id: TopLevelId,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TopLevelItemKind {
     Definition(Definition),
     TypeDefinition(TypeDefinition),
@@ -35,7 +38,7 @@ pub struct TopLevelDefinition {
     pub path: Path,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Type {
     Error,
     Unit,
@@ -51,7 +54,7 @@ impl ErrorDefault for Type {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct FunctionType {
     pub parameters: Vec<Type>,
     pub return_type: Box<Type>,
@@ -62,20 +65,20 @@ pub struct FunctionType {
     pub effects: Option<Vec<EffectType>>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum EffectType {
     Known(Path, Vec<Type>),
     Variable(String),
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TypeDefinition {
     pub name: String,
     pub generics: Vec<String>,
     pub body: TypeDefinitionBody,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TypeDefinitionBody {
     Error,
     Struct(Vec<(String, Type)>),
@@ -88,7 +91,7 @@ impl ErrorDefault for TypeDefinitionBody {
     }
 }
 
-
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Expr {
     Error,
     Literal(Literal),
@@ -129,7 +132,7 @@ impl Expr {
 /// Path Can't contain any ExprIds since it is used for hashing top-level definition names
 ///
 /// A path is always guaranteed to have at least 1 component
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Path {
     pub components: Vec<String>,
 }
@@ -138,23 +141,37 @@ impl Path {
     pub fn last(&self) -> &String {
         self.components.last().unwrap()
     }
+
+    pub fn into_file_path(self) -> Arc<PathBuf> {
+        let mut path = PathBuf::new();
+        for component in self.components {
+            path.push(component);
+        }
+        Arc::new(path)
+    }
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Import {
-    pub path: Path,
+    pub comments: Vec<String>,
+    /// TODO: Investigate whether this breaks serialization stability across Windows <-> Unix
+    pub path: Arc<PathBuf>,
+    pub location: Location,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct SequenceItem {
     pub comments: Vec<String>,
     pub expr: ExprId,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Literal {
     Integer(u64, Option<IntegerKind>),
     String(String),
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Definition {
     pub mutable: bool,
     pub path: Path,
@@ -162,23 +179,27 @@ pub struct Definition {
     pub rhs: ExprId,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Call {
     pub function: ExprId,
     pub arguments: Vec<ExprId>,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct MemberAccess {
     pub object: ExprId,
     pub member: String,
     pub ownership: OwnershipMode,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Index {
     pub object: ExprId,
     pub index: ExprId,
     pub ownership: OwnershipMode,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum OwnershipMode {
     Owned,
     Borrow,
@@ -196,18 +217,21 @@ impl OwnershipMode {
     }
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Lambda {
     pub parameters: Vec<(String, Option<Type>)>,
     pub return_type: Option<Type>,
     pub body: ExprId,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct If {
     pub condition: ExprId,
     pub then: ExprId,
     pub else_: Option<ExprId>,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Match {
     /// The expression being matched
     pub expression: ExprId,
@@ -215,12 +239,13 @@ pub struct Match {
 }
 
 /// `&rhs`, `!rhs`
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Reference {
     pub mode: BorrowMode,
     pub rhs: ExprId,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum BorrowMode {
     Immutable(SharedMode),
     Mutable(SharedMode),
@@ -239,30 +264,32 @@ impl BorrowMode {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum SharedMode {
     Shared,
     Owned,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Pattern {
     Variable(Path),
     Literal(Literal),
     Constructor(Path, Vec<PatternId>),
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TypeAnnotation {
     pub lhs: ExprId,
     pub rhs: Type,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Declaration {
     pub name: String,
     pub typ: Type,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TraitDefinition {
     pub name: String,
     pub generics: Vec<String>,
@@ -270,21 +297,21 @@ pub struct TraitDefinition {
     pub body: Vec<Declaration>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TraitImpl {
     pub trait_name: String,
     pub arguments: Vec<Type>,
     pub body: Vec<Definition>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct EffectDefinition {
     pub name: String,
     pub generics: Vec<String>,
     pub body: Vec<Declaration>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Extern {
     pub declarations: Vec<Declaration>,
 }

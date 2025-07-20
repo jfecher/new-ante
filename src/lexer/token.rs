@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// when it finds these tokens but in the future it may be able
 /// to issue the error then continue on to output as many errors
 /// as possible.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Hash)]
 pub enum LexerError {
     InvalidCharacterInSignificantWhitespace(char), // Only spaces are allowed in significant whitespace
     InvalidEscapeSequence(char),
@@ -62,8 +62,13 @@ pub enum FloatKind {
 #[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct F64(f64);
 impl Eq for F64 {}
+impl std::hash::Hash for F64 {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state)
+    }
+}
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, Hash)]
 pub enum Token {
     // Lexer sends an end of input token before stopping so we get a proper error location when
     // reporting parsing errors that expect a token but found the end of a file instead.

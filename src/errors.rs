@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -8,13 +8,14 @@ pub type Location = Arc<LocationData>;
 pub type Errors = Vec<Diagnostic>;
 
 /// Any diagnostic that the compiler can issue
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum Diagnostic {
-    ParserExpected { message: &'static str, actual: Token, location: Location },
+    // TODO: `message` could be an enum to save allocation costs
+    ParserExpected { message: String, actual: Token, location: Location },
 
     NameAlreadyInScope { name: Arc<String>, first_location: Location, second_location: Location },
     ImportedNameAlreadyInScope { name: Arc<String>, first_location: Location, second_location: Location },
-    UnknownImportFile { file_name: Arc<String>, location: Location },
+    UnknownImportFile { file_name: Arc<PathBuf>, location: Location },
     NameNotInScope { name: Arc<String>, location: Location },
     ExpectedType { actual: String, expected: String, location: Location },
     RecursiveType { typ: String, location: Location },
@@ -35,7 +36,7 @@ impl Diagnostic {
                 )
             },
             Diagnostic::UnknownImportFile { file_name, location } => {
-                format!("{location}: Cannot read source file `{file_name}`, does it exist?")
+                format!("{location}: Cannot read source file `{}`, does it exist?", file_name.display())
             },
             Diagnostic::NameNotInScope { name, location } => {
                 format!("{location}: `{name}` is not defined, was it a typo?")
@@ -52,7 +53,7 @@ impl Diagnostic {
 
 impl std::fmt::Display for LocationData {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}:{}", self.file_name, self.span.start.line_number)
+        write!(f, "{}:{}", self.file_name.display(), self.span.start.line_number)
     }
 }
 impl std::fmt::Debug for Diagnostic {
@@ -72,9 +73,9 @@ pub trait ErrorDefault {
     fn error_default() -> Self;
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct LocationData {
-    pub file_name: Arc<String>,
+    pub file_name: Arc<PathBuf>,
     pub span: Span,
 }
 
@@ -84,9 +85,15 @@ impl LocationData {
         assert_eq!(self.file_name, end.file_name);
         Arc::new(LocationData { file_name: self.file_name.clone(), span: self.span.to(&end.span) })
     }
+
+    /// An invalid location used only as a temporary placeholder
+    pub fn placeholder(file_name: Arc<PathBuf>) -> Location {
+        let position = Position { byte_index: 0, line_number: 0, column_number: 0 };
+        Arc::new(LocationData { file_name, span: Span { start: position, end: position } })
+    }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct Span {
     pub start: Position,
     pub end: Position,
@@ -100,12 +107,12 @@ impl Span {
     }
 
     /// Construct a Location from this Span
-    pub fn in_file(self, file_name: Arc<String>) -> Location {
+    pub fn in_file(self, file_name: Arc<PathBuf>) -> Location {
         Arc::new(LocationData { file_name, span: self })
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct Position {
     pub byte_index: usize,
     pub line_number: u32,

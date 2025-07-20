@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::BTreeMap, sync::Arc};
+use std::{cell::Cell, collections::BTreeMap, path::PathBuf, sync::Arc};
 
 use inc_complete::{define_input, define_intermediate, impl_storage, storage::HashMapStorage};
 use serde::{Deserialize, Serialize};
@@ -87,7 +87,7 @@ pub fn println(msg: String) {
 /// they return the text of the file as long as it was set before via `db.update_input`
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SourceFile {
-    file_name: Arc<String>,
+    file_name: Arc<PathBuf>,
 }
 
 // To define an input in inc-complete we can either use this macro or implement a few traits
@@ -97,11 +97,11 @@ pub struct SourceFile {
 // `Storage` is just the overall storage type to store results in.
 define_input!(0, SourceFile -> String, Storage);
 
-pub fn set_source_file(file_name: Arc<String>, text: String, db: &mut Db) {
+pub fn set_source_file(file_name: Arc<PathBuf>, text: String, db: &mut Db) {
     SourceFile { file_name }.set(db, text);
 }
 
-pub fn get_source_file<'c>(file_name: Arc<String>, db: &'c DbHandle) -> String {
+pub fn get_source_file<'c>(file_name: Arc<PathBuf>, db: &'c DbHandle) -> String {
     SourceFile { file_name }.get(db)
 }
 
@@ -117,7 +117,7 @@ pub fn get_source_file<'c>(file_name: Arc<String>, db: &'c DbHandle) -> String {
 /// changes.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Parse {
-    pub file_name: Arc<String>,
+    pub file_name: Arc<PathBuf>,
 }
 define_intermediate!(1, Parse -> Arc<ParseResult>, Storage, parser::parse_impl);
 
@@ -126,7 +126,7 @@ define_intermediate!(1, Parse -> Arc<ParseResult>, Storage, parser::parse_impl);
 /// referred to in any expression in the file.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VisibleDefinitions {
-    pub file_name: Arc<String>,
+    pub file_name: Arc<PathBuf>,
 }
 define_intermediate!(2, VisibleDefinitions -> (Definitions, Errors), Storage, definition_collection::visible_definitions_impl);
 
@@ -142,7 +142,7 @@ pub type Definitions = BTreeMap<Arc<String>, TopLevelId>;
 /// Instead, it only depends on the `ExportedDefinitions` of that import.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportedDefinitions {
-    pub file_name: Arc<String>,
+    pub file_name: Arc<PathBuf>,
 }
 define_intermediate!(3, ExportedDefinitions -> (Definitions, Errors), Storage, definition_collection::exported_definitions_impl);
 
@@ -155,9 +155,9 @@ define_intermediate!(3, ExportedDefinitions -> (Definitions, Errors), Storage, d
 /// anything else.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GetImports {
-    pub file_name: Arc<String>,
+    pub file_name: Arc<PathBuf>,
 }
-define_intermediate!(4, GetImports -> Vec<(Arc<String>, Location)>, Storage, definition_collection::get_imports_impl);
+define_intermediate!(4, GetImports -> Vec<(Arc<PathBuf>, Location)>, Storage, definition_collection::get_imports_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Resolves a single top-level statement. Note that since the granularity of this is per-statement
@@ -222,5 +222,5 @@ define_intermediate!(8, TypeCheck -> TypeCheckResult, Storage, type_inference::t
 /// Compile a single file to a string representing python source code of that file.
 /// This will also return any errors originating in that file.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompileFile { pub file_name: Arc<String> }
+pub struct CompileFile { pub file_name: Arc<PathBuf> }
 define_intermediate!(9, CompileFile -> (String, Errors), Storage, backend::compile_file_impl);

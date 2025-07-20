@@ -1,4 +1,4 @@
-use std::{hash::Hasher, sync::Arc};
+use std::{hash::Hasher, path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ use crate::{
 /// data with an Ast including its Location, and later on its Type.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct TopLevelId {
-    pub file_path: Arc<String>,
+    pub file_path: Arc<PathBuf>,
     content_hash: u64,
 }
 
@@ -36,7 +36,7 @@ impl TopLevelId {
     /// define a method in a type such as `Vec.len v = ...`, in this case the name is considered
     /// only the `len` portion, and we rely on `collision` to disambiguate any similar definitions
     /// in the same file such as `VecIter.len v = ...`.
-    pub fn new_named(file_path: Arc<String>, name: &str, collision: u32) -> TopLevelId {
+    pub fn new_named(file_path: Arc<PathBuf>, name: &str, collision: u32) -> TopLevelId {
         hash(file_path, (name, collision))
     }
 
@@ -48,11 +48,11 @@ impl TopLevelId {
 
 impl std::fmt::Display for TopLevelId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}_{}", self.file_path, self.content_hash)
+        write!(f, "{}_{}", self.file_path.display(), self.content_hash)
     }
 }
 
-fn hash(file_path: Arc<String>, x: impl std::hash::Hash) -> TopLevelId {
+fn hash(file_path: Arc<PathBuf>, x: impl std::hash::Hash) -> TopLevelId {
     let mut hasher = deterministic_hash::DeterministicHasher::new(std::hash::DefaultHasher::new());
     x.hash(&mut hasher);
     TopLevelId { file_path, content_hash: hasher.finish() }
@@ -76,6 +76,7 @@ fn hash(file_path: Arc<String>, x: impl std::hash::Hash) -> TopLevelId {
 /// a particular node. For example, name resolution fills out any links to definitions,
 /// and type inference associates a type with every ExprId.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ExprId(u32);
 
 impl ExprId {
@@ -89,7 +90,7 @@ impl ExprId {
 
     pub(crate) fn location(&self, item: &TopLevelId, db: &DbHandle) -> Location {
         let result = db.get(Parse { file_name: item.file_path.clone() });
-        result.top_level_data[item].expr_locations[self].clone()
+        result.top_level_data[item].expr_locations[*self].clone()
     }
 }
 
@@ -114,6 +115,7 @@ impl std::fmt::Display for ExprId {
 /// Similar to ExprIds, PatternIds are generated from a monotonically increasing counter,
 /// which is reset for each top level item.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct PatternId(u32);
 
 impl From<PatternId> for usize {

@@ -2,6 +2,7 @@ use std::{marker::PhantomData, ops::{Index, IndexMut}};
 
 use serde::{Deserialize, Serialize};
 
+#[derive(PartialEq, Eq, Hash)]
 pub struct VecMap<K, V> {
     items: Vec<V>,
     id: PhantomData<K>,
