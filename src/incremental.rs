@@ -34,7 +34,9 @@ pub struct Storage {
     files: HashMapStorage<SourceFile>,
     parse_results: HashMapStorage<Parse>,
     visible_definitions: HashMapStorage<VisibleDefinitions>,
+    visible_types: HashMapStorage<VisibleTypes>,
     exported_definitions: HashMapStorage<ExportedDefinitions>,
+    exported_types: HashMapStorage<ExportedTypes>,
     get_imports: HashMapStorage<GetImports>,
     resolves: HashMapStorage<Resolve>,
     top_level_statement: HashMapStorage<GetStatement>,
@@ -47,7 +49,9 @@ impl_storage!(Storage,
     files: SourceFile,
     parse_results: Parse,
     visible_definitions: VisibleDefinitions,
+    visible_types: VisibleTypes,
     exported_definitions: ExportedDefinitions,
+    exported_types: ExportedTypes,
     get_imports: GetImports,
     resolves: Resolve,
     top_level_statement: GetStatement,
@@ -130,6 +134,13 @@ pub struct VisibleDefinitions {
 }
 define_intermediate!(2, VisibleDefinitions -> (Definitions, Errors), Storage, definition_collection::visible_definitions_impl);
 
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VisibleTypes {
+    pub file_name: Arc<PathBuf>,
+}
+// TODO: Reorder
+define_intermediate!(20, VisibleTypes -> (Definitions, Errors), Storage, definition_collection::visible_types_impl);
+
 /// We iterate over collected definitions within `visible_definitions_impl`. Since
 /// collecting these can error, we need a stable iteration order, otherwise the order
 /// we issue errors would be nondeterministic. This is why we use a BTreeMap over a
@@ -145,6 +156,13 @@ pub struct ExportedDefinitions {
     pub file_name: Arc<PathBuf>,
 }
 define_intermediate!(3, ExportedDefinitions -> (Definitions, Errors), Storage, definition_collection::exported_definitions_impl);
+
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExportedTypes {
+    pub file_name: Arc<PathBuf>,
+}
+// TODO: Reorder
+define_intermediate!(30, ExportedTypes -> (Definitions, Errors), Storage, definition_collection::exported_types_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Retrieves the imports used by a file. This step is the first done by the compiler to collect

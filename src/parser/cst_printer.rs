@@ -19,15 +19,11 @@ impl Cst {
 
 impl Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut components = self.components.iter();
-
-        let first = components.next().unwrap();
-        write!(f, "{first}")?;
-
-        while let Some(next) = components.next() {
-            write!(f, ".{next}")?;
+        let mut path = self.components.iter();
+        write!(f, "{}", path.next().unwrap());
+        for item in path {
+            write!(f, ".{item}")?;
         }
-
         Ok(())
     }
 }
@@ -35,7 +31,7 @@ impl Display for Path {
 impl<'a> CstDisplayContext<'a> {
     fn fmt_cst(&mut self, cst: &Cst, f: &mut Formatter) -> std::fmt::Result {
         for import in &cst.imports {
-            writeln!(f, "import {}", import.path)?;
+            writeln!(f, "import {}", import.path.display())?;
         }
 
         if !cst.imports.is_empty() {
@@ -399,18 +395,7 @@ impl<'a> CstDisplayContext<'a> {
 
     fn fmt_extern(&mut self, extern_: &Extern, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "extern ")?;
-
-        if extern_.declarations.len() == 1 {
-            self.fmt_declaration(&extern_.declarations[0], f)
-        } else {
-            self.indent_level += 1;
-            for declaration in &extern_.declarations {
-                self.newline(f)?;
-                self.fmt_declaration(declaration, f)?;
-            }
-            self.indent_level -= 1;
-            Ok(())
-        }
+        self.fmt_declaration(&extern_.declaration, f)
     }
 
     fn fmt_lambda(&mut self, lambda: &Lambda, f: &mut Formatter<'_>) -> std::fmt::Result {

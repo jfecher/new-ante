@@ -5,10 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     errors::{Diagnostic, Errors},
     incremental::{self, DbHandle, GetStatement, Resolve, VisibleDefinitions},
-    parser::{
-        cst::{Expr, TopLevelItem},
-        ids::{ExprId, TopLevelId},
-    },
+    parser::{cst::TopLevelItemKind, ids::{ExprId, TopLevelId}},
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -41,7 +38,7 @@ pub enum Origin {
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
     incremental::enter_query();
     let statement = GetStatement(context.0.clone()).get(compiler);
-    incremental::println(format!("Resolving {statement}"));
+    incremental::println(format!("Resolving {}", statement.kind.name()));
 
     // Note that we discord errors here because they're errors for the entire file and we are
     // resolving just one statement in it. This does mean that `CompileFile` will later need to
@@ -50,10 +47,15 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
 
     let mut resolver = Resolver::new(compiler, context.0.clone(), names_in_scope);
 
-    match statement {
-        TopLevelStatement::Import { .. } => (),
-        TopLevelStatement::Definition(definition) => resolver.resolve_expr(&definition.body),
-        TopLevelStatement::Print(expression, _) => resolver.resolve_expr(&expression),
+    match &statement.kind {
+        TopLevelItemKind::Definition(definition) => {
+            resolver.resolve_expr(&definition.rhs);
+        },
+        TopLevelItemKind::TypeDefinition(type_definition) => todo!(),
+        TopLevelItemKind::TraitDefinition(trait_definition) => todo!(),
+        TopLevelItemKind::TraitImpl(trait_impl) => todo!(),
+        TopLevelItemKind::EffectDefinition(effect_definition) => todo!(),
+        TopLevelItemKind::Extern(_) => todo!(),
     }
 
     incremental::exit_query();

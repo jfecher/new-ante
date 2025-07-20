@@ -34,6 +34,35 @@ pub enum TopLevelItemKind {
     Extern(Extern),
 }
 
+impl TopLevelItemKind {
+    pub(crate) fn name(&self) -> ItemName {
+        match self {
+            TopLevelItemKind::Definition(definition) => ItemName::Path(&definition.path),
+            TopLevelItemKind::TypeDefinition(type_definition) => ItemName::Single(&type_definition.name),
+            TopLevelItemKind::TraitDefinition(trait_definition) => ItemName::Single(&trait_definition.name),
+            TopLevelItemKind::TraitImpl(_) => ItemName::None,
+            TopLevelItemKind::EffectDefinition(effect_definition) => ItemName::Single(&effect_definition.name),
+            TopLevelItemKind::Extern(extern_) => ItemName::Single(&extern_.declaration.name),
+        }
+    }
+}
+
+pub enum ItemName<'a> {
+    Single(&'a Arc<String>),
+    Path(&'a Path),
+    None,
+}
+
+impl<'a> std::fmt::Display for ItemName<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ItemName::Single(name) => write!(f, "{name}"),
+            ItemName::Path(path) => write!(f, "{path}"),
+            ItemName::None => write!(f, "impl"),
+        }
+    }
+}
+
 pub struct TopLevelDefinition {
     pub path: Path,
 }
@@ -73,7 +102,7 @@ pub enum EffectType {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TypeDefinition {
-    pub name: String,
+    pub name: Arc<String>,
     pub generics: Vec<String>,
     pub body: TypeDefinitionBody,
 }
@@ -285,13 +314,13 @@ pub struct TypeAnnotation {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Declaration {
-    pub name: String,
+    pub name: Arc<String>,
     pub typ: Type,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TraitDefinition {
-    pub name: String,
+    pub name: Arc<String>,
     pub generics: Vec<String>,
     pub functional_dependencies: Vec<String>,
     pub body: Vec<Declaration>,
@@ -299,19 +328,19 @@ pub struct TraitDefinition {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TraitImpl {
-    pub trait_name: String,
+    pub trait_name: Arc<String>,
     pub arguments: Vec<Type>,
     pub body: Vec<Definition>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct EffectDefinition {
-    pub name: String,
+    pub name: Arc<String>,
     pub generics: Vec<String>,
     pub body: Vec<Declaration>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Extern {
-    pub declarations: Vec<Declaration>,
+    pub declaration: Declaration,
 }
