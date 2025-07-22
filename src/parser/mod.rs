@@ -16,7 +16,7 @@ pub mod ids;
 pub struct ParseResult {
     pub cst: Cst,
     pub diagnostics: Vec<Diagnostic>,
-    pub top_level_data: BTreeMap<TopLevelId, TopLevelContext>,
+    pub top_level_data: BTreeMap<TopLevelId, Arc<TopLevelContext>>,
 }
 
 /// Metadata associated with a top level statement
@@ -47,10 +47,10 @@ struct Parser<'tokens> {
     file_path: Arc<PathBuf>,
     tokens: &'tokens [(Token, Span)],
     diagnostics: Vec<Diagnostic>,
-    top_level_data: BTreeMap<TopLevelId, TopLevelContext>,
+    top_level_data: BTreeMap<TopLevelId, Arc<TopLevelContext>>,
 
     /// Keep track of any name collisions in the top level items
-    top_level_item_count: HashMap<String, /*collision count:*/u32>,
+    top_level_item_count: HashMap<Arc<String>, /*collision count:*/u32>,
 
     current_context: TopLevelContext,
 
@@ -183,7 +183,7 @@ impl<'tokens> Parser<'tokens> {
 
     /// Create a new TopLevelId from the name of a given top level item.
     /// In the case of definitions, this name will be only the last element in their path.
-    fn new_top_level_id(&mut self, name: String) -> TopLevelId {
+    fn new_top_level_id(&mut self, name: Arc<String>) -> TopLevelId {
         // Check for previous name collisions to disambiguate the resulting hash
         let collision = *self.top_level_item_count.entry(name.clone())
             .and_modify(|count| *count += 1)
@@ -192,7 +192,7 @@ impl<'tokens> Parser<'tokens> {
         let id = TopLevelId::new_named(self.file_path.clone(), &name, collision);
         let empty_context = TopLevelContext::new(self.file_path.clone());
         let old_context = std::mem::replace(&mut self.current_context, empty_context);
-        self.top_level_data.insert(id.clone(), old_context);
+        self.top_level_data.insert(id.clone(), Arc::new(old_context));
         id
     }
 
@@ -400,7 +400,7 @@ impl<'tokens> Parser<'tokens> {
                     self.token_index -= 1;
                 }
 
-                id = self.new_top_level_id(definition.path.last().clone());
+                id = self.new_top_level_id(Arc::new(definition.path.last().clone()));
                 TopLevelItemKind::Definition(definition)
             }
             Token::Type => {
@@ -466,7 +466,7 @@ impl<'tokens> Parser<'tokens> {
 
     fn parse_type_definition(&mut self) -> Result<TypeDefinition> {
         self.expect(Token::Type, "`type`");
-        let name = self.parse_type_name()?;
+        let name = Arc::new(self.parse_type_name()?);
         let generics = self.many0(|this| this.parse_ident());
         self.expect(Token::Equal, "`=` to begin the type definition");
         let body = self.parse_type_body()?;

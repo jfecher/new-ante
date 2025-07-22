@@ -4,8 +4,8 @@ use inc_complete::{define_input, define_intermediate, impl_storage, storage::Has
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend, definition_collection, errors::{Errors, Location}, name_resolution::{self, ResolutionResult}, parser::{
-        self, cst::TopLevelItem, ids::TopLevelId, ParseResult,
+    backend, definition_collection, errors::{Errors, Location}, name_resolution::{self, namespace::CrateId, ResolutionResult}, parser::{
+        self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext,
     }, type_inference::{self, types::TopLevelDefinitionType, TypeCheckResult}
 };
 
@@ -43,6 +43,8 @@ pub struct Storage {
     get_types: HashMapStorage<GetType>,
     type_checks: HashMapStorage<TypeCheck>,
     compiled_files: HashMapStorage<CompileFile>,
+    dependencies: HashMapStorage<Dependencies>,
+    crate_names: HashMapStorage<CrateName>,
 }
 
 impl_storage!(Storage,
@@ -58,6 +60,8 @@ impl_storage!(Storage,
     get_types: GetType,
     type_checks: TypeCheck,
     compiled_files: CompileFile,
+    dependencies: Dependencies,
+    crate_names: CrateName,
 );
 
 std::thread_local! {
@@ -203,13 +207,14 @@ define_intermediate!(5, Resolve -> ResolutionResult, Storage, name_resolution::r
 pub struct GetStatement(pub TopLevelId);
 
 // This one is quick and simple, let's just define it here.
-define_intermediate!(6, GetStatement -> Arc<TopLevelItem>, Storage, |context, db| {
+define_intermediate!(6, GetStatement -> (Arc<TopLevelItem>, Arc<TopLevelContext>), Storage, |context, db| {
     let target_id = &context.0;
     let ast = Parse { file_name: target_id.file_path.clone() }.get(db);
 
     for statement in ast.cst.top_level_items.iter() {
         if statement.id == *target_id {
-            return statement.clone();
+            let ctx = ast.top_level_data[target_id].clone();
+            return (statement.clone(), ctx);
         }
     }
 
@@ -242,3 +247,15 @@ define_intermediate!(8, TypeCheck -> TypeCheckResult, Storage, type_inference::t
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompileFile { pub file_name: Arc<PathBuf> }
 define_intermediate!(9, CompileFile -> (String, Errors), Storage, backend::compile_file_impl);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/// Returns the dependencies of a given crate
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Dependencies(pub CrateId);
+define_intermediate!(10, Dependencies -> Vec<CrateId>, Storage, name_resolution::dependencies_impl);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/// Returns the name of a crate
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrateName(pub CrateId);
+define_intermediate!(11, CrateName -> String, Storage, name_resolution::crate_name_impl);

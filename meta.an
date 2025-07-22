@@ -1,0 +1,59 @@
+// Metaprogramming use-cases to consider
+
+// 1. Custom Derives
+// Requires:
+// - The ability to call library functions at compile-time
+// - An API for these functions to query the type given as an argument and build an impl
+// - Comptime functions may only call functions in external libraries
+derive Serialize
+type MyType a =
+    #skip
+    first: Maybe a
+    second: a
+
+trait Serialize t with
+    serialize: t -> Unit can Emit U8
+
+effect Emit a with
+    emit: a -> Unit
+
+// 2. Feature Toggles
+// Requires:
+// - phase before definition collection to evaluate global `comptime` switches.
+// - Support for querying feature data at compile-time through some path
+#if Std.Build.has_feature "foo" then
+    foo = 3
+
+// 3. Platform Detection
+// Requires:
+// - All of (2) + support for querying target-specific data at compile-time through some path
+#if Std.Target.os is Windows then
+    import Windows.Handle
+    get_window () = Handle.default ()
+else if Std.Target.os is Unix then
+    get_window () = Unix.default ()
+
+// 4. DSL langs: Regex, SQL, JSON, etc
+// Requires:
+// - A way to quote tokens which would be invalid to parse
+// - A way to call a function at compile-time
+regex = regex '([a-z_]\w*)
+json = json '{ "foo": [1, 2, 3] }
+
+// 5. Macros which may introduce new variables into scope
+// Requires:
+// - A way to delay resolution of the rest of the current scope until the macro is resolved
+// - Syntax to quote the rest of the scope
+if foo then
+    x = 1
+    y = 2
+    _ '<- some_macro 'x 'y 'z
+    // Is z in scope?
+    foo x y z
+
+// 6. Modifying a function definition (e.g. `#[tokio::main]`)
+// Requires:
+// - A way to apply a comptime function to a function definition
+#Tokio.main
+main () =
+    print "foo"
