@@ -1,10 +1,10 @@
-use std::{hash::Hasher, path::PathBuf, sync::Arc};
+use std::hash::Hasher;
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::Location,
-    incremental::{DbHandle, Parse},
+    incremental::{DbHandle, Parse}, name_resolution::namespace::SourceFileId,
 };
 
 /// A `TopLevelId` is a 64-bit hash uniquely identifying a particular
@@ -24,9 +24,9 @@ use crate::{
 ///
 /// Since the Ast is immutable, this id is also used to associate additional
 /// data with an Ast including its Location, and later on its Type.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct TopLevelId {
-    pub file_path: Arc<PathBuf>,
+    pub source_file: SourceFileId,
     content_hash: u64,
 }
 
@@ -36,26 +36,20 @@ impl TopLevelId {
     /// define a method in a type such as `Vec.len v = ...`, in this case the name is considered
     /// only the `len` portion, and we rely on `collision` to disambiguate any similar definitions
     /// in the same file such as `VecIter.len v = ...`.
-    pub fn new_named(file_path: Arc<PathBuf>, name: &str, collision: u32) -> TopLevelId {
-        hash(file_path, (name, collision))
+    pub fn new(source_file: SourceFileId, content_hash: u64) -> TopLevelId {
+        TopLevelId { source_file, content_hash }
     }
 
     pub(crate) fn location(&self, db: &DbHandle) -> Location {
-        let result = db.get(Parse { file_name: self.file_path.clone() });
+        let result = db.get(Parse(self.source_file));
         result.top_level_data[self].location.clone()
     }
 }
 
-impl std::fmt::Display for TopLevelId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}_{}", self.file_path.display(), self.content_hash)
-    }
-}
-
-fn hash(file_path: Arc<PathBuf>, x: impl std::hash::Hash) -> TopLevelId {
+pub fn hash(x: impl std::hash::Hash) -> u64 {
     let mut hasher = deterministic_hash::DeterministicHasher::new(std::hash::DefaultHasher::new());
     x.hash(&mut hasher);
-    TopLevelId { file_path, content_hash: hasher.finish() }
+    hasher.finish()
 }
 
 /// An ExprId is a bit different from a top-level id in that we make no attempt
@@ -89,7 +83,7 @@ impl ExprId {
     }
 
     pub(crate) fn location(&self, item: &TopLevelId, db: &DbHandle) -> Location {
-        let result = db.get(Parse { file_name: item.file_path.clone() });
+        let result = db.get(Parse(item.source_file));
         result.top_level_data[item].expr_locations[*self].clone()
     }
 }

@@ -271,6 +271,7 @@ dependencies = [
  "inc-complete",
  "rayon",
  "ron",
+ "rustc-hash",
  "scc",
  "serde",
 ]

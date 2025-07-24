@@ -1,10 +1,11 @@
-use std::{collections::{BTreeMap, HashMap}, path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
-use cst::{BorrowMode, Index, Lambda, MemberAccess, OwnershipMode, Pattern, SharedMode};
+use cst::{BorrowMode, Comptime, Index, Lambda, MemberAccess, OwnershipMode, Pattern, SharedMode};
 use ids::{ExprId, PatternId, TopLevelId};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{errors::{Diagnostic, ErrorDefault, Location, LocationData, Span}, incremental::{self, get_source_file}, lexer::{token::Token, Lexer}, vecmap::VecMap};
+use crate::{errors::{Diagnostic, ErrorDefault, Location, LocationData, Span}, incremental::{self, SourceFile}, lexer::{token::Token, Lexer}, name_resolution::namespace::SourceFileId, vecmap::VecMap};
 
 use self::cst::{Cst, Import, Path, TopLevelItem, TopLevelItemKind, TypeDefinition, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
 
@@ -30,9 +31,9 @@ pub struct TopLevelContext {
 }
 
 impl TopLevelContext {
-    fn new(file_path: Arc<PathBuf>) -> Self {
+    fn new(file_id: SourceFileId) -> Self {
         Self {
-            location: LocationData::placeholder(file_path),
+            location: LocationData::placeholder(file_id),
             exprs: VecMap::default(),
             patterns: VecMap::default(),
             expr_locations: VecMap::default(),
@@ -44,13 +45,13 @@ impl TopLevelContext {
 type Result<T> = std::result::Result<T, Diagnostic>;
 
 struct Parser<'tokens> {
-    file_path: Arc<PathBuf>,
+    file_id: SourceFileId,
     tokens: &'tokens [(Token, Span)],
     diagnostics: Vec<Diagnostic>,
     top_level_data: BTreeMap<TopLevelId, Arc<TopLevelContext>>,
 
     /// Keep track of any name collisions in the top level items
-    top_level_item_count: HashMap<Arc<String>, /*collision count:*/u32>,
+    top_level_item_hashes: FxHashSet<u64>,
 
     current_context: TopLevelContext,
 
@@ -58,21 +59,21 @@ struct Parser<'tokens> {
 }
 
 pub fn parse_impl(ctx: &incremental::Parse, db: &incremental::DbHandle) -> Arc<ParseResult> {
-    let file_contents = get_source_file(ctx.file_name.clone(), db);
+    let file_contents = SourceFile(ctx.0).get(db);
     let tokens = Lexer::new(&file_contents).collect::<Vec<_>>();
-    Arc::new(Parser::new(ctx.file_name.clone(), &tokens).parse())
+    Arc::new(Parser::new(ctx.0, &tokens).parse())
 }
 
 impl<'tokens> Parser<'tokens> {
-    fn new(file_path: Arc<PathBuf>, tokens: &'tokens [(Token, Span)]) -> Self {
+    fn new(file_id: SourceFileId, tokens: &'tokens [(Token, Span)]) -> Self {
         Self {
-            current_context: TopLevelContext::new(file_path.clone()),
-            file_path,
+            file_id,
             tokens,
             diagnostics: Vec::new(),
             token_index: 0,
             top_level_data: Default::default(),
-            top_level_item_count: Default::default(),
+            top_level_item_hashes: Default::default(),
+            current_context: TopLevelContext::new(file_id),
         }
     }
 
@@ -96,7 +97,7 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn current_token_location(&self) -> Location {
-        self.current_token_span().in_file(self.file_path.clone())
+        self.current_token_span().in_file(self.file_id)
     }
 
     /// Returns the previous token, if it exists.
@@ -109,6 +110,12 @@ impl<'tokens> Parser<'tokens> {
     /// Returns the current token's span otherwise.
     fn previous_token_span(&self) -> Span {
         self.tokens[self.token_index.saturating_sub(1)].1
+    }
+
+    /// Returns the previous token's location, if it exists.
+    /// Returns the current token's location otherwise.
+    fn previous_token_location(&self) -> Location {
+        self.previous_token_span().in_file(self.file_id)
     }
 
     /// Returns the next token.
@@ -153,7 +160,7 @@ impl<'tokens> Parser<'tokens> {
             Ok(())
         } else {
             let actual = self.current_token().clone();
-            let location = self.current_token_span().in_file(self.file_path.clone());
+            let location = self.current_token_span().in_file(self.file_id);
             let message = message.to_string();
             Err(Diagnostic::ParserExpected { message, actual, location })
         }
@@ -181,16 +188,26 @@ impl<'tokens> Parser<'tokens> {
         id
     }
 
+    /// Return a hash of the given data guaranteed to be unique within the current module.
+    fn hash_top_level_data(&mut self, data: &impl std::hash::Hash) -> u64 {
+        let mut collisions = 0;
+        loop {
+            let hash = ids::hash((data, collisions));
+            if self.top_level_item_hashes.insert(hash) {
+                break hash;
+            }
+            collisions += 1;
+        }
+    }
+
     /// Create a new TopLevelId from the name of a given top level item.
     /// In the case of definitions, this name will be only the last element in their path.
-    fn new_top_level_id(&mut self, name: Arc<String>) -> TopLevelId {
+    fn new_top_level_id(&mut self, data: impl std::hash::Hash) -> TopLevelId {
         // Check for previous name collisions to disambiguate the resulting hash
-        let collision = *self.top_level_item_count.entry(name.clone())
-            .and_modify(|count| *count += 1)
-            .or_default();
+        let hash = self.hash_top_level_data(&data);
 
-        let id = TopLevelId::new_named(self.file_path.clone(), &name, collision);
-        let empty_context = TopLevelContext::new(self.file_path.clone());
+        let id = TopLevelId::new(self.file_id, hash);
+        let empty_context = TopLevelContext::new(self.file_id);
         let old_context = std::mem::replace(&mut self.current_context, empty_context);
         self.top_level_data.insert(id.clone(), Arc::new(old_context));
         id
@@ -306,6 +323,26 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
+    /// Same as `parse_with_expr` but recovers with `Expr::Error` with an approximated location
+    /// since `ExprId` does not implement `ErrorDefault`.
+    fn parse_expr_with_recovery(&mut self, f: impl FnOnce(&mut Self) -> Result<ExprId>, recover_to: Token, too_far: &[Token]) -> Result<ExprId> {
+        match f(self) {
+            Ok(typ) => Ok(typ),
+            Err(error) => {
+                let start = self.current_token_span();
+                if self.recover_to(recover_to, too_far) {
+                    self.diagnostics.push(error);
+                    let end = self.previous_token_span();
+                    let location = start.to(&end).in_file(self.file_id);
+                    let expr = self.push_expr(Expr::Error, location);
+                    Ok(expr)
+                } else {
+                    Err(error)
+                }
+            }
+        }
+    }
+
     fn parse_imports(&mut self) -> Vec<Import> {
         let mut imports = Vec::new();
 
@@ -323,7 +360,7 @@ impl<'tokens> Parser<'tokens> {
             let start = self.current_token_span();
             if let Some(path) = self.try_parse_or_recover_to_newline(Self::parse_type_or_value_path) {
                 let end = self.previous_token_span();
-                let location = start.to(&end).in_file(self.file_path.clone());
+                let location = start.to(&end).in_file(self.file_id);
                 let path = path.into_file_path();
                 imports.push(Import { comments, path, location });
             }
@@ -338,20 +375,24 @@ impl<'tokens> Parser<'tokens> {
         let mut components = Vec::new();
 
         while let Ok(typename) = self.parse_type_name() {
-            components.push(typename);
+            let location = self.previous_token_location();
+            components.push((typename, location));
             self.try_expect(Token::MemberAccess, "`.` after module name")?;
         }
 
-        components.push(self.parse_ident()?);
+        let location = self.current_token_location();
+        components.push((self.parse_ident()?, location));
         Ok(Path { components })
     }
 
     // type_path: (typename '.')* typename
     fn parse_type_path(&mut self) -> Result<Path> {
-        let mut components = vec![self.parse_type_name()?];
+        let location = self.current_token_location();
+        let mut components = vec![(self.parse_type_name()?, location)];
 
         while self.accept(Token::MemberAccess) {
-            components.push(self.parse_type_name()?);
+            let location = self.current_token_location();
+            components.push((self.parse_type_name()?, location));
         }
 
         Ok(Path { components })
@@ -362,7 +403,8 @@ impl<'tokens> Parser<'tokens> {
         let mut components = Vec::new();
 
         while let Ok(typename) = self.parse_type_name() {
-            components.push(typename);
+            let location = self.previous_token_location();
+            components.push((typename, location));
 
             if !self.accept(Token::MemberAccess) {
                 return Ok(Path { components });
@@ -371,7 +413,8 @@ impl<'tokens> Parser<'tokens> {
 
         // If we made it here we had a trailing `.` but the token after it was not a typename,
         // so it must be a variable name.
-        components.push(self.parse_ident()?);
+        let location = self.current_token_location();
+        components.push((self.parse_ident()?, location));
         Ok(Path { components })
     }
 
@@ -400,13 +443,20 @@ impl<'tokens> Parser<'tokens> {
                     self.token_index -= 1;
                 }
 
-                id = self.new_top_level_id(Arc::new(definition.path.last().clone()));
+                id = self.new_top_level_id(definition.path.last());
                 TopLevelItemKind::Definition(definition)
             }
             Token::Type => {
                 let definition = self.parse_type_definition()?;
-                id = self.new_top_level_id(definition.name.clone());
+                id = self.new_top_level_id(&definition.name);
                 TopLevelItemKind::TypeDefinition(definition)
+            }
+            Token::Octothorpe => {
+                let comptime = self.parse_comptime()?;
+                // Hashing the whole comptime object here contains ExprIds which means this
+                // top level id will not be stable if any of its contents change
+                id = self.new_top_level_id(&comptime);
+                TopLevelItemKind::Comptime(comptime)
             }
             other => {
                 let message = "a top-level item".to_string();
@@ -685,6 +735,7 @@ impl<'tokens> Parser<'tokens> {
             Token::Comma => Some((3, true)),
             Token::Or => Some((4, false)),
             Token::And => Some((5, false)),
+            Token::Is => Some((6, false)),
             Token::EqualEqual
             | Token::NotEqual
             | Token::GreaterThan
@@ -719,9 +770,9 @@ impl<'tokens> Parser<'tokens> {
         let function = self.reserve_expr();
 
         let (operator, span) = operator_stack.pop().unwrap().clone();
-        let function_location = span.in_file(self.file_path.clone());
+        let function_location = span.in_file(self.file_id);
 
-        let components = vec![operator.to_string()]; // TODO: Variable::operator
+        let components = vec![(operator.to_string(), function_location.clone())]; // TODO: Variable::operator
         self.insert_expr(function, Expr::Variable(Path { components }), function_location);
 
         let call_expr = Expr::Call(Call { function, arguments: vec![lhs, rhs] });
@@ -789,7 +840,7 @@ impl<'tokens> Parser<'tokens> {
                 let rhs = self.parse_unary()?;
                 let location = operator_span.to(&self.expr_location(rhs));
 
-                let components = vec![operator.to_string()];
+                let components = vec![(operator.to_string(), operator_span)];
                 self.insert_expr(function_id, Expr::Variable(Path { components }), location.clone());
 
                 let call = Expr::Call(Call { function: function_id, arguments: vec![rhs] });
@@ -809,7 +860,7 @@ impl<'tokens> Parser<'tokens> {
                     let operator_location = this.current_token_location();
                     this.advance();
                     let rhs = this.parse_unary()?;
-                    let components = vec![Token::At.to_string()];
+                    let components = vec![(Token::At.to_string(), operator_location.clone())];
                     let function = Expr::Variable(Path { components });
                     let function = this.push_expr(function, operator_location);
                     Ok(Expr::Call(Call { function, arguments: vec![rhs] }))
@@ -877,15 +928,6 @@ impl<'tokens> Parser<'tokens> {
             }
             Token::StringLiteral(s) => self.parse_string(s.clone()),
             Token::Identifier(_) | Token::TypeName(_) => self.parse_variable(),
-            Token::Indent => {
-                let (expr, location) = self.with_location(|this| {
-                    Ok(this.parse_indented(|this| {
-                        let statements = this.delimited(Self::parse_sequence_item, Token::Newline, true);
-                        Ok(Expr::Sequence(statements))
-                    }))
-                })?;
-                Ok(self.push_expr(expr, location))
-            }
             other => {
                 let message = "an expression".to_string();
                 let location= self.current_token_location();
@@ -901,7 +943,7 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn parse_statement(&mut self) -> Result<ExprId> {
-        todo!()
+        self.parse_expression()
     }
 
     fn with_expr_id(&mut self, f: impl FnOnce(&mut Self) -> Result<(Expr, Location)>) -> Result<ExprId> {
@@ -915,13 +957,88 @@ impl<'tokens> Parser<'tokens> {
         self.with_expr_id(|this| this.with_location(f))
     }
 
+    fn parse_if(&mut self, mut body: impl Copy + FnMut(&mut Self) -> Result<ExprId>) -> Result<ExprId> {
+        self.with_expr_id_and_location(|this| {
+            this.expect(Token::If, "a `if` to begin an if expression");
+
+            let condition = this.parse_expr_with_recovery(Self::parse_block_or_expression, Token::Then, &[Token::Newline])?;
+
+            this.expect(Token::Then, "a `then` to end this if condition");
+
+            let then = this.parse_expr_with_recovery(body, Token::Else, &[Token::Newline])?;
+
+            let else_ = if this.accept(Token::Else) {
+                Some(body(this)?)
+            } else {
+                None
+            };
+            Ok(Expr::If(cst::If { condition, then, else_ }))
+        })
+    }
+
+    fn parse_if_expr(&mut self) -> Result<ExprId> {
+        self.parse_if(Self::parse_block_or_expression)
+    }
+
+    /// A comptime if, unlike a regular if, requires a block so that we can quote
+    /// every token until we find the matching unindent.
+    fn parse_comptime_if(&mut self) -> Result<ExprId> {
+        self.parse_if(Self::parse_quoted_block)
+    }
+
+    /// Parse an indent followed by any arbitrary tokens until a matching unindent
+    fn parse_quoted_block(&mut self) -> Result<ExprId> {
+        self.expect(Token::Indent, "an indent to start a quoted block");
+        let mut indent_count = 0;
+        let mut tokens = Vec::new();
+
+        self.with_expr_id_and_location(|this| {
+            loop {
+                match this.next_token() {
+                    Token::Indent => {
+                        indent_count += 1;
+                        tokens.push(Token::Indent);
+                    }
+                    Token::Unindent => {
+                        if indent_count == 0 {
+                            break;
+                        }
+                        indent_count -= 1;
+                    }
+                    // This should be unreachable since the lexer should guarantee indents are
+                    // always matched.
+                    Token::EndOfInput => break,
+                    other => tokens.push(other.clone()),
+                }
+            }
+            Ok(Expr::Quoted(cst::Quoted { tokens }))
+        })
+    }
+
+    fn parse_block_or_expression(&mut self) -> Result<ExprId> {
+        match self.current_token() {
+            Token::Indent => self.parse_block(),
+            _ => self.parse_expression(),
+        }
+    }
+
+    fn parse_block(&mut self) -> Result<ExprId> {
+        let (expr, location) = self.with_location(|this| {
+            Ok(this.parse_indented(|this| {
+                let statements = this.delimited(Self::parse_sequence_item, Token::Newline, true);
+                Ok(Expr::Sequence(statements))
+            }))
+        })?;
+        Ok(self.push_expr(expr, location))
+    }
+
     /// Create a location from the current token before running the given parse function to the
     /// current token (end exclusive) after running the given parse function.
     fn with_location<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<(T, Location)> {
         let start = self.current_token_span();
         let ret = f(self)?;
         let end = self.previous_token_span();
-        Ok((ret, start.to(&end).in_file(self.file_path.clone())))
+        Ok((ret, start.to(&end).in_file(self.file_id)))
     }
 
     fn parse_variable(&mut self) -> Result<ExprId> {
@@ -945,5 +1062,26 @@ impl<'tokens> Parser<'tokens> {
         let location = self.current_token_location();
         self.advance();
         Ok(self.push_expr(Expr::Literal(Literal::String(contents)), location))
+    }
+
+    fn parse_comptime(&mut self) -> Result<Comptime> {
+        // Skip `#`
+        self.advance();
+
+        match self.current_token() {
+            Token::If => {
+                let if_ = self.parse_comptime_if()?;
+                Ok(Comptime::Expr(if_))
+            }
+            Token::Identifier(_) | Token::TypeName(_) => {
+                let call = self.parse_expr_with_recovery(Self::parse_function_call, Token::Newline, &[])?;
+                Ok(Comptime::Expr(call))
+            }
+            other => {
+                let message = "a compile-time item".to_string();
+                let location = self.current_token_location();
+                Err(Diagnostic::ParserExpected { message, actual: other.clone(), location })
+            },
+        }
     }
 }

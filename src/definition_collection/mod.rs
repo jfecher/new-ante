@@ -1,28 +1,28 @@
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    errors::{Diagnostic, Errors, Location},
-    incremental::{
+    errors::{Diagnostic, Errors, Location}, incremental::{
         self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, GetImports, Parse, VisibleDefinitions, VisibleTypes
-    }, parser::cst::{ItemName, Path, TopLevelItem, TopLevelItemKind},
+    }, parser::cst::{ItemName, Path, TopLevelItem, TopLevelItemKind}
 };
 
 /// Collect all definitions which should be visible to expressions within this file.
 /// This includes all top-level definitions within this file, as well as any imported ones.
 pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> (Definitions, Errors) {
     incremental::enter_query();
-    incremental::println(format!("Collecting visible definitions in {}", context.file_name.display()));
+    incremental::println(format!("Collecting visible definitions in {:?}", context.0));
 
-    let (mut definitions, mut errors) = ExportedDefinitions { file_name: context.file_name.clone() }.get(db);
+    let (mut definitions, mut errors) = ExportedDefinitions(context.0).get(db);
 
     // This should always be cached. Ignoring errors here since they should already be
     // included in ExportedDefinitions' errors
-    let ast = Parse { file_name: context.file_name.clone() }.get(db);
+    let ast = Parse(context.0).get(db);
 
     for import in &ast.cst.imports {
         // Ignore errors from imported files. We want to only collect errors
         // from this file. Otherwise we'll duplicate errors.
-        let (exports, _errors) = ExportedDefinitions { file_name: import.path.clone() }.get(db);
+        // TODO: Translate import path to id
+        let (exports, _errors) = ExportedDefinitions(import.path.clone()).get(db);
 
         for (exported_name, exported_id) in exports {
             if let Some(existing) = definitions.get(&exported_name) {
@@ -44,18 +44,19 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
 
 pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions, Errors) {
     incremental::enter_query();
-    incremental::println(format!("Collecting visible types in {}", context.file_name.display()));
+    incremental::println(format!("Collecting visible types in {:?}", context.0));
 
-    let (mut definitions, mut errors) = ExportedTypes { file_name: context.file_name.clone() }.get(db);
+    let (mut definitions, mut errors) = ExportedTypes(context.0).get(db);
 
     // This should always be cached. Ignoring errors here since they should already be
     // included in ExportedTypes' errors
-    let ast = Parse { file_name: context.file_name.clone() }.get(db);
+    let ast = Parse(context.0).get(db);
 
     for import in &ast.cst.imports {
         // Ignore errors from imported files. We want to only collect errors
         // from this file. Otherwise we'll duplicate errors.
-        let (exports, _errors) = ExportedTypes { file_name: import.path.clone() }.get(db);
+        // TODO: Translate import path to id
+        let (exports, _errors) = ExportedTypes(import.path.clone()).get(db);
 
         for (exported_name, exported_id) in exports {
             if let Some(existing) = definitions.get(&exported_name) {
@@ -78,9 +79,9 @@ pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions
 /// Collect only the exported types within a file.
 pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> (Definitions, Errors) {
     incremental::enter_query();
-    incremental::println(format!("Collecting exported definitions in {}", context.file_name.display()));
+    incremental::println(format!("Collecting exported definitions in {:?}", context.0));
 
-    let result = Parse { file_name: context.file_name.clone() }.get(db);
+    let result = Parse(context.0).get(db);
     let mut definitions = Definitions::default();
     let mut errors = result.diagnostics.clone();
 
@@ -105,9 +106,9 @@ pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> (Definitio
 /// Collect only the exported definitions within a file.
 pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -> (Definitions, Errors) {
     incremental::enter_query();
-    incremental::println(format!("Collecting exported definitions in {}", context.file_name.display()));
+    incremental::println(format!("Collecting exported definitions in {:?}", context.0));
 
-    let result = Parse { file_name: context.file_name.clone() }.get(db);
+    let result = Parse(context.0).get(db);
     let mut definitions = Definitions::default();
     let mut errors = result.diagnostics.clone();
 
@@ -130,7 +131,7 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
                 if path.components.len() > 1 {
                     resolve_method(path, item, &mut errors, db);
                 } else {
-                    let last = Arc::new(path.components[0].clone());
+                    let last = Arc::new(path.components[0].0.clone());
                     declare_single(&last, item, &mut errors)
                 }
             },
@@ -151,10 +152,10 @@ fn resolve_method(path: &Path, item: &TopLevelItem, errors: &mut Vec<Diagnostic>
 /// Collects the file names of all imports within this file.
 pub fn get_imports_impl(context: &GetImports, db: &DbHandle) -> Vec<(Arc<PathBuf>, Location)> {
     incremental::enter_query();
-    incremental::println(format!("Collecting imports of {}", context.file_name.display()));
+    incremental::println(format!("Collecting imports of {:?}", context.0));
 
     // Ignore parse errors for now, we can report them later
-    let result = Parse { file_name: context.file_name.clone() }.get(db);
+    let result = Parse(context.0).get(db);
     let mut imports = Vec::new();
 
     // Collect each definition, issuing an error if there is a duplicate name (imports are not counted)

@@ -1,13 +1,13 @@
 use std::{collections::{BTreeMap, HashMap}, sync::Arc};
 
-use namespace::{CrateId, ModuleId, Namespace};
+use namespace::{CrateId, Namespace};
 use serde::{Deserialize, Serialize};
 
 pub mod namespace;
 
 use crate::{
-    errors::{Diagnostic, Errors},
-    incremental::{self, CrateName, DbHandle, Dependencies, GetStatement, Resolve, VisibleDefinitions, VisibleTypes},
+    errors::{Diagnostic, Errors, Location},
+    incremental::{self, CrateData, DbHandle, GetStatement, Resolve, VisibleDefinitions},
     parser::{cst::{Expr, Path, TopLevelItemKind}, ids::{ExprId, TopLevelId}, TopLevelContext},
 };
 
@@ -20,8 +20,6 @@ pub struct ResolutionResult {
 }
 
 struct Resolver<'local, 'inner> {
-    crate_id: CrateId,
-    module_id: ModuleId,
     item: TopLevelId,
     links: BTreeMap<ExprId, Origin>,
     errors: Errors,
@@ -40,14 +38,13 @@ pub enum Origin {
     Parameter(ExprId),
     /// This name comes from a local binding
     Local(ExprId),
+    /// This name did not resolve, try to perform type based resolution on it during type inference
+    TypeResolution,
 }
 
-pub fn dependencies_impl(_context: &Dependencies, _compiler: &DbHandle) -> Vec<CrateId> {
-    todo!("dependencies")
-}
-
-pub fn crate_name_impl(_context: &CrateName, _compiler: &DbHandle) -> String {
-    todo!("crate_name")
+/// Retrieves the crate dependencies for the current crate
+pub fn dependencies<'db>(compiler: &'db DbHandle) -> &'db BTreeMap<CrateId, CrateData> {
+    &compiler.storage().crates
 }
 
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
@@ -58,9 +55,9 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
     // Note that we discord errors here because they're errors for the entire file and we are
     // resolving just one statement in it. This does mean that `CompileFile` will later need to
     // manually query `VisibleDefinition` to pick these errors back up.
-    let (names_in_scope, _errors) = VisibleDefinitions { file_name: context.0.file_path.clone() }.get(compiler);
+    let (names_in_scope, _errors) = VisibleDefinitions(context.0.source_file).get(compiler);
 
-    let mut resolver = Resolver::new(compiler, context.0.clone(), names_in_scope, &statement_ctx);
+    let mut resolver = Resolver::new(compiler, context, names_in_scope, &statement_ctx);
 
     match &statement.kind {
         TopLevelItemKind::Definition(definition) => {
@@ -71,6 +68,7 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
         TopLevelItemKind::TraitImpl(_trait_impl) => todo!(),
         TopLevelItemKind::EffectDefinition(_effect_definition) => todo!(),
         TopLevelItemKind::Extern(_) => todo!(),
+        TopLevelItemKind::Comptime(_comptime) => todo!(),
     }
 
     incremental::exit_query();
@@ -79,13 +77,14 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
 
 impl<'local, 'inner> Resolver<'local, 'inner> {
     fn new(
-        compiler: &'local DbHandle<'inner>, item: TopLevelId,
+        compiler: &'local DbHandle<'inner>,
+        resolve: &Resolve,
         names_in_scope: BTreeMap<Arc<String>, TopLevelId>,
         context: &'local TopLevelContext,
     ) -> Self {
         Self {
             compiler,
-            item,
+            item: resolve.0.clone(),
             names_in_global_scope: names_in_scope,
             links: Default::default(),
             errors: Vec::new(),
@@ -99,7 +98,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     fn namespace(&self) -> Namespace {
-        Namespace::Module(self.crate_id, self.module_id)
+        Namespace::Module(self.item.source_file.crate_id, self.item.source_file.local_module_id)
     }
 
     /// Retrieve each visible namespace in the given namespace, restricting the namespace
@@ -114,73 +113,82 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         todo!("visible_items_in")
     }
 
-    fn lookup_in<'a, Iter>(&self, mut path: Iter, mut namespace: Namespace) -> Option<Origin> 
-        where Iter: ExactSizeIterator<Item = &'a String>
+    /// Lookup the given path in the given namespace
+    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace) -> Option<Origin> 
+        where Iter: ExactSizeIterator<Item = &'a (String, Location)>
     {
         while path.len() > 1 {
-            let item_name = path.next().unwrap();
+            let (item_name, item_location) = path.next().unwrap();
             let visible_namespaces = self.visible_namespaces_in(namespace);
 
             if let Some(next_namespace) = visible_namespaces.get(item_name) {
                 namespace = next_namespace.clone();
             } else {
+                let name = item_name.clone();
+                let location = item_location.clone();
+                self.errors.push(Diagnostic::NamespaceNotFound { name, location });
                 todo!("Namespace not found")
             }
         }
 
-        let name = path.next().unwrap();
+        let (name, location) = path.next().unwrap();
         assert_eq!(path.len(), 0);
+
+        if matches!(namespace, Namespace::Local) {
+            if let Some(expr) = self.names_in_local_scope.get(name) {
+                return Some(Origin::Parameter(*expr));
+            }
+        }
 
         let items = self.visible_items_in(namespace);
         if let Some(origin) = items.get(name) {
-            Some(origin.clone())
-        } else {
-            todo!("Name not found in path")
+            Some(origin.clone());
         }
-        // Check local parameters first. They shadow global definitions
-        // if let Some(expr) = self.names_in_local_scope.get(name) {
-        //     return Some(Origin::Parameter(*expr));
-        // }
-        // if let Some(statement) = self.names_in_global_scope.get(name) {
-        //     return Some(Origin::TopLevelDefinition(statement.clone()));
-        // }
-        // None
+
+        // No known origin.
+        // If the name is capitalized we delay until type inference to auto-import variants
+        let first_char = name.chars().next().unwrap();
+        if first_char.is_ascii_uppercase() {
+            Some(Origin::TypeResolution)
+        } else {
+            let location = location.clone();
+            let name = Arc::new(name.clone());
+            self.errors.push(Diagnostic::NameNotInScope { name, location });
+            None
+        }
     }
 
-    fn lookup(&self, path: &Path) -> Option<Origin> {
+    fn lookup(&mut self, path: &Path) -> Option<Origin> {
         let mut components = path.components.iter().peekable();
 
         if components.len() > 1 {
-            let first = components.peek().unwrap();
+            let (first, _) = components.peek().unwrap();
 
             // Check if it is an absolute path
-            let crates = Dependencies(self.crate_id).get(self.compiler);
-            for crate_id in crates {
-                if **first == CrateName(crate_id).get(self.compiler) {
+            let crates = dependencies(self.compiler);
+            for (crate_id, crate_data) in crates {
+                if **first == crate_data.name {
                     // Discard the crate name
                     components.next();
-                    return self.lookup_in(components, Namespace::crate_(crate_id));
+                    return self.lookup_in(components, Namespace::crate_(*crate_id));
                 }
             }
         }
 
         // Not an absolute path
-        self.lookup_in(components, Namespace::Module(self.crate_id, self.module_id))
+        self.lookup_in(components, Namespace::Local)
     }
 
     fn link(&mut self, path: &Path, expr: ExprId) {
         if let Some(origin) = self.lookup(path) {
             self.links.insert(expr, origin);
-        } else {
-            let location = expr.location(&self.item, self.compiler);
-            self.errors.push(Diagnostic::NameNotInScope { name: name.clone(), location });
         }
     }
 
     fn resolve_expr(&mut self, expr: ExprId) {
         match &self.context.exprs[expr] {
             Expr::Literal(_literal) => (),
-            Expr::Variable(identifier) => self.link(&identifier.name, expr),
+            Expr::Variable(identifier) => self.link(&identifier, expr),
             Expr::Call(call) => {
                 self.resolve_expr(call.function);
                 for arg in &call.arguments {
@@ -189,8 +197,13 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             },
             Expr::Lambda(lambda) => {
                 // Resolve body with the parameter name in scope
-                let old_name = self.names_in_local_scope.insert(parameter_name.name.clone(), parameter_name.id);
-                self.resolve_expr(&body);
+                for (parameter, _parameter_type) in &lambda.parameters {
+                    let parameter = Arc::new(parameter.clone());
+                    // TODO: Need a unique id for each parameter
+                    self.names_in_local_scope.insert(parameter, todo!());
+                }
+
+                self.resolve_expr(lambda.body);
 
                 // Then remember to either remove the parameter name from scope, or if we shadowed
                 // an existing name, then re-insert that one.
@@ -226,8 +239,13 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     self.resolve_expr(*branch);
                 }
             },
-            Expr::Reference(reference) => todo!(),
-            Expr::TypeAnnotation(type_annotation) => todo!(),
+            Expr::Reference(reference) => {
+                self.resolve_expr(reference.rhs);
+            },
+            Expr::TypeAnnotation(type_annotation) => {
+                self.resolve_expr(type_annotation.lhs);
+            },
+            Expr::Quoted(_) => (),
             Expr::Error => (),
         }
     }

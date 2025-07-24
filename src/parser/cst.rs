@@ -32,6 +32,7 @@ pub enum TopLevelItemKind {
     TraitImpl(TraitImpl),
     EffectDefinition(EffectDefinition),
     Extern(Extern),
+    Comptime(Comptime),
 }
 
 impl TopLevelItemKind {
@@ -43,6 +44,7 @@ impl TopLevelItemKind {
             TopLevelItemKind::TraitImpl(_) => ItemName::None,
             TopLevelItemKind::EffectDefinition(effect_definition) => ItemName::Single(&effect_definition.name),
             TopLevelItemKind::Extern(extern_) => ItemName::Single(&extern_.declaration.name),
+            TopLevelItemKind::Comptime(_) => ItemName::None,
         }
     }
 }
@@ -135,6 +137,7 @@ pub enum Expr {
     Match(Match),
     Reference(Reference),
     TypeAnnotation(TypeAnnotation),
+    Quoted(Quoted),
 }
 
 impl ErrorDefault for Expr {
@@ -163,17 +166,17 @@ impl Expr {
 /// A path is always guaranteed to have at least 1 component
 #[derive(Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Path {
-    pub components: Vec<String>,
+    pub components: Vec<(String, Location)>,
 }
 
 impl Path {
     pub fn last(&self) -> &String {
-        self.components.last().unwrap()
+        &self.components.last().unwrap().0
     }
 
     pub fn into_file_path(self) -> Arc<PathBuf> {
         let mut path = PathBuf::new();
-        for component in self.components {
+        for (component, _) in self.components {
             path.push(component);
         }
         Arc::new(path)
@@ -248,7 +251,7 @@ impl OwnershipMode {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Lambda {
-    pub parameters: Vec<(String, Option<Type>)>,
+    pub parameters: Vec<PatternId>,
     pub return_type: Option<Type>,
     pub body: ExprId,
 }
@@ -303,13 +306,18 @@ pub enum SharedMode {
 pub enum Pattern {
     Variable(Path),
     Literal(Literal),
-    Constructor(Path, Vec<PatternId>),
+    Constructor(PatternId, Vec<PatternId>),
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TypeAnnotation {
     pub lhs: ExprId,
     pub rhs: Type,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Quoted {
+    pub tokens: Vec<Token>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -343,4 +351,24 @@ pub struct EffectDefinition {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Extern {
     pub declaration: Declaration,
+}
+
+/// A top-level item evaluated at compile-time, e.g:
+/// ```ante
+/// #if foo then
+///     function () = 3
+///
+/// // or
+/// #modify
+/// foo bar = ()
+///
+/// // or
+/// derive Foo Bar
+/// type MyType = x: I32
+/// ```
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum Comptime {
+    Expr(ExprId),
+    Derive(Vec<Path>),
+    Definition(Definition),
 }

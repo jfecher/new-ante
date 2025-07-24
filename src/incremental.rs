@@ -4,7 +4,7 @@ use inc_complete::{define_input, define_intermediate, impl_storage, storage::Has
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend, definition_collection, errors::{Errors, Location}, name_resolution::{self, namespace::CrateId, ResolutionResult}, parser::{
+    backend, definition_collection, errors::{Errors, Location}, name_resolution::{self, namespace::{CrateId, SourceFileId}, ResolutionResult}, parser::{
         self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext,
     }, type_inference::{self, types::TopLevelDefinitionType, TypeCheckResult}
 };
@@ -43,8 +43,9 @@ pub struct Storage {
     get_types: HashMapStorage<GetType>,
     type_checks: HashMapStorage<TypeCheck>,
     compiled_files: HashMapStorage<CompileFile>,
-    dependencies: HashMapStorage<Dependencies>,
-    crate_names: HashMapStorage<CrateName>,
+
+    #[serde(skip)]
+    pub crates: Arc<BTreeMap<CrateId, CrateData>>,
 }
 
 impl_storage!(Storage,
@@ -60,9 +61,13 @@ impl_storage!(Storage,
     get_types: GetType,
     type_checks: TypeCheck,
     compiled_files: CompileFile,
-    dependencies: Dependencies,
-    crate_names: CrateName,
 );
+
+pub struct CrateData {
+    /// Each crate has its own database since metadata is serialized per-crate
+    pub db: Db,
+    pub name: String,
+}
 
 std::thread_local! {
     // This is a helper to show us how many queries deep we are for our print outs
@@ -91,12 +96,11 @@ pub fn println(msg: String) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/// `SourceFile`s are our only input to the compiler. Given a file's path
-/// they return the text of the file as long as it was set before via `db.update_input`
+/// `SourceFile`s are our only input to the compiler. The driver code must set the full source
+/// file for each SourceFileId used by the program by keeping its own separate mapping of
+/// SourceFileids.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SourceFile {
-    file_name: Arc<PathBuf>,
-}
+pub struct SourceFile(pub SourceFileId);
 
 // To define an input in inc-complete we can either use this macro or implement a few traits
 // manually. The `0` is a unique id for this input which stably identifies this computation
@@ -104,14 +108,6 @@ pub struct SourceFile {
 // maps to a `String` output type. In this case the text of the file in question. Finally,
 // `Storage` is just the overall storage type to store results in.
 define_input!(0, SourceFile -> String, Storage);
-
-pub fn set_source_file(file_name: Arc<PathBuf>, text: String, db: &mut Db) {
-    SourceFile { file_name }.set(db, text);
-}
-
-pub fn get_source_file<'c>(file_name: Arc<PathBuf>, db: &'c DbHandle) -> String {
-    SourceFile { file_name }.get(db)
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// For each file name, we cache the parse result of that file. This includes not only
@@ -124,24 +120,18 @@ pub fn get_source_file<'c>(file_name: Arc<PathBuf>, db: &'c DbHandle) -> String 
 /// changed, we won't re-check everything in a file even if we assume the Ast as a whole always
 /// changes.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Parse {
-    pub file_name: Arc<PathBuf>,
-}
+pub struct Parse(pub SourceFileId);
 define_intermediate!(1, Parse -> Arc<ParseResult>, Storage, parser::parse_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Collect all the visible definitions within a file. These are the definitions that can be
 /// referred to in any expression in the file.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct VisibleDefinitions {
-    pub file_name: Arc<PathBuf>,
-}
+pub struct VisibleDefinitions(pub SourceFileId);
 define_intermediate!(2, VisibleDefinitions -> (Definitions, Errors), Storage, definition_collection::visible_definitions_impl);
 
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct VisibleTypes {
-    pub file_name: Arc<PathBuf>,
-}
+pub struct VisibleTypes(pub SourceFileId);
 // TODO: Reorder
 define_intermediate!(20, VisibleTypes -> (Definitions, Errors), Storage, definition_collection::visible_types_impl);
 
@@ -156,15 +146,11 @@ pub type Definitions = BTreeMap<Arc<String>, TopLevelId>;
 /// want ordinary name resolution of another file to depend upon private definitions in an import.
 /// Instead, it only depends on the `ExportedDefinitions` of that import.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExportedDefinitions {
-    pub file_name: Arc<PathBuf>,
-}
+pub struct ExportedDefinitions(pub SourceFileId);
 define_intermediate!(3, ExportedDefinitions -> (Definitions, Errors), Storage, definition_collection::exported_definitions_impl);
 
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExportedTypes {
-    pub file_name: Arc<PathBuf>,
-}
+pub struct ExportedTypes(pub SourceFileId);
 // TODO: Reorder
 define_intermediate!(30, ExportedTypes -> (Definitions, Errors), Storage, definition_collection::exported_types_impl);
 
@@ -176,9 +162,7 @@ define_intermediate!(30, ExportedTypes -> (Definitions, Errors), Storage, defini
 /// compilations. So we provide this top-level utility to collect these then return without doing
 /// anything else.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GetImports {
-    pub file_name: Arc<PathBuf>,
-}
+pub struct GetImports(pub SourceFileId);
 define_intermediate!(4, GetImports -> Vec<(Arc<PathBuf>, Location)>, Storage, definition_collection::get_imports_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -209,7 +193,7 @@ pub struct GetStatement(pub TopLevelId);
 // This one is quick and simple, let's just define it here.
 define_intermediate!(6, GetStatement -> (Arc<TopLevelItem>, Arc<TopLevelContext>), Storage, |context, db| {
     let target_id = &context.0;
-    let ast = Parse { file_name: target_id.file_path.clone() }.get(db);
+    let ast = Parse(context.0.source_file).get(db);
 
     for statement in ast.cst.top_level_items.iter() {
         if statement.id == *target_id {
@@ -219,7 +203,7 @@ define_intermediate!(6, GetStatement -> (Arc<TopLevelItem>, Arc<TopLevelContext>
     }
 
     // Note that panics are not cached (so avoid `catch_unwind` within incremental computations!)
-    unreachable!("No TopLevelStatement for id {target_id}")
+    unreachable!("No TopLevelStatement for id {target_id:?}")
 });
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -245,17 +229,5 @@ define_intermediate!(8, TypeCheck -> TypeCheckResult, Storage, type_inference::t
 /// Compile a single file to a string representing python source code of that file.
 /// This will also return any errors originating in that file.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompileFile { pub file_name: Arc<PathBuf> }
+pub struct CompileFile(pub SourceFileId);
 define_intermediate!(9, CompileFile -> (String, Errors), Storage, backend::compile_file_impl);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/// Returns the dependencies of a given crate
-#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Dependencies(pub CrateId);
-define_intermediate!(10, Dependencies -> Vec<CrateId>, Storage, name_resolution::dependencies_impl);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/// Returns the name of a crate
-#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CrateName(pub CrateId);
-define_intermediate!(11, CrateName -> String, Storage, name_resolution::crate_name_impl);

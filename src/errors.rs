@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::lexer::token::Token;
+use crate::{lexer::token::Token, name_resolution::namespace::SourceFileId};
 
 pub type Location = Arc<LocationData>;
 pub type Errors = Vec<Diagnostic>;
@@ -19,43 +19,44 @@ pub enum Diagnostic {
     NameNotInScope { name: Arc<String>, location: Location },
     ExpectedType { actual: String, expected: String, location: Location },
     RecursiveType { typ: String, location: Location },
+    NamespaceNotFound { name: String, location: Location },
+    NameNotFound { name: String, location: Location },
 }
 
 impl Diagnostic {
     pub fn message(&self) -> String {
         match self {
-            Diagnostic::ParserExpected { message, actual, location } => {
-                format!("{location}: Expected {message} but found `{actual}`")
+            Diagnostic::ParserExpected { message, actual, location: _ } => {
+                format!("Expected {message} but found `{actual}`")
             },
-            Diagnostic::NameAlreadyInScope { name, first_location, second_location } => {
-                format!("{second_location}: `{name}` was already defined at {first_location}")
+            Diagnostic::NameAlreadyInScope { name, first_location: _, second_location: _ } => {
+                format!("`{name}` was already defined")
             },
-            Diagnostic::ImportedNameAlreadyInScope { name, first_location, second_location } => {
-                format!(
-                    "{second_location}: This imports `{name}`, which has already been defined here: {first_location}"
-                )
+            Diagnostic::ImportedNameAlreadyInScope { name, first_location: _, second_location: _ } => {
+                format!("This imports `{name}`, which has already been defined")
             },
-            Diagnostic::UnknownImportFile { file_name, location } => {
-                format!("{location}: Cannot read source file `{}`, does it exist?", file_name.display())
+            Diagnostic::UnknownImportFile { file_name, location: _ } => {
+                format!("Cannot read source file `{}`, does it exist?", file_name.display())
             },
-            Diagnostic::NameNotInScope { name, location } => {
-                format!("{location}: `{name}` is not defined, was it a typo?")
+            Diagnostic::NameNotInScope { name, location: _ } => {
+                format!("`{name}` is not defined, was it a typo?")
             },
-            Diagnostic::ExpectedType { actual, expected, location } => {
-                format!("{location}: Expected type `{expected}` but found `{actual}`")
+            Diagnostic::ExpectedType { actual, expected, location: _ } => {
+                format!("Expected type `{expected}` but found `{actual}`")
             },
-            Diagnostic::RecursiveType { typ, location } => {
-                format!("{location}: Binding here would create an infinitely recursive type with `{typ}`")
+            Diagnostic::RecursiveType { typ, location: _ } => {
+                format!("Binding here would create an infinitely recursive type with `{typ}`")
+            },
+            Diagnostic::NamespaceNotFound { name, location: _ } => {
+                format!("Namespace `{name}` not found in path")
+            },
+            Diagnostic::NameNotFound { name, location: _ } => {
+                format!("`{name}` not found in scope")
             },
         }
     }
 }
 
-impl std::fmt::Display for LocationData {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}:{}", self.file_name.display(), self.span.start.line_number)
-    }
-}
 impl std::fmt::Debug for Diagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message())
@@ -75,21 +76,21 @@ pub trait ErrorDefault {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct LocationData {
-    pub file_name: Arc<PathBuf>,
+    pub file_id: SourceFileId,
     pub span: Span,
 }
 
 impl LocationData {
     /// Merge two locations
     pub fn to(&self, end: &LocationData) -> Location {
-        assert_eq!(self.file_name, end.file_name);
-        Arc::new(LocationData { file_name: self.file_name.clone(), span: self.span.to(&end.span) })
+        assert_eq!(self.file_id, end.file_id);
+        Arc::new(LocationData { file_id: self.file_id.clone(), span: self.span.to(&end.span) })
     }
 
     /// An invalid location used only as a temporary placeholder
-    pub fn placeholder(file_name: Arc<PathBuf>) -> Location {
+    pub fn placeholder(file_id: SourceFileId) -> Location {
         let position = Position { byte_index: 0, line_number: 0, column_number: 0 };
-        Arc::new(LocationData { file_name, span: Span { start: position, end: position } })
+        Arc::new(LocationData { file_id, span: Span { start: position, end: position } })
     }
 }
 
@@ -107,8 +108,8 @@ impl Span {
     }
 
     /// Construct a Location from this Span
-    pub fn in_file(self, file_name: Arc<PathBuf>) -> Location {
-        Arc::new(LocationData { file_name, span: self })
+    pub fn in_file(self, file_id: SourceFileId) -> Location {
+        Arc::new(LocationData { file_id, span: self })
     }
 }
 

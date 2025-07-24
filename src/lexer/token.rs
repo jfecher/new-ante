@@ -7,7 +7,7 @@
 //! the lexing phase of the compiler. The resulting tokens are then
 //! fed into the parser to verify the program's grammar and create
 //! an abstract syntax tree.
-use std::fmt::{self, Display};
+use std::{fmt::{self, Display}, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -27,6 +27,7 @@ pub enum LexerError {
     UnindentToNewLevel,   // Unindented to a new indent level rather than returning to a previous one
     Expected(char),
     UnknownChar(char),
+    MismatchedBracketInQuote { expected: char },
 }
 
 /// Each Token::IntegerLiteral and Ast::LiteralKind::Integer has
@@ -47,6 +48,29 @@ pub enum IntegerKind {
     U32,
     U64,
     Usz,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum ClosingBracket {
+    /// `(`
+    Paren,
+    /// `[`
+    Square,
+    /// `{`
+    Curly,
+    /// `    `
+    Unindent,
+}
+
+impl Display for ClosingBracket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClosingBracket::Paren => write!(f, "`)`"),
+            ClosingBracket::Square => write!(f, "`]`"),
+            ClosingBracket::Curly => write!(f, "`}}`"),
+            ClosingBracket::Unindent => write!(f, "an unindent"),
+        }
+    }
 }
 
 /// Each float literal is polymorphic over the `Float a` type. The `a` is the
@@ -88,6 +112,9 @@ pub enum Token {
     BooleanLiteral(bool),
     UnitLiteral,
 
+    /// A quoted list of tokens
+    Quoted(Arc<Vec<Token>>),
+
     // Types
     TypeName(String),
     IntegerType(IntegerKind),
@@ -117,6 +144,7 @@ pub enum Token {
     Impl,
     Import,
     In,
+    Is,
     Loop,
     Match,
     Module,
@@ -174,6 +202,7 @@ pub enum Token {
     Index,              // .[]
     IndexRef,           // .&[]
     IndexMut,           // .![]
+    Octothorpe,         // #
 }
 
 impl Token {
@@ -312,6 +341,7 @@ impl Display for Token {
             Token::Impl => write!(f, "impl"),
             Token::Import => write!(f, "import"),
             Token::In => write!(f, "in"),
+            Token::Is => write!(f, "is"),
             Token::Loop => write!(f, "loop"),
             Token::Match => write!(f, "match"),
             Token::Module => write!(f, "module"),
@@ -369,6 +399,14 @@ impl Display for Token {
             Token::Index => write!(f, ".[]"),
             Token::IndexRef => write!(f, ".&[]"),
             Token::IndexMut => write!(f, ".![]"),
+            Token::Octothorpe => write!(f, "#"),
+            Token::Quoted(tokens) => {
+                write!(f, "'")?;
+                for token in tokens.iter() {
+                    write!(f, "{token}")?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -418,6 +456,7 @@ pub fn lookup_keyword(word: &str) -> Option<Token> {
         "impl" => Some(Token::Impl),
         "import" => Some(Token::Import),
         "in" => Some(Token::In),
+        "is" => Some(Token::Is),
         "loop" => Some(Token::Loop),
         "match" => Some(Token::Match),
         "module" => Some(Token::Module),

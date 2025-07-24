@@ -11,6 +11,7 @@ deterministic-hash = "1.0.1"
 inc-complete = "0.6.1"
 rayon = "1.10.0"
 ron = "0.10.1"
+rustc-hash = "2.1.1"
 scc = { version = "2.3.4", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 

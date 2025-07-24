@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 
 use crate::{errors::{Diagnostic, Errors, Location}, incremental::{set_source_file, Db, GetImports}, read_file};
 
@@ -17,7 +17,7 @@ use crate::{errors::{Diagnostic, Errors, Location}, incremental::{set_source_fil
 /// many source files - we can distribute work to parse many of them at once. The implementation
 /// for this could be more efficient though. For example, the parser could accept the shared `queue`
 /// of files to parse as an argument, and push to this queue immediately when it finds an import.
-pub fn collect_all_changed_files(start_file: Arc<String>, compiler: &mut Db) -> (BTreeSet<Arc<String>>, Errors) {
+pub fn collect_all_changed_files(start_file: Arc<PathBuf>, compiler: &mut Db) -> (BTreeSet<FileName>, Errors) {
     let mut finder = Finder::new();
     let mut remaining_files = BTreeSet::new();
     remaining_files.insert(start_file);
@@ -29,7 +29,7 @@ pub fn collect_all_changed_files(start_file: Arc<String>, compiler: &mut Db) -> 
     (finder.done, finder.errors)
 }
 
-type FileName = Arc<String>;
+type FileName = Arc<PathBuf>;
 
 struct Finder {
     queue: scc::Queue<(FileName, Location)>,

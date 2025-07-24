@@ -23,10 +23,7 @@
 use incremental::{set_source_file, CompileFile, Db};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
-    collections::BTreeSet,
-    fs::File,
-    io::{Read, Write},
-    sync::Arc,
+    collections::BTreeSet, fs::File, io::{Read, Write}, path::{Path, PathBuf}, sync::Arc
 };
 
 use crate::errors::Errors;
@@ -52,7 +49,7 @@ const METADATA_FILE: &str = "incremental_metadata.ron";
 // Deserialize the compiler from our metadata file.
 // If we fail, just default to a fresh compiler with no cached compilations.
 fn make_compiler() -> Db {
-    match read_file(METADATA_FILE) {
+    match read_file(Path::new(METADATA_FILE)) {
         Ok(text) => ron::from_str(&text).unwrap_or_default(),
         Err(_) => Db::default(),
     }
@@ -61,12 +58,12 @@ fn make_compiler() -> Db {
 fn main() {
     let mut compiler = make_compiler();
 
-    let source = read_file(INPUT_FILE).unwrap_or_else(|error| {
+    let source = read_file(Path::new(INPUT_FILE)).unwrap_or_else(|error| {
         eprintln!("error: {error}");
         std::process::exit(1);
     });
 
-    let file_name = Arc::new(INPUT_FILE.to_string());
+    let file_name = Arc::new(PathBuf::from(INPUT_FILE));
     set_source_file(file_name.clone(), source, &mut compiler);
 
     println!("Passes Run:");
@@ -95,9 +92,9 @@ fn main() {
 /// Compile all the files in the set to python files. In a real compiler we may want
 /// to compile each as an independent llvm or cranelift module then link them all
 /// together at the end.
-fn compile_all(files: BTreeSet<Arc<String>>, compiler: &mut Db) -> Errors {
+fn compile_all(files: BTreeSet<Arc<PathBuf>>, compiler: &mut Db) -> Errors {
     files.into_par_iter().flat_map(|file| {
-        let output_file = file.replace(".ex", ".py");
+        let output_file = file.with_extension(".py");
         let (text, errors) = CompileFile { file_name: file }.get(compiler);
 
         if let Err(msg) = write_file(&output_file, &text) {
@@ -107,12 +104,12 @@ fn compile_all(files: BTreeSet<Arc<String>>, compiler: &mut Db) -> Errors {
     }).collect()
 }
 
-fn write_file(file_name: &str, text: &str) -> Result<(), String> {
+fn write_file(file_name: &Path, text: &str) -> Result<(), String> {
     let mut metadata_file =
-        File::create(file_name).map_err(|error| format!("Failed to create file `{file_name}`:\n{error}"))?;
+        File::create(file_name).map_err(|error| format!("Failed to create file `{}`:\n{error}", file_name.display()))?;
 
     let text = text.as_bytes();
-    metadata_file.write_all(text).map_err(|error| format!("Failed to write to file `{file_name}`:\n{error}"))
+    metadata_file.write_all(text).map_err(|error| format!("Failed to write to file `{}`:\n{error}", file_name.display()))
 }
 
 /// This could be changed so that we only write if the metadata actually
@@ -120,10 +117,10 @@ fn write_file(file_name: &str, text: &str) -> Result<(), String> {
 fn write_metadata(compiler: Db) -> Result<(), String> {
     // Using `to_writer` here would avoid the intermediate step of creating the string
     let serialized = ron::to_string(&compiler).map_err(|error| format!("Failed to serialize database:\n{error}"))?;
-    write_file(METADATA_FILE, &serialized)
+    write_file(Path::new(METADATA_FILE), &serialized)
 }
 
-fn read_file(file_name: &str) -> Result<String, String> {
+fn read_file(file_name: &std::path::Path) -> Result<String, String> {
     let mut file = File::open(file_name).map_err(|error| format!("Failed to open `{INPUT_FILE}`:\n{error}"))?;
 
     let mut text = String::new();

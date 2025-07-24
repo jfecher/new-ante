@@ -319,6 +319,41 @@ impl<'contents> Lexer<'contents> {
         self.expect('"', Token::StringLiteral(contents))
     }
 
+    fn lex_quoted(&mut self) -> IterElem {
+        // skip the single quote
+        self.advance();
+
+        let mut tokens = Vec::new();
+        let mut bracket_stack = Vec::new();
+
+        while {
+            let next = self.next()?;
+
+            !bracket_stack.is_empty()
+        } {}
+
+
+        let contents = if self.current == '\\' {
+            self.advance();
+            match self.current {
+                '\\' | '\'' => self.current,
+                'n' => '\n',
+                'r' => '\r',
+                't' => '\t',
+                '0' => '\0',
+                _ => {
+                    let error = LexerError::InvalidEscapeSequence(self.current);
+                    return self.advance2_with(Token::Invalid(error));
+                },
+            }
+        } else {
+            self.current
+        };
+
+        self.advance();
+        self.expect('\'', Token::CharLiteral(contents))
+    }
+
     fn lex_char_literal(&mut self) -> IterElem {
         self.advance();
         let contents = if self.current == '\\' {
@@ -491,7 +526,7 @@ impl<'contents> Iterator for Lexer<'contents> {
                 self.pending_interpolations.push(self.open_braces.curly);
                 self.advance2_with(Token::InterpolateLeft)
             },
-            ('\'', _) => self.lex_char_literal(),
+            ('\'', _) => self.lex_quoted(),
             ('/', '/') => self.lex_singleline_comment(),
             ('/', '*') => self.lex_multiline_comment(),
             ('=', '=') => self.advance2_with(Token::EqualEqual),
@@ -571,6 +606,7 @@ impl<'contents> Iterator for Lexer<'contents> {
             ('@', _) => self.advance_with(Token::At),
             ('!', _) => self.advance_with(Token::ExclamationMark),
             ('?', _) => self.advance_with(Token::QuestionMark),
+            ('#', _) => self.advance_with(Token::Octothorpe),
             (c, _) => self.advance_with(Token::Invalid(LexerError::UnknownChar(c))),
         }
     }
