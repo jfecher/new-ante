@@ -8,7 +8,7 @@ pub mod namespace;
 use crate::{
     errors::{Diagnostic, Errors, Location},
     incremental::{self, CrateData, DbHandle, GetStatement, Resolve, VisibleDefinitions},
-    parser::{cst::{Expr, Path, TopLevelItemKind}, ids::{ExprId, TopLevelId}, TopLevelContext},
+    parser::{cst::{Expr, Path, Pattern, TopLevelItemKind}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext},
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -24,7 +24,7 @@ struct Resolver<'local, 'inner> {
     links: BTreeMap<ExprId, Origin>,
     errors: Errors,
     names_in_global_scope: BTreeMap<Arc<String>, TopLevelId>,
-    names_in_local_scope: BTreeMap<Arc<String>, ExprId>,
+    names_in_local_scope: Vec<BTreeMap<Arc<String>, PatternId>>,
     context: &'local TopLevelContext,
     compiler: &'local DbHandle<'inner>,
 }
@@ -35,7 +35,7 @@ pub enum Origin {
     /// This name comes from this top level definition
     TopLevelDefinition(TopLevelId),
     /// This name is the parameter of a lambda expression.
-    Parameter(ExprId),
+    Parameter(PatternId),
     /// This name comes from a local binding
     Local(ExprId),
     /// This name did not resolve, try to perform type based resolution on it during type inference
@@ -88,7 +88,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             names_in_global_scope: names_in_scope,
             links: Default::default(),
             errors: Vec::new(),
-            names_in_local_scope: Default::default(),
+            names_in_local_scope: vec![Default::default()],
             context,
         }
     }
@@ -99,6 +99,21 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
 
     fn namespace(&self) -> Namespace {
         Namespace::Module(self.item.source_file.crate_id, self.item.source_file.local_module_id)
+    }
+
+    fn push_local_scope(&mut self) {
+        self.names_in_local_scope.push(Default::default());
+    }
+
+    /// TODO: Check for unused names
+    fn pop_local_scope(&mut self) {
+        self.names_in_local_scope.pop();
+    }
+
+    /// Declares a name in local scope.
+    fn declare_name(&mut self, name: Arc<String>, id: PatternId) {
+        let scope = self.names_in_local_scope.last_mut().unwrap();
+        scope.insert(name, id);
     }
 
     /// Retrieve each visible namespace in the given namespace, restricting the namespace
@@ -135,8 +150,10 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         assert_eq!(path.len(), 0);
 
         if matches!(namespace, Namespace::Local) {
-            if let Some(expr) = self.names_in_local_scope.get(name) {
-                return Some(Origin::Parameter(*expr));
+            for scope in self.names_in_local_scope.iter().rev() {
+                if let Some(expr) = scope.get(name) {
+                    return Some(Origin::Parameter(*expr));
+                }
             }
         }
 
@@ -197,26 +214,20 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             },
             Expr::Lambda(lambda) => {
                 // Resolve body with the parameter name in scope
-                for (parameter, _parameter_type) in &lambda.parameters {
-                    let parameter = Arc::new(parameter.clone());
-                    // TODO: Need a unique id for each parameter
-                    self.names_in_local_scope.insert(parameter, todo!());
+                self.push_local_scope();
+                for parameter in &lambda.parameters {
+                    self.declare_names_in_pattern(*parameter);
                 }
 
                 self.resolve_expr(lambda.body);
-
-                // Then remember to either remove the parameter name from scope, or if we shadowed
-                // an existing name, then re-insert that one.
-                if let Some(old_name) = old_name {
-                    self.names_in_local_scope.insert(parameter_name.name.clone(), old_name);
-                } else {
-                    self.names_in_local_scope.remove(&parameter_name.name);
-                }
+                self.pop_local_scope();
             },
             Expr::Sequence(sequence) => {
+                self.push_local_scope();
                 for item in sequence {
                     self.resolve_expr(item.expr);
                 }
+                self.pop_local_scope();
             }
             Expr::Definition(_) => (),
             Expr::MemberAccess(access) => {
@@ -228,15 +239,24 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             },
             Expr::If(if_) => {
                 self.resolve_expr(if_.condition);
+
+                self.push_local_scope();
                 self.resolve_expr(if_.then);
+                self.pop_local_scope();
+
                 if let Some(else_) = if_.else_ {
+                    self.push_local_scope();
                     self.resolve_expr(else_);
+                    self.pop_local_scope();
                 }
             },
             Expr::Match(match_) => {
                 self.resolve_expr(match_.expression);
                 for (pattern, branch) in &match_.cases {
+                    self.push_local_scope();
+                    self.declare_names_in_pattern(*pattern);
                     self.resolve_expr(*branch);
+                    self.pop_local_scope();
                 }
             },
             Expr::Reference(reference) => {
@@ -247,6 +267,27 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             },
             Expr::Quoted(_) => (),
             Expr::Error => (),
+        }
+    }
+
+    /// Declare each name in a pattern position in the given pattern, pushing the old names
+    /// if any existed in the declared list.
+    fn declare_names_in_pattern(&mut self, pattern: PatternId) {
+        match &self.context.patterns[pattern] {
+            Pattern::Variable(path) => {
+                if let Some((name, _)) = path.ident() {
+                    let name = Arc::new(name.clone());
+                    self.declare_name(name.clone(), pattern);
+                }
+            },
+            Pattern::Literal(_) => (),
+            // In a constructor pattern such as `Struct foo bar baz` or `(a, b)` the arguments
+            // should be declared but the function itself should never be.
+            Pattern::Constructor(_, args) => {
+                for arg in args {
+                    self.declare_names_in_pattern(*arg);
+                }
+            },
         }
     }
 }

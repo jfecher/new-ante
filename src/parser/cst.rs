@@ -170,6 +170,15 @@ pub struct Path {
 }
 
 impl Path {
+    /// If this path consists of a single component, return it.
+    pub fn ident(&self) -> Option<&(String, Location)> {
+        if self.components.len() == 1 {
+            self.components.first()
+        } else {
+            None
+        }
+    }
+
     pub fn last(&self) -> &String {
         &self.components.last().unwrap().0
     }

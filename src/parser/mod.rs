@@ -693,11 +693,11 @@ impl<'tokens> Parser<'tokens> {
         items
     }
 
-    fn parse_function_parameters(&mut self) -> Vec<(String, Option<Type>)> {
+    fn parse_function_parameters(&mut self) -> Vec<PatternId> {
         self.many0(Self::parse_function_parameter)
     }
 
-    fn parse_function_parameter(&mut self) -> Result<(String, Option<Type>)> {
+    fn parse_function_parameter(&mut self) -> Result<PatternId> {
         match self.current_token() {
             Token::UnitLiteral => {
                 // TODO: Remove 'no name' hack for unit literal parameter

@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::{parser::cst::Lambda, vecmap::VecMap};
 
-use super::{cst::{BorrowMode, Call, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Index, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId}};
+use super::{cst::{BorrowMode, Call, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Index, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId}};
 
 struct CstDisplayContext<'a> {
     cst: &'a Cst,
@@ -20,8 +20,8 @@ impl Cst {
 impl Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut path = self.components.iter();
-        write!(f, "{}", path.next().unwrap());
-        for item in path {
+        write!(f, "{}", path.next().unwrap().0);
+        for (item, _) in path {
             write!(f, ".{item}")?;
         }
         Ok(())
@@ -55,6 +55,7 @@ impl<'a> CstDisplayContext<'a> {
             TopLevelItemKind::TraitImpl(trait_impl) => self.fmt_trait_impl(trait_impl, f),
             TopLevelItemKind::EffectDefinition(effect_definition) => self.fmt_effect_definition(effect_definition, f),
             TopLevelItemKind::Extern(extern_) => self.fmt_extern(extern_, f),
+            TopLevelItemKind::Comptime(comptime) => self.fmt_comptime(comptime, f),
         }
     }
 
@@ -93,16 +94,9 @@ impl<'a> CstDisplayContext<'a> {
 
     /// Format each part of a lambda except the leading `fn`
     fn fmt_lambda_inner(&mut self, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
-        for (name, typ) in &lambda.parameters {
-            if name.is_empty() {
-                write!(f, " ()")?;
-            } else if let Some(typ) = typ {
-                write!(f, " ({name}: ")?;
-                self.fmt_type(typ, f)?;
-                write!(f, ")")?;
-            } else {
-                write!(f, " {name}")?;
-            }
+        for pattern in &lambda.parameters {
+            write!(f, " ")?;
+            self.fmt_pattern(*pattern, f)?;
         }
 
         if let Some(typ) = &lambda.return_type {
@@ -255,6 +249,7 @@ impl<'a> CstDisplayContext<'a> {
             Expr::Match(match_) => self.fmt_match(match_, f),
             Expr::Reference(reference) => self.fmt_reference(reference, f),
             Expr::TypeAnnotation(type_annotation) => self.fmt_type_annotation(type_annotation, f),
+            Expr::Quoted(quoted) => self.fmt_quoted(quoted, f),
         }
     }
 
@@ -436,7 +431,7 @@ impl<'a> CstDisplayContext<'a> {
             Pattern::Variable(path) => write!(f, "{path}"),
             Pattern::Literal(literal) => self.fmt_literal(literal, f),
             Pattern::Constructor(path, args) => {
-                write!(f, "{path}")?;
+                self.fmt_pattern(*path, f)?;
                 for arg in args {
                     if !matches!(&self.patterns[*arg], Pattern::Constructor(..)) {
                         write!(f, " ")?;
@@ -464,6 +459,36 @@ impl<'a> CstDisplayContext<'a> {
         self.fmt_expr(type_annotation.lhs, f)?;
         write!(f, ": ")?;
         self.fmt_type(&type_annotation.rhs, f)
+    }
+
+    fn fmt_comptime(&mut self, comptime: &Comptime, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match comptime {
+            Comptime::Expr(expr_id) => {
+                write!(f, "#")?;
+                self.fmt_expr(*expr_id, f)
+            }
+            Comptime::Derive(paths) => {
+                write!(f, "derive")?;
+                for path in paths {
+                    write!(f, " {path}")?;
+                }
+                Ok(())
+            },
+            Comptime::Definition(definition) => {
+                write!(f, "#")?;
+                self.fmt_definition(definition, f)
+            },
+        }
+    }
+
+    fn fmt_quoted(&self, quoted: &Quoted, f: &mut Formatter<'_>) -> std::fmt::Result {
+        assert!(!quoted.tokens.is_empty());
+        write!(f, "'{}", quoted.tokens.first().unwrap())?;
+
+        for token in quoted.tokens.iter().skip(1) {
+            write!(f, " {token}")?;
+        }
+        Ok(())
     }
 }
 
