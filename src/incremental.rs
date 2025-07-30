@@ -43,6 +43,7 @@ pub struct Storage {
     get_types: HashMapStorage<GetType>,
     type_checks: HashMapStorage<TypeCheck>,
     compiled_files: HashMapStorage<CompileFile>,
+    file_ids: HashMapStorage<FileId>,
 
     #[serde(skip)]
     pub crates: Arc<BTreeMap<CrateId, CrateData>>,
@@ -61,6 +62,7 @@ impl_storage!(Storage,
     get_types: GetType,
     type_checks: TypeCheck,
     compiled_files: CompileFile,
+    file_ids: FileId,
 );
 
 pub struct CrateData {
@@ -231,3 +233,9 @@ define_intermediate!(8, TypeCheck -> TypeCheckResult, Storage, type_inference::t
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompileFile(pub SourceFileId);
 define_intermediate!(9, CompileFile -> (String, Errors), Storage, backend::compile_file_impl);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/// Returns the SourceFileId for a given file path
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FileId(pub Arc<PathBuf>);
+define_input!(10, FileId -> SourceFileId, Storage);

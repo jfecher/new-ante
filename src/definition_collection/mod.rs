@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use crate::{
     errors::{Diagnostic, Errors, Location}, incremental::{
-        self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, GetImports, Parse, VisibleDefinitions, VisibleTypes
+        self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, FileId, GetImports, Parse, VisibleDefinitions, VisibleTypes
     }, parser::cst::{ItemName, Path, TopLevelItem, TopLevelItemKind}
 };
 
@@ -21,8 +21,10 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
     for import in &ast.cst.imports {
         // Ignore errors from imported files. We want to only collect errors
         // from this file. Otherwise we'll duplicate errors.
-        // TODO: Translate import path to id
-        let (exports, _errors) = ExportedDefinitions(import.path.clone()).get(db);
+        // TODO: This id should be optional in case the path doesn't exist
+        // TODO: `import.path` includes the imported item too - we want just the module path
+        let import_file_id = FileId(import.module_path.clone()).get(db);
+        let (exports, _errors) = ExportedDefinitions(import_file_id).get(db);
 
         for (exported_name, exported_id) in exports {
             if let Some(existing) = definitions.get(&exported_name) {
@@ -55,8 +57,8 @@ pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions
     for import in &ast.cst.imports {
         // Ignore errors from imported files. We want to only collect errors
         // from this file. Otherwise we'll duplicate errors.
-        // TODO: Translate import path to id
-        let (exports, _errors) = ExportedTypes(import.path.clone()).get(db);
+        let import_file_id = FileId(import.module_path.clone()).get(db);
+        let (exports, _errors) = ExportedTypes(import_file_id).get(db);
 
         for (exported_name, exported_id) in exports {
             if let Some(existing) = definitions.get(&exported_name) {
@@ -163,7 +165,7 @@ pub fn get_imports_impl(context: &GetImports, db: &DbHandle) -> Vec<(Arc<PathBuf
         // We don't care about duplicate imports.
         // This method is only used for finding input files and the top-level
         // will filter out any repeats.
-        imports.push((import.path.clone(), import.location.clone()));
+        imports.push((import.module_path.clone(), import.location.clone()));
     }
 
     incremental::exit_query();
