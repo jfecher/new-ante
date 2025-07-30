@@ -7,7 +7,7 @@ pub mod namespace;
 
 use crate::{
     errors::{Diagnostic, Errors, Location},
-    incremental::{self, CrateData, DbHandle, GetStatement, Resolve, VisibleDefinitions},
+    incremental::{self, CrateData, DbHandle, GetItem, Resolve, VisibleDefinitions},
     parser::{cst::{Expr, Path, Pattern, TopLevelItemKind, Type}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext},
 };
 
@@ -49,7 +49,7 @@ pub fn dependencies<'db>(compiler: &'db DbHandle) -> &'db BTreeMap<CrateId, Crat
 
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
     incremental::enter_query();
-    let (statement, statement_ctx) = GetStatement(context.0.clone()).get(compiler);
+    let (statement, statement_ctx) = GetItem(context.0.clone()).get(compiler);
     incremental::println(format!("Resolving {}", statement.kind.name()));
 
     // Note that we discord errors here because they're errors for the entire file and we are

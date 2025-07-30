@@ -51,6 +51,8 @@ impl Finder {
     /// to update inputs while incremental computations are running in general (inc-complete
     /// forbids this, salsa cancels ongoing computations, etc). 
     fn find_files_step(&mut self, files: BTreeSet<SourceFileId>, compiler: &mut Db) -> BTreeSet<SourceFileId> {
+        let compiler_ref: &Db = &compiler;
+        let queue = &self.queue;
         self.thread_pool.scope(|scope| {
             for file in files {
                 if self.done.contains(&file) {
@@ -60,9 +62,9 @@ impl Finder {
 
                 // Parse and collect imports of the file in a separate thread. This can be helpful
                 // when files contain many imports, so we can parse many of them simultaneously.
-                scope.spawn(|_| {
-                    for import in GetImports(file).get(compiler) {
-                        self.queue.push(import);
+                scope.spawn(move |_| {
+                    for import in GetImports(file).get(compiler_ref) {
+                        queue.push(import);
                     }
                 });
             }

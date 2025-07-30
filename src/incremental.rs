@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     backend, definition_collection, errors::{Errors, Location}, name_resolution::{self, namespace::{CrateId, SourceFileId}, ResolutionResult}, parser::{
         self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext,
-    }, type_inference::{self, types::TopLevelDefinitionType, TypeCheckResult}
+    }, type_inference::{self, types::GeneralizedType, TypeCheckResult}
 };
 
 /// A wrapper over inc-complete's database with our specific storage type to hold
@@ -39,7 +39,7 @@ pub struct Storage {
     exported_types: HashMapStorage<ExportedTypes>,
     get_imports: HashMapStorage<GetImports>,
     resolves: HashMapStorage<Resolve>,
-    top_level_statement: HashMapStorage<GetStatement>,
+    top_level_items: HashMapStorage<GetItem>,
     get_types: HashMapStorage<GetType>,
     type_checks: HashMapStorage<TypeCheck>,
     compiled_files: HashMapStorage<CompileFile>,
@@ -58,7 +58,7 @@ impl_storage!(Storage,
     exported_types: ExportedTypes,
     get_imports: GetImports,
     resolves: Resolve,
-    top_level_statement: GetStatement,
+    top_level_items: GetItem,
     get_types: GetType,
     type_checks: TypeCheck,
     compiled_files: CompileFile,
@@ -118,7 +118,7 @@ define_input!(0, SourceFile -> String, Storage);
 /// If we were more concerned about this, we may want to tell inc-complete to not check it changed
 /// at all, and simply assume it has since it is likely to if the input SourceFile was modified to
 /// begin with (since Parse is incremental we only re-run if the input source file changed). Note
-/// that because we have a `GetStatement` step later to check if individual statements have
+/// that because we have a `GetItem` step later to check if individual items have
 /// changed, we won't re-check everything in a file even if we assume the Ast as a whole always
 /// changes.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -168,8 +168,8 @@ pub struct GetImports(pub SourceFileId);
 define_intermediate!(4, GetImports -> Vec<(Arc<PathBuf>, Location)>, Storage, definition_collection::get_imports_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/// Resolves a single top-level statement. Note that since the granularity of this is per-statement
-/// this means we cache the results of this for every top-level statement separately. This kind of
+/// Resolves a single top-level item. Note that since the granularity of this is per-item
+/// this means we cache the results of this for every top-level item separately. This kind of
 /// granularity helps us repeat as little work as possible but does come with the tradeoff of
 /// requiring we query the `Compiler` cache more often. In a real compiler we may want to do
 /// performance testing to determine if this tradeoff is worth it. An alternative to hit the cache
@@ -185,43 +185,43 @@ define_intermediate!(5, Resolve -> ResolutionResult, Storage, name_resolution::r
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// To go from queries which resolve entire files like `Parse` to queries that resolve only a
-/// single statement like `Resolve` we need a way to split a large `Ast` result into smaller items
-/// - in this case individual statements. This being cached means we check if the resulting
-/// `TopLevelStatement` has changed, and if not, we don't need to re-run any computations that
-/// depend on that statement.
+/// single top-level item like `Resolve` we need a way to split a large `Ast` result into smaller items
+/// - in this case individual top-level items. This being cached means we check if the resulting
+/// `TopLevelItem` has changed, and if not, we don't need to re-run any computations that
+/// depend on that item.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GetStatement(pub TopLevelId);
+pub struct GetItem(pub TopLevelId);
 
 // This one is quick and simple, let's just define it here.
-define_intermediate!(6, GetStatement -> (Arc<TopLevelItem>, Arc<TopLevelContext>), Storage, |context, db| {
+define_intermediate!(6, GetItem -> (Arc<TopLevelItem>, Arc<TopLevelContext>), Storage, |context, db| {
     let target_id = &context.0;
     let ast = Parse(context.0.source_file).get(db);
 
-    for statement in ast.cst.top_level_items.iter() {
-        if statement.id == *target_id {
+    for item in ast.cst.top_level_items.iter() {
+        if item.id == *target_id {
             let ctx = ast.top_level_data[target_id].clone();
-            return (statement.clone(), ctx);
+            return (item.clone(), ctx);
         }
     }
 
     // Note that panics are not cached (so avoid `catch_unwind` within incremental computations!)
-    unreachable!("No TopLevelStatement for id {target_id:?}")
+    unreachable!("No TopLevelItem for id {target_id:?}")
 });
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/// Retrieves the type of a top-level statement. Like `Resolve`, this is done per-statement.
+/// Retrieves the type of a top-level item. Like `Resolve`, this is done per-item.
 /// `GetType` interacts with type-inference: if a variable's type is specified then we know the
-/// type from only parsing the file (and `GetStatement` to find the statement in question). If
+/// type from only parsing the file (and `GetItem` to find the item in question). If
 /// the variable's type is inferred however, we need to  call `TypeCheck` to get the type which
 /// will in turn depend on not just the types of any names used in any expressions but also the
 /// name resolution results of those names.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GetType(pub TopLevelId);
-define_intermediate!(7, GetType -> TopLevelDefinitionType, Storage, type_inference::get_type_impl);
+define_intermediate!(7, GetType -> GeneralizedType, Storage, type_inference::get_type_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/// Type check the contents of a top-level statement. This isn't always necessary just to get the
-/// type of a top-level statement but for compiling we also want to ensure the contents of all
+/// Type check the contents of a top-level item. This isn't always necessary just to get the
+/// type of a top-level item but for compiling we also want to ensure the contents of all
 /// expresions are free from type errors.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeCheck(pub TopLevelId);

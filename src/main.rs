@@ -43,6 +43,7 @@ mod backend;
 mod errors;
 mod incremental;
 mod vecmap;
+mod iterator_extensions;
 
 const INPUT_FILE: &str = "input.ex";
 const METADATA_FILE: &str = "incremental_metadata.ron";
@@ -103,13 +104,7 @@ fn path_to_id(path: &Path) -> SourceFileId {
 /// together at the end.
 fn compile_all(files: BTreeSet<SourceFileId>, compiler: &mut Db) -> Errors {
     files.into_par_iter().flat_map(|file| {
-        let output_file = file.with_extension(".py");
-        let file_id = path_to_id(&file);
-        let (text, errors) = CompileFile(file_id).get(compiler);
-
-        if let Err(msg) = write_file(&output_file, &text) {
-            eprintln!("error: {msg}");
-        }
+        let (_text, errors) = CompileFile(file).get(compiler);
         errors
     }).collect()
 }
