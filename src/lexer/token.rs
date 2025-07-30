@@ -7,7 +7,7 @@
 //! the lexing phase of the compiler. The resulting tokens are then
 //! fed into the parser to verify the program's grammar and create
 //! an abstract syntax tree.
-use std::{fmt::{self, Display}, sync::Arc};
+use std::{fmt::{self, Display}, str::FromStr, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +27,8 @@ pub enum LexerError {
     UnindentToNewLevel,   // Unindented to a new indent level rather than returning to a previous one
     Expected(char),
     UnknownChar(char),
-    MismatchedBracketInQuote { expected: char },
+    MismatchedBracketInQuote { expected: ClosingBracket },
+    QuoteWithEndBracketAndNoStart { unexpected: ClosingBracket },
 }
 
 /// Each Token::IntegerLiteral and Ast::LiteralKind::Integer has
@@ -50,8 +51,8 @@ pub enum IntegerKind {
     Usz,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-enum ClosingBracket {
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Hash)]
+pub enum ClosingBracket {
     /// `(`
     Paren,
     /// `[`
@@ -60,6 +61,28 @@ enum ClosingBracket {
     Curly,
     /// `    `
     Unindent,
+}
+
+impl ClosingBracket {
+    /// Return the corresponding token for this closing bracket
+    pub fn token(self) -> Token {
+        match self {
+            ClosingBracket::Paren => Token::ParenthesisRight,
+            ClosingBracket::Square => Token::BracketRight,
+            ClosingBracket::Curly => Token::InterpolateRight,
+            ClosingBracket::Unindent => Token::Unindent,
+        }
+    }
+
+    pub fn from_token(token: &Token) -> Option<Self> {
+        use Token::*;
+        match token {
+            Indent | Unindent => Some(ClosingBracket::Unindent),
+            ParenthesisLeft | ParenthesisRight => Some(ClosingBracket::Paren),
+            BracketLeft | BracketRight => Some(ClosingBracket::Square),
+            _ => None,
+        }
+    }
 }
 
 impl Display for ClosingBracket {
@@ -84,11 +107,19 @@ pub enum FloatKind {
 
 /// Wrapper for `f64` providing `Eq` - we don't care about NaN values
 #[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
-pub struct F64(f64);
+pub struct F64(pub f64);
 impl Eq for F64 {}
 impl std::hash::Hash for F64 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.to_bits().hash(state)
+    }
+}
+
+impl FromStr for F64 {
+    type Err = <f64 as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        f64::from_str(s).map(F64)
     }
 }
 
@@ -97,7 +128,7 @@ pub enum Token {
     // Lexer sends an end of input token before stopping so we get a proper error location when
     // reporting parsing errors that expect a token but found the end of a file instead.
     EndOfInput,
-    Invalid(LexerError),
+    Error(LexerError),
     Newline,
     Indent,
     Unindent,
@@ -258,6 +289,8 @@ impl Display for LexerError {
             UnindentToNewLevel => write!(f, "This unindent doesn't return to any previous indentation level"),
             Expected(c) => write!(f, "Expected {} (U+{:x}) while lexing", *c, *c as u32),
             UnknownChar(c) => write!(f, "Unknown character '{}' (U+{:x}) in file", *c, *c as u32),
+            MismatchedBracketInQuote { expected } => write!(f, "Mismatched bracket in quoted expression, expected `{expected}`"),
+            QuoteWithEndBracketAndNoStart { unexpected } => write!(f, "Cannot quote a lone {unexpected}, all brackets and indentation must be matched"),
         }
     }
 }
@@ -295,7 +328,7 @@ impl Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Token::EndOfInput => write!(f, "end of input"),
-            Token::Invalid(error) => write!(f, "{:?}", error),
+            Token::Error(error) => write!(f, "{:?}", error),
             Token::Newline => write!(f, "a newline"),
             Token::Indent => write!(f, "an indent"),
             Token::Unindent => write!(f, "an unindent"),

@@ -8,7 +8,7 @@ pub mod namespace;
 use crate::{
     errors::{Diagnostic, Errors, Location},
     incremental::{self, CrateData, DbHandle, GetStatement, Resolve, VisibleDefinitions},
-    parser::{cst::{Expr, Path, Pattern, TopLevelItemKind}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext},
+    parser::{cst::{Expr, Path, Pattern, TopLevelItemKind, Type}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext},
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -274,11 +274,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     /// if any existed in the declared list.
     fn declare_names_in_pattern(&mut self, pattern: PatternId) {
         match &self.context.patterns[pattern] {
-            Pattern::Variable(path) => {
-                if let Some((name, _)) = path.ident() {
-                    let name = Arc::new(name.clone());
-                    self.declare_name(name.clone(), pattern);
-                }
+            Pattern::Variable(name, _location) => {
+                self.declare_name(name.clone(), pattern);
             },
             Pattern::Literal(_) => (),
             // In a constructor pattern such as `Struct foo bar baz` or `(a, b)` the arguments
@@ -288,6 +285,22 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     self.declare_names_in_pattern(*arg);
                 }
             },
+            Pattern::Error => (),
+            Pattern::TypeAnnotation(pattern, typ) => {
+                self.declare_names_in_pattern(*pattern);
+                self.resolve_type(typ);
+            },
+        }
+    }
+
+    fn resolve_type(&mut self, typ: &Type) {
+        match typ {
+            Type::Error => (),
+            Type::Unit => (),
+            Type::Named(_) => todo!(),
+            Type::Integer(_) => todo!(),
+            Type::Function(_) => todo!(),
+            Type::TypeApplication(_, _) => todo!(),
         }
     }
 }

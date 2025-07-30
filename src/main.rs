@@ -101,7 +101,7 @@ fn path_to_id(path: &Path) -> SourceFileId {
 /// Compile all the files in the set to python files. In a real compiler we may want
 /// to compile each as an independent llvm or cranelift module then link them all
 /// together at the end.
-fn compile_all(files: BTreeSet<FileId>, compiler: &mut Db) -> Errors {
+fn compile_all(files: BTreeSet<SourceFileId>, compiler: &mut Db) -> Errors {
     files.into_par_iter().flat_map(|file| {
         let output_file = file.with_extension(".py");
         let file_id = path_to_id(&file);

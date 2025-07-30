@@ -320,8 +320,7 @@ pub enum SharedMode {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Pattern {
     Error,
-    Variable(String, Location),
-    Path(ExprId),
+    Variable(Arc<String>, Location),
     Literal(Literal),
     Constructor(PatternId, Vec<PatternId>),
     TypeAnnotation(PatternId, Type),

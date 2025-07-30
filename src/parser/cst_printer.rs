@@ -258,6 +258,7 @@ impl<'a> CstDisplayContext<'a> {
             Literal::Integer(x, Some(kind)) => write!(f, "{x}_{kind}"),
             Literal::Integer(x, None) => write!(f, "{x}"),
             Literal::String(s) => write!(f, "\"{s}\""),
+            Literal::Unit => write!(f, "()"),
         }
     }
 
@@ -428,7 +429,7 @@ impl<'a> CstDisplayContext<'a> {
 
     fn fmt_pattern(&mut self, pattern: PatternId, f: &mut Formatter) -> std::fmt::Result {
         match &self.patterns[pattern] {
-            Pattern::Variable(path) => write!(f, "{path}"),
+            Pattern::Variable(name, _location) => write!(f, "{name}"),
             Pattern::Literal(literal) => self.fmt_literal(literal, f),
             Pattern::Constructor(path, args) => {
                 self.fmt_pattern(*path, f)?;
@@ -443,6 +444,14 @@ impl<'a> CstDisplayContext<'a> {
                     }
                 }
                 Ok(())
+            },
+            Pattern::Error => write!(f, "(error)"),
+            Pattern::TypeAnnotation(pattern, typ) => {
+                write!(f, "(")?;
+                self.fmt_pattern(*pattern, f)?;
+                write!(f, ": ")?;
+                self.fmt_type(typ, f)?;
+                write!(f, ")")
             },
         }
     }

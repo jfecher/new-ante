@@ -748,7 +748,7 @@ impl<'tokens> Parser<'tokens> {
             Token::Identifier(_) => {
                 let name = self.parse_ident()?;
                 let location = self.previous_token_location();
-                Ok(Pattern::Variable(name, location))
+                Ok(Pattern::Variable(Arc::new(name), location))
             }
             other => {
                 let message = "a parameter".to_string();

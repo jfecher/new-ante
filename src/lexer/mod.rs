@@ -39,8 +39,8 @@
 pub mod token;
 
 use crate::errors::{Span, Position};
-use std::str::Chars;
-use token::{lookup_keyword, FloatKind, IntegerKind, LexerError, Token};
+use std::{str::Chars, sync::Arc};
+use token::{lookup_keyword, ClosingBracket, FloatKind, IntegerKind, LexerError, Token, F64};
 
 #[derive(Clone)]
 struct OpenBraces {
@@ -168,7 +168,7 @@ impl<'contents> Lexer<'contents> {
         if self.current == expected {
             self.advance_with(token)
         } else {
-            self.advance_with(Token::Invalid(LexerError::Expected(expected)))
+            self.advance_with(Token::Error(LexerError::Expected(expected)))
         }
     }
 
@@ -212,7 +212,7 @@ impl<'contents> Lexer<'contents> {
             "isz" => IntegerKind::Isz,
             "usz" => IntegerKind::Usz,
             "" => return Ok(None),
-            _ => return Err(Token::Invalid(LexerError::InvalidIntegerSuffx)),
+            _ => return Err(Token::Error(LexerError::InvalidIntegerSuffx)),
         }))
     }
 
@@ -227,7 +227,7 @@ impl<'contents> Lexer<'contents> {
             "f32" => Ok(Some(FloatKind::F32)),
             "f64" => Ok(Some(FloatKind::F64)),
             "" => Ok(None),
-            _ => Err(Token::Invalid(LexerError::InvalidFloatSuffx)),
+            _ => Err(Token::Error(LexerError::InvalidFloatSuffx)),
         }
     }
 
@@ -264,7 +264,9 @@ impl<'contents> Lexer<'contents> {
                         let x = format!("-{}", x).parse::<i64>().unwrap();
                         Token::IntegerLiteral(x as u64, kind)
                     },
-                    Token::FloatLiteral(x, kind) => Token::FloatLiteral(-x, kind),
+                    Token::FloatLiteral(x, kind) => {
+                        Token::FloatLiteral(F64(-x.0), kind)
+                    }
                     _ => unreachable!(),
                 };
                 (token, location)
@@ -307,7 +309,7 @@ impl<'contents> Lexer<'contents> {
                         '0' => '\0',
                         _ => {
                             let error = LexerError::InvalidEscapeSequence(self.current);
-                            return self.advance2_with(Token::Invalid(error));
+                            return self.advance2_with(Token::Error(error));
                         },
                     }
                 },
@@ -321,37 +323,48 @@ impl<'contents> Lexer<'contents> {
 
     fn lex_quoted(&mut self) -> IterElem {
         // skip the single quote
+        let start = self.current_position;
+        let mut span = Span { start, end: start };
         self.advance();
 
         let mut tokens = Vec::new();
         let mut bracket_stack = Vec::new();
 
+        // Keep track of the stack of brackets so that we always match them.
+        // This includes quoted blocks
         while {
-            let next = self.next()?;
+            let (token, token_span) = self.next()?;
+            span.end = token_span.end;
+
+            match token {
+                token @ (Token::Indent | Token::ParenthesisLeft | Token::BracketLeft) => {
+                    let bracket = ClosingBracket::from_token(&token).unwrap();
+                    bracket_stack.push(bracket);
+                    tokens.push(token)
+                },
+                token @ (Token::Unindent | Token::ParenthesisRight | Token::BracketRight) => {
+                    match bracket_stack.pop() {
+                        Some(matching) if matching.token() == token => tokens.push(token),
+                        Some(expected) => {
+                            let error = LexerError::MismatchedBracketInQuote { expected };
+                            return Some((Token::Error(error), span));
+                        }
+                        None => {
+                            let unexpected = ClosingBracket::from_token(&token).unwrap();
+                            let error = LexerError::QuoteWithEndBracketAndNoStart { unexpected };
+                            return Some((Token::Error(error), span));
+                        }
+                    }
+                }
+                other => {
+                    tokens.push(other);
+                }
+            }
 
             !bracket_stack.is_empty()
         } {}
 
-
-        let contents = if self.current == '\\' {
-            self.advance();
-            match self.current {
-                '\\' | '\'' => self.current,
-                'n' => '\n',
-                'r' => '\r',
-                't' => '\t',
-                '0' => '\0',
-                _ => {
-                    let error = LexerError::InvalidEscapeSequence(self.current);
-                    return self.advance2_with(Token::Invalid(error));
-                },
-            }
-        } else {
-            self.current
-        };
-
-        self.advance();
-        self.expect('\'', Token::CharLiteral(contents))
+        Some((Token::Quoted(Arc::new(tokens)), span))
     }
 
     fn lex_char_literal(&mut self) -> IterElem {
@@ -366,7 +379,7 @@ impl<'contents> Lexer<'contents> {
                 '0' => '\0',
                 _ => {
                     let error = LexerError::InvalidEscapeSequence(self.current);
-                    return self.advance2_with(Token::Invalid(error));
+                    return self.advance2_with(Token::Error(error));
                 },
             }
         } else {
@@ -391,7 +404,7 @@ impl<'contents> Lexer<'contents> {
 
             (c, _) if c.is_whitespace() => {
                 let error = LexerError::InvalidCharacterInSignificantWhitespace(self.current);
-                self.advance_with(Token::Invalid(error))
+                self.advance_with(Token::Error(error))
             },
 
             ('/', '*') => self.lex_multiline_comment(),
@@ -412,7 +425,7 @@ impl<'contents> Lexer<'contents> {
         if new_indent == self.current_indent_level + 1 {
             self.indent_levels.push(IndentLevel::new(new_indent));
             self.current_indent_level = new_indent;
-            Some((Token::Invalid(LexerError::IndentChangeTooSmall), self.locate()))
+            Some((Token::Error(LexerError::IndentChangeTooSmall), self.locate()))
         } else if self.previous_token_expects_indent {
             self.indent_levels.push(IndentLevel::new(new_indent));
             self.current_indent_level = new_indent;
@@ -435,7 +448,7 @@ impl<'contents> Lexer<'contents> {
         self.return_newline = !self.newlines_ignored();
 
         if new_indent > last_indent.column {
-            Some((Token::Invalid(LexerError::UnindentToNewLevel), self.locate()))
+            Some((Token::Error(LexerError::UnindentToNewLevel), self.locate()))
         } else if last_indent.ignored {
             self.next()
         } else {
@@ -607,7 +620,7 @@ impl<'contents> Iterator for Lexer<'contents> {
             ('!', _) => self.advance_with(Token::ExclamationMark),
             ('?', _) => self.advance_with(Token::QuestionMark),
             ('#', _) => self.advance_with(Token::Octothorpe),
-            (c, _) => self.advance_with(Token::Invalid(LexerError::UnknownChar(c))),
+            (c, _) => self.advance_with(Token::Error(LexerError::UnknownChar(c))),
         }
     }
 }

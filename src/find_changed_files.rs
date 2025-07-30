@@ -1,6 +1,6 @@
 use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 
-use crate::{errors::{Diagnostic, Errors, Location}, incremental::{set_source_file, Db, GetImports}, read_file};
+use crate::{errors::{Diagnostic, Errors, Location}, incremental::{Db, FileId, GetImports, SourceFile}, name_resolution::namespace::SourceFileId, read_file};
 
 /// One limitation of query systems is that you cannot change inputs during an incremental
 /// computation. For a compiler, this means dynamically discovering new files (inputs) to parse is
@@ -17,9 +17,10 @@ use crate::{errors::{Diagnostic, Errors, Location}, incremental::{set_source_fil
 /// many source files - we can distribute work to parse many of them at once. The implementation
 /// for this could be more efficient though. For example, the parser could accept the shared `queue`
 /// of files to parse as an argument, and push to this queue immediately when it finds an import.
-pub fn collect_all_changed_files(start_file: Arc<PathBuf>, compiler: &mut Db) -> (BTreeSet<FileName>, Errors) {
+pub fn collect_all_changed_files(start_file: Arc<PathBuf>, compiler: &mut Db) -> (BTreeSet<SourceFileId>, Errors) {
     let mut finder = Finder::new();
     let mut remaining_files = BTreeSet::new();
+    let start_file = FileId(start_file).get(compiler);
     remaining_files.insert(start_file);
 
     while !remaining_files.is_empty() {
@@ -33,7 +34,7 @@ type FileName = Arc<PathBuf>;
 
 struct Finder {
     queue: scc::Queue<(FileName, Location)>,
-    done: BTreeSet<FileName>,
+    done: BTreeSet<SourceFileId>,
     thread_pool: rayon::ThreadPool,
     errors: Errors,
 }
@@ -49,18 +50,18 @@ impl Finder {
     /// updating any new inputs, even though this limits concurrency, because it is not possible
     /// to update inputs while incremental computations are running in general (inc-complete
     /// forbids this, salsa cancels ongoing computations, etc). 
-    fn find_files_step(&mut self, files: BTreeSet<FileName>, compiler: &mut Db) -> BTreeSet<FileName> {
+    fn find_files_step(&mut self, files: BTreeSet<SourceFileId>, compiler: &mut Db) -> BTreeSet<SourceFileId> {
         self.thread_pool.scope(|scope| {
             for file in files {
                 if self.done.contains(&file) {
                     continue;
                 }
-                self.done.insert(file.clone());
+                self.done.insert(file);
 
                 // Parse and collect imports of the file in a separate thread. This can be helpful
                 // when files contain many imports, so we can parse many of them simultaneously.
                 scope.spawn(|_| {
-                    for import in compiler.get(GetImports { file_name: file }) {
+                    for import in GetImports(file).get(compiler) {
                         self.queue.push(import);
                     }
                 });
@@ -73,7 +74,9 @@ impl Finder {
         while let Some(file_and_location) = self.queue.pop() {
             let file = file_and_location.0.clone();
             let location = file_and_location.1.clone();
-            if self.done.contains(&file) {
+
+            let file_id = FileId(file.clone()).get(compiler);
+            if self.done.contains(&file_id) {
                 continue;
             }
 
@@ -84,8 +87,8 @@ impl Finder {
                 // let us continue to collect name/type errors for other files
                 String::new()
             });
-            set_source_file(file.clone(), text, compiler);
-            new_files.insert(file);
+            SourceFile(file_id).set(compiler, text);
+            new_files.insert(file_id);
         }
         new_files
     }
