@@ -186,8 +186,13 @@ impl Path {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Import {
     pub comments: Vec<String>,
+
+    /// For a given import `import Foo.Bar.Baz.a, b, c`, `module_path` will contain `Foo.Bar.Baz`
     /// TODO: Investigate whether this breaks serialization stability across Windows <-> Unix
-    pub path: Arc<PathBuf>,
+    pub module_path: Arc<PathBuf>,
+
+    /// For a given import `import Foo.Bar.Baz.a, b, c`, `items` will contain `a, b, c`
+    pub items: Vec<(String, Location)>,
     pub location: Location,
 }
 
@@ -199,6 +204,7 @@ pub struct SequenceItem {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Literal {
+    Unit,
     Integer(u64, Option<IntegerKind>),
     String(String),
 }
@@ -304,9 +310,18 @@ pub enum SharedMode {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Pattern {
-    Variable(Path),
+    Error,
+    Variable(String, Location),
+    Path(ExprId),
     Literal(Literal),
     Constructor(PatternId, Vec<PatternId>),
+    TypeAnnotation(PatternId, Type),
+}
+
+impl ErrorDefault for Pattern {
+    fn error_default() -> Self {
+        Self::Error
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]

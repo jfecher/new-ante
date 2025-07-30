@@ -31,7 +31,7 @@ impl Display for Path {
 impl<'a> CstDisplayContext<'a> {
     fn fmt_cst(&mut self, cst: &Cst, f: &mut Formatter) -> std::fmt::Result {
         for import in &cst.imports {
-            writeln!(f, "import {}", import.path.display())?;
+            writeln!(f, "import {}", import.module_path.display())?;
         }
 
         if !cst.imports.is_empty() {

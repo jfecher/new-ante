@@ -32,7 +32,7 @@ pub struct SourceFileId {
 /// A crate's id is a hash of its name and its version.
 /// Crate ids are expected to be globally unique.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct CrateId(u32);
+pub struct CrateId(pub u32);
 
 /// `Std` always has id 0
 pub const STDLIB_CRATE: CrateId = CrateId(0);
@@ -40,7 +40,7 @@ pub const STDLIB_CRATE: CrateId = CrateId(0);
 /// A local module id is a hash of the module path from the crate root.
 /// Module ids are expected to be unique only within the same crate.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct LocalModuleId(u32);
+pub struct LocalModuleId(pub u32);
 
 /// A crate's root module always has ID 0
 pub const CRATE_ROOT_MODULE: LocalModuleId = LocalModuleId(0);

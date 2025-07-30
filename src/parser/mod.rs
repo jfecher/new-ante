@@ -188,6 +188,25 @@ impl<'tokens> Parser<'tokens> {
         id
     }
 
+    fn reserve_pattern(&mut self) -> PatternId {
+        let id = self.current_context.patterns.push(Pattern::Error);
+        let id2 = self.current_context.pattern_locations.push(self.current_token_location());
+        assert_eq!(id, id2);
+        id
+    }
+
+    fn insert_pattern(&mut self, id: PatternId, pattern: Pattern, location: Location) {
+        self.current_context.patterns[id] = pattern;
+        self.current_context.pattern_locations[id] = location;
+    }
+
+    fn push_pattern(&mut self, pattern: Pattern, location: Location) -> PatternId {
+        let id = self.current_context.patterns.push(pattern);
+        let id2 = self.current_context.pattern_locations.push(location);
+        assert_eq!(id, id2);
+        id
+    }
+
     /// Return a hash of the given data guaranteed to be unique within the current module.
     fn hash_top_level_data(&mut self, data: &impl std::hash::Hash) -> u64 {
         let mut collisions = 0;
@@ -358,11 +377,24 @@ impl<'tokens> Parser<'tokens> {
             }
 
             let start = self.current_token_span();
-            if let Some(path) = self.try_parse_or_recover_to_newline(Self::parse_type_or_value_path) {
+            if let Some(mut path) = self.try_parse_or_recover_to_newline(Self::parse_type_or_value_path) {
+                let mut items = Vec::with_capacity(1);
+                if let Some(item) = path.components.pop() {
+                    items.push(item);
+                }
+
+                // Parse any extra items `, b, c, d`
+                while self.accept(Token::Comma) {
+                    match self.parse_ident() {
+                        Ok(name) => items.push((name, self.previous_token_location())),
+                        Err(error) => self.diagnostics.push(error),
+                    }
+                }
+
                 let end = self.previous_token_span();
                 let location = start.to(&end).in_file(self.file_id);
                 let path = path.into_file_path();
-                imports.push(Import { comments, path, location });
+                imports.push(Import { comments, module_path: path, items, location });
             }
             self.expect(Token::Newline, "newline after import");
         }
@@ -693,34 +725,51 @@ impl<'tokens> Parser<'tokens> {
         items
     }
 
-    fn parse_function_parameters(&mut self) -> Vec<(String, Option<Type>)> {
-        self.many0(Self::parse_function_parameter)
+    fn parse_function_parameters(&mut self) -> Vec<PatternId> {
+        self.many0(Self::parse_function_parameter_pattern)
     }
 
-    fn parse_function_parameter(&mut self) -> Result<(String, Option<Type>)> {
+    fn parse_function_parameter_pattern(&mut self) -> Result<PatternId> {
+        self.with_pattern_id_and_location(Self::parse_function_parameter_pattern_inner)
+    }
+
+    fn parse_function_parameter_pattern_inner(&mut self) -> Result<Pattern> {
         match self.current_token() {
             Token::UnitLiteral => {
-                // TODO: Remove 'no name' hack for unit literal parameter
                 self.advance();
-                let no_name = String::new();
-                Ok((no_name, Some(Type::Unit)))
+                Ok(Pattern::Literal(Literal::Unit))
             }
             Token::ParenthesisLeft => {
                 self.advance();
-                let name = self.parse_ident()?;
-                self.expect(Token::Colon, "a colon to specify the type of this parameter");
-
-                let typ = self.parse_with_recovery(Self::parse_type, Token::ParenthesisRight, &[Token::Newline, Token::Equal])?;
-
+                let pattern = self.parse_with_recovery(Self::parse_pattern_inner, Token::ParenthesisRight, &[Token::Newline, Token::Equal])?;
                 self.expect(Token::ParenthesisRight, "a `)` to close the opening `(` from the parameter");
-                Ok((name, Some(typ)))
+                Ok(pattern)
             }
-            Token::Identifier(_) => Ok((self.parse_ident()?, None)),
+            Token::Identifier(_) => {
+                let name = self.parse_ident()?;
+                let location = self.previous_token_location();
+                Ok(Pattern::Variable(name, location))
+            }
             other => {
                 let message = "a parameter".to_string();
                 let location = self.current_token_location();
                 Err(Diagnostic::ParserExpected { message, actual: other.clone(), location })
             }
+        }
+    }
+
+    fn parse_pattern_inner(&mut self) -> Result<Pattern> {
+        let start = self.current_token_span();
+        let pattern = self.parse_function_parameter_pattern_inner()?;
+        let end = self.previous_token_span();
+
+        if self.accept(Token::Colon) {
+            let location = start.to(&end).in_file(self.file_id);
+            let pattern = self.push_pattern(pattern, location);
+            let typ = self.parse_with_recovery(Self::parse_type, Token::ParenthesisRight, &[Token::Newline, Token::Equal])?;
+            Ok(Pattern::TypeAnnotation(pattern, typ))
+        } else {
+            Ok(pattern)
         }
     }
 
@@ -955,6 +1004,13 @@ impl<'tokens> Parser<'tokens> {
 
     fn with_expr_id_and_location(&mut self, f: impl FnOnce(&mut Self) -> Result<Expr>) -> Result<ExprId> {
         self.with_expr_id(|this| this.with_location(f))
+    }
+
+    fn with_pattern_id_and_location(&mut self, f: impl FnOnce(&mut Self) -> Result<Pattern>) -> Result<PatternId> {
+        let id = self.reserve_pattern();
+        let (pattern, location) = self.with_location(f)?;
+        self.insert_pattern(id, pattern, location);
+        Ok(id)
     }
 
     fn parse_if(&mut self, mut body: impl Copy + FnMut(&mut Self) -> Result<ExprId>) -> Result<ExprId> {

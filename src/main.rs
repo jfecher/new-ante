@@ -20,7 +20,8 @@
 //! - `src/errors.rs`: Defines each error used in the program as well as the `Location` struct
 //! - `src/incremental.rs`: Some plumbing for the inc-complete library which also defines
 //!   which functions we're caching the result of.
-use incremental::{set_source_file, CompileFile, Db};
+use incremental::{CompileFile, Db, FileId, SourceFile};
+use name_resolution::namespace::{CrateId, LocalModuleId, SourceFileId};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::BTreeSet, fs::File, io::{Read, Write}, path::{Path, PathBuf}, sync::Arc
@@ -64,7 +65,9 @@ fn main() {
     });
 
     let file_name = Arc::new(PathBuf::from(INPUT_FILE));
-    set_source_file(file_name.clone(), source, &mut compiler);
+    let input_id = path_to_id(&file_name);
+    compiler.update_input(FileId(file_name.clone()), input_id);
+    compiler.update_input(SourceFile(input_id), source);
 
     println!("Passes Run:");
 
@@ -89,13 +92,20 @@ fn main() {
     }
 }
 
+fn path_to_id(path: &Path) -> SourceFileId {
+    let local_module_id = LocalModuleId(parser::ids::hash(path) as u32);
+    // Temporarily assign crate id while crates are unimplemented
+    SourceFileId { crate_id: CrateId(1), local_module_id }
+}
+
 /// Compile all the files in the set to python files. In a real compiler we may want
 /// to compile each as an independent llvm or cranelift module then link them all
 /// together at the end.
-fn compile_all(files: BTreeSet<Arc<PathBuf>>, compiler: &mut Db) -> Errors {
+fn compile_all(files: BTreeSet<FileId>, compiler: &mut Db) -> Errors {
     files.into_par_iter().flat_map(|file| {
         let output_file = file.with_extension(".py");
-        let (text, errors) = CompileFile { file_name: file }.get(compiler);
+        let file_id = path_to_id(&file);
+        let (text, errors) = CompileFile(file_id).get(compiler);
 
         if let Err(msg) = write_file(&output_file, &text) {
             eprintln!("error: {msg}");
