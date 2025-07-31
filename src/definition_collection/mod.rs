@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use crate::{
     errors::{Diagnostic, Errors, Location}, incremental::{
         self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, FileId, GetImports, Parse, VisibleDefinitions, VisibleTypes
-    }, parser::cst::{ItemName, Path, TopLevelItem, TopLevelItemKind}
+    }, parser::cst::{ItemName, Name, Path, TopLevelItem, TopLevelItemKind}
 };
 
 /// Collect all definitions which should be visible to expressions within this file.
@@ -90,13 +90,15 @@ pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> (Definitio
     // Collect each definition, issuing an error if there is a duplicate name (imports are not counted)
     for item in result.cst.top_level_items.iter() {
         if let TopLevelItemKind::TypeDefinition(definition) = &item.kind {
-            if let Some(existing) = definitions.get(&definition.name) {
+            let name = &result.top_level_data[&item.id].names[definition.name];
+
+            if let Some(existing) = definitions.get(name) {
                 let first_location = existing.location(db);
                 let second_location = item.id.location(db);
-                let name = definition.name.clone();
+                let name = name.clone();
                 errors.push(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
             } else {
-                definitions.insert(definition.name.clone(), item.id.clone());
+                definitions.insert(name.clone(), item.id.clone());
             }
         }
     }
@@ -114,7 +116,7 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
     let mut definitions = Definitions::default();
     let mut errors = result.diagnostics.clone();
 
-    let mut declare_single = |name: &Arc<String>, item: &TopLevelItem, errors: &mut Vec<Diagnostic>| {
+    let mut declare_single = |name: &Name, item: &TopLevelItem, errors: &mut Vec<Diagnostic>| {
         if let Some(existing) = definitions.get(name) {
             let first_location = existing.location(db);
             let second_location = item.id.location(db);
@@ -128,13 +130,16 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
     // Collect each definition, issuing an error if there is a duplicate name (imports are not counted)
     for item in result.cst.top_level_items.iter() {
         match item.kind.name() {
-            ItemName::Single(name) => declare_single(name, item, &mut errors),
+            ItemName::Single(name) => {
+                let name = &result.top_level_data[&item.id].names[name];
+                declare_single(name, item, &mut errors);
+            }
             ItemName::Path(path) => {
                 if path.components.len() > 1 {
                     resolve_method(path, item, &mut errors, db);
                 } else {
                     let last = Arc::new(path.components[0].0.clone());
-                    declare_single(&last, item, &mut errors)
+                    declare_single(&last, item, &mut errors);
                 }
             },
             ItemName::None => (),

@@ -1,10 +1,10 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{errors::{ErrorDefault, Location}, lexer::token::{IntegerKind, Token}};
 
-use super::ids::{ExprId, PatternId, TopLevelId};
+use super::ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 
 /// The Concrete Syntax Tree (CST) is the output of parsing a source file.
 /// This is expected to mirror the source file without removing too much information.
@@ -36,44 +36,45 @@ pub enum TopLevelItemKind {
 }
 
 impl TopLevelItemKind {
-    pub(crate) fn name(&self) -> ItemName {
+    pub fn name(&self) -> ItemName {
         match self {
             TopLevelItemKind::Definition(definition) => ItemName::Path(&definition.path),
-            TopLevelItemKind::TypeDefinition(type_definition) => ItemName::Single(&type_definition.name),
-            TopLevelItemKind::TraitDefinition(trait_definition) => ItemName::Single(&trait_definition.name),
+            TopLevelItemKind::TypeDefinition(type_definition) => ItemName::Single(type_definition.name),
+            TopLevelItemKind::TraitDefinition(trait_definition) => ItemName::Single(trait_definition.name),
             TopLevelItemKind::TraitImpl(_) => ItemName::None,
-            TopLevelItemKind::EffectDefinition(effect_definition) => ItemName::Single(&effect_definition.name),
-            TopLevelItemKind::Extern(extern_) => ItemName::Single(&extern_.declaration.name),
+            TopLevelItemKind::EffectDefinition(effect_definition) => ItemName::Single(effect_definition.name),
+            TopLevelItemKind::Extern(extern_) => ItemName::Single(extern_.declaration.name),
             TopLevelItemKind::Comptime(_) => ItemName::None,
         }
+    }
+
+    pub fn name_string<'ctx>(&self, context: &'ctx super::TopLevelContext) -> Cow<'ctx, str> {
+        self.name().to_string(context)
     }
 }
 
 pub enum ItemName<'a> {
-    Single(&'a Arc<String>),
+    Single(NameId),
     Path(&'a Path),
     None,
 }
 
-impl<'a> std::fmt::Display for ItemName<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'a> ItemName<'a> {
+    pub fn to_string<'ctx>(&self, context: &'ctx super::TopLevelContext) -> Cow<'ctx, str> {
         match self {
-            ItemName::Single(name) => write!(f, "{name}"),
-            ItemName::Path(path) => write!(f, "{path}"),
-            ItemName::None => write!(f, "impl"),
+            ItemName::Single(name) => Cow::Borrowed(&context.names[*name]),
+            ItemName::Path(path) => Cow::Owned(path.to_string()),
+            ItemName::None => Cow::Borrowed("impl"),
         }
     }
-}
-
-pub struct TopLevelDefinition {
-    pub path: Path,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Type {
     Error,
     Unit,
-    Named(PathWithId),
+    Named(PathId),
+    Variable(NameId),
     Integer(IntegerKind),
     Function(FunctionType),
     TypeApplication(Box<Type>, Vec<Type>),
@@ -98,13 +99,13 @@ pub struct FunctionType {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum EffectType {
-    Known(PathWithId, Vec<Type>),
-    Variable(String, ExprId),
+    Known(PathId, Vec<Type>),
+    Variable(NameId),
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TypeDefinition {
-    pub name: Arc<String>,
+    pub name: NameId,
     pub generics: Generics,
     pub body: TypeDefinitionBody,
 }
@@ -126,7 +127,7 @@ impl ErrorDefault for TypeDefinitionBody {
 pub enum Expr {
     Error,
     Literal(Literal),
-    Variable(Path),
+    Variable(PathId),
     Sequence(Vec<SequenceItem>),
     Definition(Definition),
     MemberAccess(MemberAccess),
@@ -170,15 +171,6 @@ pub struct Path {
 }
 
 impl Path {
-    /// If this path consists of a single component, return it.
-    pub fn ident(&self) -> Option<&(String, Location)> {
-        if self.components.len() == 1 {
-            self.components.first()
-        } else {
-            None
-        }
-    }
-
     pub fn last(&self) -> &String {
         &self.components.last().unwrap().0
     }
@@ -320,7 +312,7 @@ pub enum SharedMode {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Pattern {
     Error,
-    Variable(Arc<String>, Location),
+    Variable(NameId),
     Literal(Literal),
     Constructor(PatternId, Vec<PatternId>),
     TypeAnnotation(PatternId, Type),
@@ -345,47 +337,32 @@ pub struct Quoted {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Declaration {
-    pub id: PatternId,
-    pub name: Arc<String>,
+    pub name: NameId,
     pub typ: Type,
 }
 
-pub type Generics = Vec<NameWithId>;
+pub type Generics = Vec<NameId>;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TraitDefinition {
-    pub name: Arc<String>,
+    pub name: NameId,
     pub generics: Generics,
     pub functional_dependencies: Generics,
     pub body: Vec<Declaration>,
 }
 
-/// TODO: Should we have a separate PathId? These are used
-/// outside of expressions in types, traits, etc.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct PathWithId {
-    pub path: Path,
-    pub id: ExprId,
-}
-
-/// TODO: Should we have a separate PathId? These are used
-/// outside of expressions in types, traits, etc.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct NameWithId {
-    pub name: Arc<String>,
-    pub id: PatternId,
-}
+pub type Name = Arc<String>;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TraitImpl {
-    pub trait_path: PathWithId,
+    pub trait_path: PathId,
     pub arguments: Vec<Type>,
     pub body: Vec<Definition>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct EffectDefinition {
-    pub name: Arc<String>,
+    pub name: NameId,
     pub generics: Generics,
     pub body: Vec<Declaration>,
 }
@@ -411,6 +388,6 @@ pub struct Extern {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Comptime {
     Expr(ExprId),
-    Derive(Vec<PathWithId>),
+    Derive(Vec<PathId>),
     Definition(Definition),
 }

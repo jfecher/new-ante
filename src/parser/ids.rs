@@ -81,11 +81,6 @@ impl ExprId {
     pub fn index(self) -> u32 {
         self.0
     }
-
-    pub(crate) fn location(&self, item: &TopLevelId, db: &DbHandle) -> Location {
-        let result = db.get(Parse(item.source_file));
-        result.top_level_data[item].expr_locations[*self].clone()
-    }
 }
 
 impl From<ExprId> for usize {
@@ -119,6 +114,42 @@ impl From<PatternId> for usize {
 }
 
 impl From<usize> for PatternId {
+    fn from(value: usize) -> Self {
+        Self(value as u32)
+    }
+}
+
+/// Similar to ExprIds, PathIds are generated from a monotonically increasing counter,
+/// which is reset for each top level item.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct PathId(u32);
+
+impl From<PathId> for usize {
+    fn from(value: PathId) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<usize> for PathId {
+    fn from(value: usize) -> Self {
+        Self(value as u32)
+    }
+}
+
+/// Similar to ExprIds, PathIds are generated from a monotonically increasing counter,
+/// which is reset for each top level item.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct NameId(u32);
+
+impl From<NameId> for usize {
+    fn from(value: NameId) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<usize> for NameId {
     fn from(value: usize) -> Self {
         Self(value as u32)
     }

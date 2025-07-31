@@ -20,7 +20,7 @@ pub enum Diagnostic {
     ExpectedType { actual: String, expected: String, location: Location },
     RecursiveType { typ: String, location: Location },
     NamespaceNotFound { name: String, location: Location },
-    NameNotFound { name: String, location: Location },
+    NameNotFound { name: Arc<String>, location: Location },
 }
 
 impl Diagnostic {

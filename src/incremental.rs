@@ -67,6 +67,7 @@ impl_storage!(Storage,
 
 pub struct CrateData {
     /// Each crate has its own database since metadata is serialized per-crate
+    #[allow(unused)]
     pub db: Db,
     pub name: String,
 }

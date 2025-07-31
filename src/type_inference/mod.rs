@@ -7,7 +7,7 @@ use crate::{
     errors::Errors,
     incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheck},
     name_resolution::{Origin, ResolutionResult},
-    parser::{cst::{Expr, Literal, TopLevelItemKind}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext},
+    parser::{cst::{Expr, Literal, TopLevelItemKind}, ids::{ExprId, NameId, PathId, PatternId, TopLevelId}, TopLevelContext},
     type_inference::types::{GeneralizedType, TopLevelType, TypeVariableId},
 };
 
@@ -71,10 +71,12 @@ pub struct TypeCheckResult {
     pub errors: Errors,
 }
 
+#[allow(unused)]
 struct TypeChecker<'local, 'inner> {
     compiler: &'local DbHandle<'inner>,
     context: &'local TopLevelContext,
-    origins: BTreeMap<ExprId, Origin>,
+    path_origins: BTreeMap<PathId, Origin>,
+    name_origins: BTreeMap<NameId, Origin>,
     pattern_types: BTreeMap<PatternId, TopLevelType>,
     bindings: TypeBindings,
     item: TopLevelId,
@@ -82,6 +84,7 @@ struct TypeChecker<'local, 'inner> {
     errors: Errors,
 }
 
+#[allow(unused)]
 impl<'local, 'inner> TypeChecker<'local, 'inner> {
     fn new(
         item: TopLevelId,
@@ -94,7 +97,8 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             item,
             context,
             bindings: Default::default(),
-            origins: resolve.origins,
+            path_origins: resolve.path_origins,
+            name_origins: resolve.name_origins,
             next_id: 0,
             pattern_types: Default::default(),
             errors: resolve.errors,
@@ -113,23 +117,6 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
 
     fn store_and_return_type(&mut self, _id: ExprId, _typ: Type) -> Type {
         todo!()
-    }
-
-    fn lookup_type(&mut self, expr: ExprId) -> TopLevelType {
-        match self.origins.get(&expr) {
-            // A name resolution error occurred, don't issue a type error as well
-            None => TopLevelType::error(),
-            Some(Origin::Parameter(id)) => self.pattern_types.get(id).unwrap().clone(),
-            Some(Origin::TopLevelDefinition(id)) => {
-                // We may recursively type check here. This can lead to infinite
-                // recursion for mutually recursive functions with inferred types.
-                // To simplify type inference for this toy compiler, we don't handle this case.
-                let typ = GetType(id.clone()).get(self.compiler);
-                self.instantiate(&typ)
-            },
-            Some(Origin::Local(_)) => todo!("lookup_type of Origin::Local"),
-            Some(Origin::TypeResolution) => todo!("lookup_type of Origin::TypeResolution"),
-        }
     }
 
     fn try_get_type_for_builtin(&self, _name: &str) -> Option<TopLevelType> {

@@ -10,9 +10,11 @@ pub(super) enum Namespace {
     Local,
 
     /// A module within a crate
+    #[allow(unused)]
     Module(CrateId, LocalModuleId),
 
     /// A type's namespace containing its methods
+    #[allow(unused)]
     Type(TopLevelId),
 }
 
@@ -35,6 +37,7 @@ pub struct SourceFileId {
 pub struct CrateId(pub u32);
 
 /// `Std` always has id 0
+#[allow(unused)]
 pub const STDLIB_CRATE: CrateId = CrateId(0);
 
 /// A local module id is a hash of the module path from the crate root.

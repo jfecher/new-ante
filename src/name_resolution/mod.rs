@@ -8,23 +8,25 @@ pub mod namespace;
 use crate::{
     errors::{Diagnostic, Errors, Location},
     incremental::{self, CrateData, DbHandle, GetItem, Resolve, VisibleDefinitions},
-    parser::{cst::{Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext},
+    parser::{cst::{Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, NameId, PathId, PatternId, TopLevelId}, TopLevelContext},
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ResolutionResult {
     /// This resolution is for a single top level id so all expressions within are in the
     /// context of that id.
-    pub origins: BTreeMap<ExprId, Origin>,
+    pub path_origins: BTreeMap<PathId, Origin>,
+    pub name_origins: BTreeMap<NameId, Origin>,
     pub errors: Errors,
 }
 
 struct Resolver<'local, 'inner> {
     item: TopLevelId,
-    links: BTreeMap<ExprId, Origin>,
+    path_links: BTreeMap<PathId, Origin>,
+    name_links: BTreeMap<NameId, Origin>,
     errors: Errors,
     names_in_global_scope: BTreeMap<Arc<String>, TopLevelId>,
-    names_in_local_scope: Vec<BTreeMap<Arc<String>, PatternId>>,
+    names_in_local_scope: Vec<BTreeMap<Arc<String>, NameId>>,
     context: &'local TopLevelContext,
     compiler: &'local DbHandle<'inner>,
 }
@@ -34,10 +36,8 @@ struct Resolver<'local, 'inner> {
 pub enum Origin {
     /// This name comes from this top level definition
     TopLevelDefinition(TopLevelId),
-    /// This name is the parameter of a lambda expression.
-    Parameter(PatternId),
-    /// This name comes from a local binding
-    Local(ExprId),
+    /// This name comes from a local binding (parameter, let-binding, match-binding, etc)
+    Local(NameId),
     /// This name did not resolve, try to perform type based resolution on it during type inference
     TypeResolution,
 }
@@ -50,7 +50,7 @@ pub fn dependencies<'db>(compiler: &'db DbHandle) -> &'db BTreeMap<CrateId, Crat
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
     incremental::enter_query();
     let (statement, statement_ctx) = GetItem(context.0.clone()).get(compiler);
-    incremental::println(format!("Resolving {}", statement.kind.name()));
+    incremental::println(format!("Resolving {}", statement.kind.name_string(&statement_ctx)));
 
     // Note that we discord errors here because they're errors for the entire file and we are
     // resolving just one statement in it. This does mean that `CompileFile` will later need to
@@ -86,7 +86,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             compiler,
             item: resolve.0.clone(),
             names_in_global_scope: names_in_scope,
-            links: Default::default(),
+            path_links: Default::default(),
+            name_links: Default::default(),
             errors: Vec::new(),
             names_in_local_scope: vec![Default::default()],
             context,
@@ -94,7 +95,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     fn result(self) -> ResolutionResult {
-        ResolutionResult { origins: self.links, errors: self.errors }
+        ResolutionResult { path_origins: self.path_links, name_origins: self.name_links, errors: self.errors }
     }
 
     #[allow(unused)]
@@ -112,9 +113,11 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     /// Declares a name in local scope.
-    fn declare_name(&mut self, name: Arc<String>, id: PatternId) {
+    fn declare_name(&mut self, id: NameId) {
         let scope = self.names_in_local_scope.last_mut().unwrap();
+        let name = self.context.names[id].clone();
         scope.insert(name, id);
+        self.name_links.insert(id, Origin::Local(id));
     }
 
     /// Retrieve each visible namespace in the given namespace, restricting the namespace
@@ -178,7 +181,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     fn lookup_local_name(&mut self, name: &String) -> Option<Origin> {
         for scope in self.names_in_local_scope.iter().rev() {
             if let Some(expr) = scope.get(name) {
-                return Some(Origin::Parameter(*expr));
+                return Some(Origin::Local(*expr));
             }
         }
 
@@ -209,16 +212,17 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         self.lookup_in(components, Namespace::Local)
     }
 
-    fn link(&mut self, path: &Path, expr: ExprId) {
-        if let Some(origin) = self.lookup(path) {
-            self.links.insert(expr, origin);
+    /// Links a path to its definition or errors if it does not exist
+    fn link(&mut self, path: PathId) {
+        if let Some(origin) = self.lookup(&self.context.paths[path]) {
+            self.path_links.insert(path, origin);
         }
     }
 
     fn resolve_expr(&mut self, expr: ExprId) {
         match &self.context.exprs[expr] {
             Expr::Literal(_literal) => (),
-            Expr::Variable(identifier) => self.link(&identifier, expr),
+            Expr::Variable(path) => self.link(*path),
             Expr::Call(call) => {
                 self.resolve_expr(call.function);
                 for arg in &call.arguments {
@@ -290,8 +294,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     /// automatically be declared. Otherwise an error will be issued.
     fn declare_names_in_pattern(&mut self, pattern: PatternId, declare_type_vars: bool) {
         match &self.context.patterns[pattern] {
-            Pattern::Variable(name, _location) => {
-                self.declare_name(name.clone(), pattern);
+            Pattern::Variable(name) => {
+                self.declare_name(*name);
             },
             Pattern::Literal(_) => (),
             // In a constructor pattern such as `Struct foo bar baz` or `(a, b)` the arguments
@@ -317,9 +321,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         match typ {
             Type::Error => (),
             Type::Unit => (),
-            Type::Named(path) => {
-                self.link(&path.path, path.id);
-            },
+            Type::Named(path) => self.link(*path),
+            Type::Variable(name) => self.resolve_type_variable(*name, declare_type_vars),
             Type::Integer(_) => (),
             Type::Function(function) => {
                 for parameter in &function.parameters {
@@ -346,23 +349,27 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     fn resolve_effect_type(&mut self, effect: &EffectType, declare_type_vars: bool) {
         match effect {
             EffectType::Known(path, args) => {
-                self.link(&path.path, path.id);
+                self.link(*path);
 
                 for arg in args {
                     self.resolve_type(arg, declare_type_vars);
                 }
             },
-            EffectType::Variable(name, id) => {
-                if let Some(origin) = self.lookup_local_name(name) {
-                    self.links.insert(*id, origin);
-                } else if declare_type_vars {
-                    self.links.insert(*id, Origin::Local(*id));
-                } else {
-                    let name = name.clone();
-                    let location = self.context.expr_locations[*id].clone();
-                    self.errors.push(Diagnostic::NameNotFound { name, location });
-                }
-            },
+            EffectType::Variable(name_id) => self.resolve_type_variable(*name_id, declare_type_vars),
+        }
+    }
+
+    fn resolve_type_variable(&mut self, name_id: NameId, declare_type_vars: bool) {
+        let name = &self.context.names[name_id];
+
+        if let Some(origin) = self.lookup_local_name(name) {
+            self.name_links.insert(name_id, origin);
+        } else if declare_type_vars {
+            self.declare_name(name_id);
+        } else {
+            let location = self.context.name_locations[name_id].clone();
+            let name = self.context.names[name_id].clone();
+            self.errors.push(Diagnostic::NameNotFound { name, location });
         }
     }
 
@@ -388,12 +395,12 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
 
     fn declare_generics(&mut self, generics: &Generics) {
         for generic in generics {
-            self.declare_name(generic.name.clone(), generic.id);
+            self.declare_name(*generic);
         }
     }
 
     fn declare(&mut self, declaration: &Declaration) {
-        self.declare_name(declaration.name.clone(), declaration.id);
+        self.declare_name(declaration.name);
         self.resolve_type(&declaration.typ, true);
     }
 
@@ -415,7 +422,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     fn resolve_trait_impl(&mut self, trait_impl: &TraitImpl) {
-        self.link(&trait_impl.trait_path.path, trait_impl.trait_path.id);
+        self.link(trait_impl.trait_path);
 
         for arg in &trait_impl.arguments {
             self.resolve_type(arg, true);
@@ -444,7 +451,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             Comptime::Expr(expr_id) => self.resolve_expr(*expr_id),
             Comptime::Derive(paths) => {
                 for path in paths {
-                    self.link(&path.path, path.id);
+                    self.link(*path);
                 }
             },
             Comptime::Definition(definition) => self.resolve_definition(definition),

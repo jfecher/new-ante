@@ -1,21 +1,18 @@
 use std::fmt::{Display, Formatter};
 
-use crate::{parser::cst::Lambda, vecmap::VecMap};
-
-use super::{cst::{BorrowMode, Call, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Index, Literal, Match, MemberAccess, NameWithId, OwnershipMode, Path, PathWithId, Pattern, Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId}};
+use super::{cst::{BorrowMode, Call, Lambda, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Index, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId}, TopLevelContext};
 
 #[allow(unused)]
 pub struct CstDisplayContext<'a> {
     cst: &'a Cst,
     indent_level: u32,
-    exprs: &'a VecMap<ExprId, Expr>,
-    patterns: &'a VecMap<PatternId, Pattern>,
+    context: &'a TopLevelContext,
 }
 
 impl Cst {
     #[allow(unused)]
-    pub fn display<'a>(&'a self, exprs: &'a VecMap<ExprId, Expr>, patterns: &'a VecMap<PatternId, Pattern>) -> CstDisplayContext<'a> {
-        CstDisplayContext { indent_level: 0, cst: self, exprs, patterns }
+    pub fn display<'a>(&'a self, context: &'a TopLevelContext) -> CstDisplayContext<'a> {
+        CstDisplayContext { indent_level: 0, cst: self, context }
     }
 }
 
@@ -27,18 +24,6 @@ impl Display for Path {
             write!(f, ".{item}")?;
         }
         Ok(())
-    }
-}
-
-impl Display for PathWithId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.path)
-    }
-}
-
-impl Display for NameWithId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
     }
 }
 
@@ -83,7 +68,7 @@ impl<'a> CstDisplayContext<'a> {
     }
 
     fn fmt_definition(&mut self, definition: &Definition, f: &mut Formatter) -> std::fmt::Result {
-        if let Expr::Lambda(lambda) = &self.exprs[definition.rhs] {
+        if let Expr::Lambda(lambda) = &self.context.exprs[definition.rhs] {
             return self.fmt_function(definition, lambda, f);
         }
 
@@ -136,7 +121,7 @@ impl<'a> CstDisplayContext<'a> {
     }
 
     fn fmt_type_definition(&mut self, type_definition: &TypeDefinition, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "type {} =", type_definition.name)?;
+        write!(f, "type {} =", self.context.names[type_definition.name])?;
 
         match &type_definition.body {
             TypeDefinitionBody::Error => {
@@ -171,7 +156,8 @@ impl<'a> CstDisplayContext<'a> {
     fn fmt_type(&self, typ: &Type, f: &mut Formatter<'_>) -> std::fmt::Result {
         match typ {
             Type::Error => write!(f, "(error)"),
-            Type::Named(path) => write!(f, "{path}"),
+            Type::Named(path) => write!(f, "{}", self.context.paths[*path]),
+            Type::Variable(name) => write!(f, "{}", self.context.names[*name]),
             Type::Unit => write!(f, "Unit"),
             Type::Integer(kind) => write!(f, "{kind}"),
             Type::Function(function_type) => self.fmt_function_type(function_type, f),
@@ -238,22 +224,22 @@ impl<'a> CstDisplayContext<'a> {
     fn fmt_effect(&self, effect: &EffectType, f: &mut Formatter) -> std::fmt::Result {
         match effect {
             EffectType::Known(path, args) => {
-                write!(f, "{path}")?;
+                write!(f, "{}", self.context.paths[*path])?;
                 for arg in args {
                     write!(f, " ")?;
                     self.fmt_type(arg, f)?;
                 }
                 Ok(())
             },
-            EffectType::Variable(name, _id) => write!(f, "{name}"),
+            EffectType::Variable(name) => write!(f, "{}", self.context.names[*name]),
         }
     }
 
     fn fmt_expr(&mut self, expr: ExprId, f: &mut Formatter) -> std::fmt::Result {
-        match &self.exprs[expr] {
+        match &self.context.exprs[expr] {
             Expr::Error => write!(f, "(error)"),
             Expr::Literal(literal) => self.fmt_literal(literal, f),
-            Expr::Variable(path) => write!(f, "{path}"),
+            Expr::Variable(path) => write!(f, "{}", self.context.paths[*path]),
             Expr::Sequence(seq) => self.fmt_sequence(seq, f),
             Expr::Definition(definition) => self.fmt_definition(definition, f),
             Expr::Call(call) => self.fmt_call(call, f),
@@ -292,7 +278,7 @@ impl<'a> CstDisplayContext<'a> {
         self.fmt_expr(call.function, f)?;
 
         for arg in call.arguments.iter().copied() {
-            if self.exprs[arg].is_atom() {
+            if self.context.exprs[arg].is_atom() {
                 write!(f, " ")?;
                 self.fmt_expr(arg, f)?;
             } else {
@@ -306,7 +292,7 @@ impl<'a> CstDisplayContext<'a> {
     }
 
     fn fmt_member_access(&mut self, access: &MemberAccess, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.exprs[access.object].is_atom() {
+        if self.context.exprs[access.object].is_atom() {
             self.fmt_expr(access.object, f)?;
         } else {
             write!(f, "(")?;
@@ -322,7 +308,7 @@ impl<'a> CstDisplayContext<'a> {
     }
 
     fn fmt_index(&mut self, index: &Index, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.exprs[index.object].is_atom() {
+        if self.context.exprs[index.object].is_atom() {
             self.fmt_expr(index.object, f)?;
         } else {
             write!(f, "(")?;
@@ -341,21 +327,21 @@ impl<'a> CstDisplayContext<'a> {
     }
 
     fn fmt_declaration(&self, declaration: &Declaration, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{}: ", declaration.name)?;
+        write!(f, "{}: ", self.context.names[declaration.name])?;
         self.fmt_type(&declaration.typ, f)
     }
 
     fn fmt_trait_definition(&mut self, trait_definition: &TraitDefinition, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "trait {}", trait_definition.name)?;
+        write!(f, "trait {}", self.context.names[trait_definition.name])?;
 
         for generic in &trait_definition.generics {
-            write!(f, " {generic}")?;
+            write!(f, " {}", self.context.names[*generic])?;
         }
 
         if !trait_definition.functional_dependencies.is_empty() {
             write!(f, " ->")?;
             for generic in &trait_definition.functional_dependencies {
-                write!(f, " {generic}")?;
+                write!(f, " {}", self.context.names[*generic])?;
             }
         }
 
@@ -370,7 +356,7 @@ impl<'a> CstDisplayContext<'a> {
     }
 
     fn fmt_trait_impl(&mut self, trait_impl: &TraitImpl, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "impl {}", trait_impl.trait_path)?;
+        write!(f, "impl {}", self.context.paths[trait_impl.trait_path])?;
 
         for argument in &trait_impl.arguments {
             write!(f, " ")?;
@@ -388,10 +374,10 @@ impl<'a> CstDisplayContext<'a> {
     }
 
     fn fmt_effect_definition(&mut self, effect_definition: &EffectDefinition, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "effect {}", effect_definition.name)?;
+        write!(f, "effect {}", self.context.names[effect_definition.name])?;
 
         for generic in &effect_definition.generics {
-            write!(f, " {generic}")?;
+            write!(f, " {}", self.context.names[*generic])?;
         }
 
         write!(f, " with")?;
@@ -443,13 +429,13 @@ impl<'a> CstDisplayContext<'a> {
     }
 
     fn fmt_pattern(&mut self, pattern: PatternId, f: &mut Formatter) -> std::fmt::Result {
-        match &self.patterns[pattern] {
-            Pattern::Variable(name, _location) => write!(f, "{name}"),
+        match &self.context.patterns[pattern] {
+            Pattern::Variable(name) => write!(f, "{}", self.context.names[*name]),
             Pattern::Literal(literal) => self.fmt_literal(literal, f),
             Pattern::Constructor(path, args) => {
                 self.fmt_pattern(*path, f)?;
                 for arg in args {
-                    if !matches!(&self.patterns[*arg], Pattern::Constructor(..)) {
+                    if !matches!(&self.context.patterns[*arg], Pattern::Constructor(..)) {
                         write!(f, " ")?;
                         self.fmt_pattern(*arg, f)?;
                     } else {
@@ -494,7 +480,7 @@ impl<'a> CstDisplayContext<'a> {
             Comptime::Derive(paths) => {
                 write!(f, "derive")?;
                 for path in paths {
-                    write!(f, " {path}")?;
+                    write!(f, " {}", self.context.paths[*path])?;
                 }
                 Ok(())
             },

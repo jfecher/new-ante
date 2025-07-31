@@ -61,8 +61,10 @@ pub enum PrimitiveType {
 pub type TypeBindings = BTreeMap<TypeVariableId, Type>;
 
 /// Maps generics to new types to instantiate them with
+#[allow(unused)]
 pub type Substitutions = BTreeMap<Arc<String>, Type>;
 
+#[allow(unused)]
 impl TopLevelType {
     pub fn error() -> Self {
         Self::Primitive(PrimitiveType::Error)
@@ -73,15 +75,16 @@ impl TopLevelType {
     }
 }
 
+#[allow(unused)]
 impl Type {
     /// Convert an ast type to a `Type` as closely as possible.
     /// This method does not emit any errors and relies on name resolution
     /// to emit errors when resolving types.
-    #[allow(unused)]
     pub fn from_ast_type(typ: &crate::parser::cst::Type) -> Type {
         match typ {
             crate::parser::cst::Type::Integer(kind) => Type::Primitive(PrimitiveType::Int(*kind)),
             crate::parser::cst::Type::Named(_path) => todo!("Resolve named types"),
+            crate::parser::cst::Type::Variable(_name) => todo!("Resolve named types"),
             crate::parser::cst::Type::Function(function) => {
                 let parameters = Rc::new(vecmap(&function.parameters, Self::from_ast_type));
                 let return_type = Rc::new(Self::from_ast_type(&function.return_type));
@@ -176,6 +179,7 @@ impl std::fmt::Display for PrimitiveType {
 pub struct TypeVariableId(pub u32);
 
 impl TypeVariableId {
+    #[allow(unused)]
     pub(crate) fn occurs_in(self, _other: &Type, _bindings: &TypeBindings) -> bool {
         todo!()
     }
@@ -208,6 +212,7 @@ impl GeneralizedType {
         TopLevelTypePrinter { typ: self, bindings }
     }
 
+    #[allow(unused)]
     pub fn from_ast_type(_typ: &crate::parser::cst::Type) -> Self {
         todo!("resolve generalized type")
     }
