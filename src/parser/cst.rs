@@ -73,7 +73,7 @@ pub struct TopLevelDefinition {
 pub enum Type {
     Error,
     Unit,
-    Named(Path),
+    Named(PathWithId),
     Integer(IntegerKind),
     Function(FunctionType),
     TypeApplication(Box<Type>, Vec<Type>),
@@ -98,14 +98,14 @@ pub struct FunctionType {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum EffectType {
-    Known(Path, Vec<Type>),
-    Variable(String),
+    Known(PathWithId, Vec<Type>),
+    Variable(String, ExprId),
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TypeDefinition {
     pub name: Arc<String>,
-    pub generics: Vec<String>,
+    pub generics: Generics,
     pub body: TypeDefinitionBody,
 }
 
@@ -345,21 +345,40 @@ pub struct Quoted {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Declaration {
+    pub id: PatternId,
     pub name: Arc<String>,
     pub typ: Type,
 }
 
+pub type Generics = Vec<NameWithId>;
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TraitDefinition {
     pub name: Arc<String>,
-    pub generics: Vec<String>,
-    pub functional_dependencies: Vec<String>,
+    pub generics: Generics,
+    pub functional_dependencies: Generics,
     pub body: Vec<Declaration>,
+}
+
+/// TODO: Should we have a separate PathId? These are used
+/// outside of expressions in types, traits, etc.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct PathWithId {
+    pub path: Path,
+    pub id: ExprId,
+}
+
+/// TODO: Should we have a separate PathId? These are used
+/// outside of expressions in types, traits, etc.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct NameWithId {
+    pub name: Arc<String>,
+    pub id: PatternId,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TraitImpl {
-    pub trait_name: Arc<String>,
+    pub trait_path: PathWithId,
     pub arguments: Vec<Type>,
     pub body: Vec<Definition>,
 }
@@ -367,7 +386,7 @@ pub struct TraitImpl {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct EffectDefinition {
     pub name: Arc<String>,
-    pub generics: Vec<String>,
+    pub generics: Generics,
     pub body: Vec<Declaration>,
 }
 
@@ -392,6 +411,6 @@ pub struct Extern {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Comptime {
     Expr(ExprId),
-    Derive(Vec<Path>),
+    Derive(Vec<PathWithId>),
     Definition(Definition),
 }

@@ -2,9 +2,10 @@ use std::fmt::{Display, Formatter};
 
 use crate::{parser::cst::Lambda, vecmap::VecMap};
 
-use super::{cst::{BorrowMode, Call, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Index, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId}};
+use super::{cst::{BorrowMode, Call, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Index, Literal, Match, MemberAccess, NameWithId, OwnershipMode, Path, PathWithId, Pattern, Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId}};
 
-struct CstDisplayContext<'a> {
+#[allow(unused)]
+pub struct CstDisplayContext<'a> {
     cst: &'a Cst,
     indent_level: u32,
     exprs: &'a VecMap<ExprId, Expr>,
@@ -12,6 +13,7 @@ struct CstDisplayContext<'a> {
 }
 
 impl Cst {
+    #[allow(unused)]
     pub fn display<'a>(&'a self, exprs: &'a VecMap<ExprId, Expr>, patterns: &'a VecMap<PatternId, Pattern>) -> CstDisplayContext<'a> {
         CstDisplayContext { indent_level: 0, cst: self, exprs, patterns }
     }
@@ -20,7 +22,7 @@ impl Cst {
 impl Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut path = self.components.iter();
-        write!(f, "{}", path.next().unwrap().0);
+        write!(f, "{}", path.next().unwrap().0)?;
         for (item, _) in path {
             write!(f, ".{item}")?;
         }
@@ -28,7 +30,20 @@ impl Display for Path {
     }
 }
 
+impl Display for PathWithId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.path)
+    }
+}
+
+impl Display for NameWithId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
 impl<'a> CstDisplayContext<'a> {
+    #[allow(unused)]
     fn fmt_cst(&mut self, cst: &Cst, f: &mut Formatter) -> std::fmt::Result {
         for import in &cst.imports {
             writeln!(f, "import {}", import.module_path.display())?;
@@ -230,7 +245,7 @@ impl<'a> CstDisplayContext<'a> {
                 }
                 Ok(())
             },
-            EffectType::Variable(name) => write!(f, "{name}"),
+            EffectType::Variable(name, _id) => write!(f, "{name}"),
         }
     }
 
@@ -355,7 +370,7 @@ impl<'a> CstDisplayContext<'a> {
     }
 
     fn fmt_trait_impl(&mut self, trait_impl: &TraitImpl, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "impl {}", trait_impl.trait_name)?;
+        write!(f, "impl {}", trait_impl.trait_path)?;
 
         for argument in &trait_impl.arguments {
             write!(f, " ")?;

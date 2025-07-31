@@ -8,7 +8,7 @@ pub mod namespace;
 use crate::{
     errors::{Diagnostic, Errors, Location},
     incremental::{self, CrateData, DbHandle, GetItem, Resolve, VisibleDefinitions},
-    parser::{cst::{Expr, Path, Pattern, TopLevelItemKind, Type}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext},
+    parser::{cst::{Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext},
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -63,12 +63,12 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
         TopLevelItemKind::Definition(definition) => {
             resolver.resolve_expr(definition.rhs);
         },
-        TopLevelItemKind::TypeDefinition(_type_definition) => todo!(),
-        TopLevelItemKind::TraitDefinition(_trait_definition) => todo!(),
-        TopLevelItemKind::TraitImpl(_trait_impl) => todo!(),
-        TopLevelItemKind::EffectDefinition(_effect_definition) => todo!(),
-        TopLevelItemKind::Extern(_) => todo!(),
-        TopLevelItemKind::Comptime(_comptime) => todo!(),
+        TopLevelItemKind::TypeDefinition(type_definition) => resolver.resolve_type_definition(type_definition),
+        TopLevelItemKind::TraitDefinition(trait_definition) => resolver.resolve_trait_definition(trait_definition),
+        TopLevelItemKind::TraitImpl(trait_impl) => resolver.resolve_trait_impl(trait_impl),
+        TopLevelItemKind::EffectDefinition(effect_definition) => resolver.resolve_effect_definition(effect_definition),
+        TopLevelItemKind::Extern(extern_) => resolver.resolve_extern(extern_),
+        TopLevelItemKind::Comptime(comptime_) => resolver.resolve_comptime(comptime_),
     }
 
     incremental::exit_query();
@@ -97,6 +97,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         ResolutionResult { origins: self.links, errors: self.errors }
     }
 
+    #[allow(unused)]
     fn namespace(&self) -> Namespace {
         Namespace::Module(self.item.source_file.crate_id, self.item.source_file.local_module_id)
     }
@@ -142,7 +143,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 let name = item_name.clone();
                 let location = item_location.clone();
                 self.errors.push(Diagnostic::NamespaceNotFound { name, location });
-                todo!("Namespace not found")
+                return None;
             }
         }
 
@@ -150,10 +151,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         assert_eq!(path.len(), 0);
 
         if matches!(namespace, Namespace::Local) {
-            for scope in self.names_in_local_scope.iter().rev() {
-                if let Some(expr) = scope.get(name) {
-                    return Some(Origin::Parameter(*expr));
-                }
+            if let Some(origin) = self.lookup_local_name(name) {
+                return Some(origin);
             }
         }
 
@@ -173,6 +172,20 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             self.errors.push(Diagnostic::NameNotInScope { name, location });
             None
         }
+    }
+
+    /// Lookup a single name (not a full path) in local scope
+    fn lookup_local_name(&mut self, name: &String) -> Option<Origin> {
+        for scope in self.names_in_local_scope.iter().rev() {
+            if let Some(expr) = scope.get(name) {
+                return Some(Origin::Parameter(*expr));
+            }
+        }
+
+        if let Some(item) = self.names_in_global_scope.get(name) {
+            return Some(Origin::TopLevelDefinition(*item));
+        }
+        None
     }
 
     fn lookup(&mut self, path: &Path) -> Option<Origin> {
@@ -216,7 +229,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 // Resolve body with the parameter name in scope
                 self.push_local_scope();
                 for parameter in &lambda.parameters {
-                    self.declare_names_in_pattern(*parameter);
+                    self.declare_names_in_pattern(*parameter, true);
                 }
 
                 self.resolve_expr(lambda.body);
@@ -254,7 +267,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 self.resolve_expr(match_.expression);
                 for (pattern, branch) in &match_.cases {
                     self.push_local_scope();
-                    self.declare_names_in_pattern(*pattern);
+                    self.declare_names_in_pattern(*pattern, false);
                     self.resolve_expr(*branch);
                     self.pop_local_scope();
                 }
@@ -272,7 +285,10 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
 
     /// Declare each name in a pattern position in the given pattern, pushing the old names
     /// if any existed in the declared list.
-    fn declare_names_in_pattern(&mut self, pattern: PatternId) {
+    ///
+    /// If `declare_type_vars` is true, any type variables used that are not in scope will
+    /// automatically be declared. Otherwise an error will be issued.
+    fn declare_names_in_pattern(&mut self, pattern: PatternId, declare_type_vars: bool) {
         match &self.context.patterns[pattern] {
             Pattern::Variable(name, _location) => {
                 self.declare_name(name.clone(), pattern);
@@ -282,25 +298,156 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             // should be declared but the function itself should never be.
             Pattern::Constructor(_, args) => {
                 for arg in args {
-                    self.declare_names_in_pattern(*arg);
+                    self.declare_names_in_pattern(*arg, declare_type_vars);
                 }
             },
             Pattern::Error => (),
             Pattern::TypeAnnotation(pattern, typ) => {
-                self.declare_names_in_pattern(*pattern);
-                self.resolve_type(typ);
+                self.declare_names_in_pattern(*pattern, declare_type_vars);
+                self.resolve_type(typ, declare_type_vars);
             },
         }
     }
 
-    fn resolve_type(&mut self, typ: &Type) {
+    /// Resolves a type ensuring all names used are in scope and issuing errors
+    /// for any that are not. If `declare_type_vars` is set then any type variables
+    /// not already in scope will be declared in the current local scope. Otherwise,
+    /// an error will be issued.
+    fn resolve_type(&mut self, typ: &Type, declare_type_vars: bool) {
         match typ {
             Type::Error => (),
             Type::Unit => (),
-            Type::Named(_) => todo!(),
-            Type::Integer(_) => todo!(),
-            Type::Function(_) => todo!(),
-            Type::TypeApplication(_, _) => todo!(),
+            Type::Named(path) => {
+                self.link(&path.path, path.id);
+            },
+            Type::Integer(_) => (),
+            Type::Function(function) => {
+                for parameter in &function.parameters {
+                    self.resolve_type(parameter, declare_type_vars);
+                }
+                self.resolve_type(&function.return_type, declare_type_vars);
+
+                if let Some(effects) = function.effects.as_ref() {
+                    for effect in effects {
+                        self.resolve_effect_type(effect, declare_type_vars);
+                    }
+                }
+            },
+            Type::TypeApplication(f, args) => {
+                self.resolve_type(f, declare_type_vars);
+                for arg in args {
+                    self.resolve_type(arg, declare_type_vars);
+                }
+            },
+        }
+    }
+
+    /// Resolve an effect type, ensuring all names used are in scope
+    fn resolve_effect_type(&mut self, effect: &EffectType, declare_type_vars: bool) {
+        match effect {
+            EffectType::Known(path, args) => {
+                self.link(&path.path, path.id);
+
+                for arg in args {
+                    self.resolve_type(arg, declare_type_vars);
+                }
+            },
+            EffectType::Variable(name, id) => {
+                if let Some(origin) = self.lookup_local_name(name) {
+                    self.links.insert(*id, origin);
+                } else if declare_type_vars {
+                    self.links.insert(*id, Origin::Local(*id));
+                } else {
+                    let name = name.clone();
+                    let location = self.context.expr_locations[*id].clone();
+                    self.errors.push(Diagnostic::NameNotFound { name, location });
+                }
+            },
+        }
+    }
+
+    fn resolve_type_definition(&mut self, type_definition: &TypeDefinition) {
+        self.declare_generics(&type_definition.generics);
+
+        match &type_definition.body {
+            TypeDefinitionBody::Error => (),
+            TypeDefinitionBody::Struct(fields) => {
+                for (_name, field_type) in fields {
+                    self.resolve_type(field_type, false);
+                }
+            },
+            TypeDefinitionBody::Enum(variants) => {
+                for (_name, variant_args) in variants {
+                    for arg in variant_args {
+                        self.resolve_type(arg, false);
+                    }
+                }
+            },
+        }
+    }
+
+    fn declare_generics(&mut self, generics: &Generics) {
+        for generic in generics {
+            self.declare_name(generic.name.clone(), generic.id);
+        }
+    }
+
+    fn declare(&mut self, declaration: &Declaration) {
+        self.declare_name(declaration.name.clone(), declaration.id);
+        self.resolve_type(&declaration.typ, true);
+    }
+
+    fn resolve_definition(&mut self, definition: &Definition) {
+        if let Some(typ) = definition.typ.as_ref() {
+            // TODO: We should only set declare_type_vars to true here
+            // if we're resolving a top-level definition, not a local one.
+            self.resolve_type(typ, true);
+        }
+        self.resolve_expr(definition.rhs);
+    }
+
+    fn resolve_trait_definition(&mut self, trait_definition: &TraitDefinition) {
+        self.declare_generics(&trait_definition.generics);
+        self.declare_generics(&trait_definition.functional_dependencies);
+        for declaration in &trait_definition.body {
+            self.declare(declaration);
+        }
+    }
+
+    fn resolve_trait_impl(&mut self, trait_impl: &TraitImpl) {
+        self.link(&trait_impl.trait_path.path, trait_impl.trait_path.id);
+
+        for arg in &trait_impl.arguments {
+            self.resolve_type(arg, true);
+        }
+
+        for definition in &trait_impl.body {
+            self.resolve_definition(definition);
+        }
+    }
+
+    fn resolve_effect_definition(&mut self, effect_definition: &EffectDefinition) {
+        self.declare_generics(&effect_definition.generics);
+        for declaration in &effect_definition.body {
+            self.declare(declaration);
+        }
+    }
+
+    fn resolve_extern(&mut self, extern_: &Extern) {
+        self.declare(&extern_.declaration);
+    }
+
+    /// Does this require special handling? This should be resolved before runtime
+    /// definitions are resolved.
+    fn resolve_comptime(&mut self, comptime: &Comptime) {
+        match comptime {
+            Comptime::Expr(expr_id) => self.resolve_expr(*expr_id),
+            Comptime::Derive(paths) => {
+                for path in paths {
+                    self.link(&path.path, path.id);
+                }
+            },
+            Comptime::Definition(definition) => self.resolve_definition(definition),
         }
     }
 }
