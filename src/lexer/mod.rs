@@ -38,7 +38,7 @@
 //!       is how expressions can be continued in ante despite most ending on a Newline.
 pub mod token;
 
-use crate::errors::{Span, Position};
+use crate::diagnostics::{Span, Position};
 use std::{str::Chars, sync::Arc};
 use token::{lookup_keyword, ClosingBracket, FloatKind, IntegerKind, LexerError, Token, F64};
 
@@ -136,18 +136,23 @@ impl<'contents> Lexer<'contents> {
         self.current = self.next;
         self.next = self.chars.next().unwrap_or('\0');
         self.current_position.byte_index += ret.len_utf8();
+        self.current_position.column_number += 1;
+
         if ret == '\n' {
             self.current_position.column_number = 0;
             self.current_position.line_number += 1;
         }
+
         ret
     }
 
     fn locate(&self) -> Span {
-        Span {
-            start: self.token_start_position,
-            end: self.current_position,
-        }
+        let mut end = self.current_position;
+        // end is exclusive so we have to increment 1.
+        // no token ends in a `\n` so we can ignore the line number
+        end.column_number += 1;
+        end.byte_index += 1;
+        Span { start: self.token_start_position, end }
     }
 
     fn advance_with(&mut self, token: Token) -> IterElem {

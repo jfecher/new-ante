@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use types::{PrimitiveType, Type, TypeBindings};
 
 use crate::{
-    errors::Errors,
+    diagnostics::Errors,
     incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheck},
     name_resolution::{Origin, ResolutionResult},
     parser::{cst::{Expr, Literal, TopLevelItemKind}, ids::{ExprId, NameId, PathId, PatternId, TopLevelId}, TopLevelContext},

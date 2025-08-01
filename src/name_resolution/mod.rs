@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub mod namespace;
 
 use crate::{
-    errors::{Diagnostic, Errors, Location},
+    diagnostics::{Diagnostic, Errors, Location},
     incremental::{self, CrateData, DbHandle, GetItem, Resolve, VisibleDefinitions},
     parser::{cst::{Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, NameId, PathId, PatternId, TopLevelId}, TopLevelContext},
 };

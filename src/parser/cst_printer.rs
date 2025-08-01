@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt::{Display, Formatter}, sync::Arc};
 
-use super::{cst::{BorrowMode, Call, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Index, Lambda, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext};
+use super::{cst::{BorrowMode, Call, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext};
 
 pub struct CstDisplayContext<'a> {
     cst: &'a Cst,
@@ -41,7 +41,8 @@ impl Display for CstDisplayContext<'_> {
 impl<'a> CstDisplay<'a> {
     fn fmt_cst(&mut self, cst: &Cst, f: &mut Formatter) -> std::fmt::Result {
         for import in &cst.imports {
-            writeln!(f, "import {}", import.module_path.display())?;
+            self.fmt_import(import, f)?;
+            writeln!(f)?;
         }
 
         if !cst.imports.is_empty() {
@@ -54,6 +55,19 @@ impl<'a> CstDisplay<'a> {
             writeln!(f)?;
         }
 
+        Ok(())
+    }
+
+    fn fmt_import(&mut self, import: &Import, f: &mut Formatter) -> std::fmt::Result {
+        let path = import.module_path.to_string_lossy().replace("/", ".");
+        write!(f, "import {path}.")?;
+
+        for (i, (item, _location)) in import.items.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{item}")?;
+        }
         Ok(())
     }
 
@@ -71,7 +85,8 @@ impl<'a> CstDisplay<'a> {
             TopLevelItemKind::EffectDefinition(effect_definition) => self.fmt_effect_definition(effect_definition, f),
             TopLevelItemKind::Extern(extern_) => self.fmt_extern(extern_, f),
             TopLevelItemKind::Comptime(comptime) => self.fmt_comptime(comptime, f),
-        }
+        }?;
+        writeln!(f)
     }
 
     fn fmt_comments(&self, comments: &[String], f: &mut Formatter) -> std::fmt::Result {
@@ -98,7 +113,11 @@ impl<'a> CstDisplay<'a> {
             self.fmt_type(typ, f)?;
         }
 
-        write!(f, " = ")?;
+        write!(f, " =")?;
+        if !matches!(self.context().exprs[definition.rhs], Expr::Sequence(_)) {
+            write!(f, " ")?;
+        }
+
         self.fmt_expr(definition.rhs, f)
     }
 
@@ -119,7 +138,10 @@ impl<'a> CstDisplay<'a> {
             self.fmt_type(typ, f)?;
         }
 
-        write!(f, " = ")?;
+        write!(f, " =")?;
+        if !matches!(self.context().exprs[lambda.body], Expr::Sequence(_)) {
+            write!(f, " ")?;
+        }
         self.fmt_expr(lambda.body, f)
     }
 
@@ -164,8 +186,7 @@ impl<'a> CstDisplay<'a> {
                 self.indent_level -= 1;
             },
         }
-
-        writeln!(f)
+        Ok(())
     }
 
     fn fmt_type(&self, typ: &Type, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -474,7 +495,7 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_reference(&mut self, reference: &Reference, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", reference.mode)?;
-        if reference.mode.is_shared() {
+        if !reference.mode.is_shared() {
             write!(f, " ")?;
         }
         self.fmt_expr(reference.rhs, f)

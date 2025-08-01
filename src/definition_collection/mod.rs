@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    errors::{Diagnostic, Errors, Location}, incremental::{
+    diagnostics::{Diagnostic, Errors, Location}, incremental::{
         self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, FileId, GetImports, Parse, VisibleDefinitions, VisibleTypes
     }, parser::cst::{ItemName, Name, Path, TopLevelItem, TopLevelItemKind}
 };

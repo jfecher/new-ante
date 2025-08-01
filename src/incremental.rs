@@ -4,7 +4,7 @@ use inc_complete::{define_input, define_intermediate, impl_storage, storage::Has
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend, definition_collection, errors::{Errors, Location}, name_resolution::{self, namespace::{CrateId, SourceFileId}, ResolutionResult}, parser::{
+    backend, definition_collection, diagnostics::{Errors, Location}, name_resolution::{self, namespace::{CrateId, SourceFileId}, ResolutionResult}, parser::{
         self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext,
     }, type_inference::{self, types::GeneralizedType, TypeCheckResult}
 };
@@ -106,12 +106,24 @@ pub fn println(_msg: String) {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SourceFile(pub SourceFileId);
 
+#[derive(PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FileData {
+    pub path: Arc<PathBuf>,
+    pub contents: String,
+}
+
+impl FileData {
+    pub fn new(path: Arc<PathBuf>, contents: String) -> FileData {
+        FileData { path, contents }
+    }
+}
+
 // To define an input in inc-complete we can either use this macro or implement a few traits
 // manually. The `0` is a unique id for this input which stably identifies this computation
 // for the purpose of serialization. Next is `SourceFile -> String` which says `SourceFile`
 // maps to a `String` output type. In this case the text of the file in question. Finally,
 // `Storage` is just the overall storage type to store results in.
-define_input!(0, SourceFile -> String, Storage);
+define_input!(0, SourceFile -> Arc<FileData>, Storage);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// For each file name, we cache the parse result of that file. This includes not only

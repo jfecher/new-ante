@@ -1,6 +1,6 @@
 use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 
-use crate::{errors::{Diagnostic, Errors, Location}, incremental::{Db, FileId, GetImports, SourceFile}, name_resolution::namespace::SourceFileId, read_file};
+use crate::{diagnostics::{Diagnostic, Errors, Location}, incremental::{Db, FileData, FileId, GetImports, SourceFile}, name_resolution::namespace::SourceFileId, read_file};
 
 /// One limitation of query systems is that you cannot change inputs during an incremental
 /// computation. For a compiler, this means dynamically discovering new files (inputs) to parse is
@@ -89,7 +89,9 @@ impl Finder {
                 // let us continue to collect name/type errors for other files
                 String::new()
             });
-            SourceFile(file_id).set(compiler, text);
+
+            let file_data = FileData::new(file, text);
+            SourceFile(file_id).set(compiler, Arc::new(file_data));
             new_files.insert(file_id);
         }
         new_files

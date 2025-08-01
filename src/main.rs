@@ -22,15 +22,15 @@
 //!   which functions we're caching the result of.
 use clap::{CommandFactory, Parser};
 use cli::{Cli, Completions};
-use errors::Diagnostic;
-use incremental::{CompileFile, Db, FileId, Parse, Resolve, SourceFile};
+use diagnostics::Diagnostic;
+use incremental::{CompileFile, Db, FileData, FileId, Parse, Resolve, SourceFile};
 use name_resolution::namespace::{CrateId, LocalModuleId, SourceFileId};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::BTreeSet, fs::File, io::{Read, Write}, path::{Path, PathBuf}, sync::Arc
 };
 
-use crate::errors::Errors;
+use crate::diagnostics::Errors;
 
 // All the compiler passes:
 // (listed out of order because `cargo fmt` alphabetizes them)
@@ -44,7 +44,7 @@ mod backend;
 
 // Util modules:
 mod cli;
-mod errors;
+mod diagnostics;
 mod incremental;
 mod vecmap;
 mod iterator_extensions;
@@ -84,7 +84,9 @@ fn compile(args: Cli) {
     let file_name = Arc::new(PathBuf::from(filename));
     let input_id = path_to_id(&file_name);
     compiler.update_input(FileId(file_name.clone()), input_id);
-    compiler.update_input(SourceFile(input_id), source);
+
+    let file = FileData::new(file_name.clone(), source);
+    compiler.update_input(SourceFile(input_id), Arc::new(file));
 
     // First, run through our input file and any imports recursively to find any
     // files which have changed. These are the inputs to our incremental compilation
@@ -101,11 +103,8 @@ fn compile(args: Cli) {
 
     errors.extend(more_errors);
 
-    if !errors.is_empty() {
-        println!("errors:");
-    }
     for error in errors {
-        println!("  {}", error.message());
+        println!("{}", error.display(true, &compiler));
     }
 
     if args.incremental {

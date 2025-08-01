@@ -20,19 +20,26 @@ Foo.print self =
 
 // This is the current stdout but it isn't correct
 // expected stdout:
-// import Foo
+// import Foo.Bar
 // 
 // // Programs now require a main function
-// main () = (error)
+// main () =
+//     mut a = 32
+//     println &a
+// 
 // type Foo =
 //     x: I32
 //     y: U32
 // 
-// Foo.print self = (error)
+// Foo.print self =
+//     print "Foo "
+//     // Comments are only allowed between statements
+//     print self.x
+//     print " "
+//     print self.y
+// 
 // 
 // errors:
 //   Cannot read source file `Foo`, does it exist?
-//   Expected an expression but found `an indent`
-//   Expected an expression but found `an indent`
 //   Expected a top-level item but found `end of input`
 //   Expected a newline after the top level item but found `end of input`

@@ -5,7 +5,7 @@ use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{errors::{Diagnostic, ErrorDefault, Location, LocationData, Span}, incremental::{self, SourceFile}, lexer::{token::Token, Lexer}, name_resolution::namespace::SourceFileId, vecmap::VecMap};
+use crate::{diagnostics::{Diagnostic, ErrorDefault, Location, LocationData, Span}, incremental::{self, SourceFile}, lexer::{token::Token, Lexer}, name_resolution::namespace::SourceFileId, vecmap::VecMap};
 
 use self::cst::{Cst, Import, Path, TopLevelItem, TopLevelItemKind, TypeDefinition, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
 
@@ -68,8 +68,8 @@ struct Parser<'tokens> {
 }
 
 pub fn parse_impl(ctx: &incremental::Parse, db: &incremental::DbHandle) -> Arc<ParseResult> {
-    let file_contents = SourceFile(ctx.0).get(db);
-    let tokens = Lexer::new(&file_contents).collect::<Vec<_>>();
+    let file = SourceFile(ctx.0).get(db);
+    let tokens = Lexer::new(&file.contents).collect::<Vec<_>>();
     Arc::new(Parser::new(ctx.0, &tokens).parse())
 }
 
@@ -151,14 +151,15 @@ impl<'tokens> Parser<'tokens> {
         if self.accept(token) {
             Ok(())
         } else {
-            self.expected(message, self.current_token())
+            self.expected(message)
         }
     }
 
-    /// Return a `ParserExpected` error
-    fn expected<T>(&self, message: impl Into<String>, actual: &Token) -> Result<T> {
+    /// Return a `ParserExpected` error.
+    /// Uses the current token as the actual token for comparison and for the location for the error.
+    fn expected<T>(&self, message: impl Into<String>) -> Result<T> {
         let message = message.into();
-        let actual = actual.clone();
+        let actual = self.current_token().clone();
         let location = self.current_token_location();
         Err(Diagnostic::ParserExpected { message, actual, location })
     }
@@ -500,7 +501,7 @@ impl<'tokens> Parser<'tokens> {
                 id = self.new_top_level_id(&comptime);
                 TopLevelItemKind::Comptime(comptime)
             }
-            other => return self.expected("a top-level item", other),
+            _ => return self.expected("a top-level item"),
         };
 
         Ok(TopLevelItem { id, comments, kind })
@@ -535,7 +536,7 @@ impl<'tokens> Parser<'tokens> {
         }
         self.expect(Token::Equal, "`=` to begin the function body")?;
 
-        let rhs = self.try_parse_or_recover_to_newline(|this| this.parse_expression()).unwrap_or_else(|| {
+        let rhs = self.try_parse_or_recover_to_newline(|this| this.parse_block_or_expression()).unwrap_or_else(|| {
             self.push_expr(Expr::Error, self.current_token_location())
         });
 
@@ -591,7 +592,7 @@ impl<'tokens> Parser<'tokens> {
                 }, Token::Newline, false);
                 Ok(TypeDefinitionBody::Enum(variants))
             }
-            other => self.expected("a field name or `|` to start this type body", other),
+            _ => self.expected("a field name or `|` to start this type body"),
         }
     }
 
@@ -617,7 +618,7 @@ impl<'tokens> Parser<'tokens> {
                 });
                 Ok(TypeDefinitionBody::Enum(variants))
             }
-            other => self.expected("a field name or `|` to start this type body", other),
+            _ => self.expected("a field name or `|` to start this type body"),
         }
     }
 
@@ -662,7 +663,7 @@ impl<'tokens> Parser<'tokens> {
                 let name = self.parse_ident_id()?;
                 Ok(Type::Variable(name))
             }
-            actual => self.expected("a type", actual),
+            _ => self.expected("a type"),
         }
     }
 
@@ -672,7 +673,7 @@ impl<'tokens> Parser<'tokens> {
                 self.advance();
                 Ok(name.clone())
             }
-            other => self.expected("a capitalized type name", other),
+            _ => self.expected("a capitalized type name"),
         }
     }
 
@@ -682,7 +683,7 @@ impl<'tokens> Parser<'tokens> {
                 self.advance();
                 Ok(name.clone())
             }
-            other => self.expected("an identifier", other),
+            _ => self.expected("an identifier"),
         }
     }
 
@@ -754,7 +755,7 @@ impl<'tokens> Parser<'tokens> {
                 let name = self.parse_ident_id()?;
                 Ok(Pattern::Variable(name))
             }
-            other => self.expected("a parameter", other),
+            _ => self.expected("a parameter"),
         }
     }
 
@@ -874,11 +875,7 @@ impl<'tokens> Parser<'tokens> {
         match self.current_token() {
             // definition, variable, function call
             Token::Identifier(_) | Token::TypeName(_) => {
-                if let Ok(call) = self.parse_function_call() {
-                    return Ok(call);
-                }
-
-                self.parse_atom()
+                self.parse_function_call_or_atom()
             }
             Token::Subtract | Token::Ampersand | Token::ExclamationMark | Token::At => {
                 self.parse_unary()
@@ -987,7 +984,7 @@ impl<'tokens> Parser<'tokens> {
             }
             Token::StringLiteral(s) => self.parse_string(s.clone()),
             Token::Identifier(_) | Token::TypeName(_) => self.parse_variable(),
-            other => self.expected("an expression", other),
+            _ => self.expected("an expression"),
         }
     }
 
@@ -998,6 +995,17 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn parse_statement(&mut self) -> Result<ExprId> {
+        let start = self.current_token_span();
+        let previous_position = self.token_index;
+
+        if let Ok(definition) = self.parse_definition() {
+            let end = self.previous_token_span();
+            let location = start.to(&end).in_file(self.file_id);
+            let expr = Expr::Definition(definition);
+            return Ok(self.push_expr(expr, location));
+        }
+
+        self.token_index = previous_position;
         self.parse_expression()
     }
 
@@ -1128,16 +1136,17 @@ impl<'tokens> Parser<'tokens> {
         Ok(self.push_expr(Expr::Variable(path), location))
     }
 
-    fn parse_function_call(&mut self) -> Result<ExprId> {
-        self.with_expr_id(|this| {
-            let function = this.parse_atom()?;
-            let arguments = this.many1(Self::parse_function_arg)?;
+    fn parse_function_call_or_atom(&mut self) -> Result<ExprId> {
+        let function = self.parse_atom()?;
 
-            let last_arg_location = this.expr_location(*arguments.last().unwrap());
-            let location = this.expr_location(function).to(&last_arg_location);
-
-            Ok((Expr::Call(Call { function, arguments }), location))
-        })
+        if let Ok(arguments) = self.many1(Self::parse_function_arg) {
+            let last_arg_location = self.expr_location(*arguments.last().unwrap());
+            let location = self.expr_location(function).to(&last_arg_location);
+            let call = Expr::Call(Call { function, arguments });
+            Ok(self.push_expr(call, location))
+        } else {
+            Ok(function)
+        }
     }
 
     fn parse_string(&mut self, contents: String) -> Result<ExprId> {
@@ -1156,10 +1165,10 @@ impl<'tokens> Parser<'tokens> {
                 Ok(Comptime::Expr(if_))
             }
             Token::Identifier(_) | Token::TypeName(_) => {
-                let call = self.parse_expr_with_recovery(Self::parse_function_call, Token::Newline, &[])?;
+                let call = self.parse_expr_with_recovery(Self::parse_function_call_or_atom, Token::Newline, &[])?;
                 Ok(Comptime::Expr(call))
             }
-            other => self.expected("a compile-time item", other),
+            _ => self.expected("a compile-time item"),
         }
     }
 

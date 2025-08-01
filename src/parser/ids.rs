@@ -3,7 +3,7 @@ use std::hash::Hasher;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    errors::Location,
+    diagnostics::Location,
     incremental::{DbHandle, Parse}, name_resolution::namespace::SourceFileId,
 };
 
