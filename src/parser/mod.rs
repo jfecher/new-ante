@@ -355,7 +355,7 @@ impl<'tokens> Parser<'tokens> {
                 let start = self.current_token_span();
                 if self.recover_to(recover_to, too_far) {
                     self.diagnostics.push(error);
-                    let end = self.previous_token_span();
+                    let end = self.current_token_span();
                     let location = start.to(&end).in_file(self.file_id);
                     let expr = self.push_expr(Expr::Error, location);
                     Ok(expr)

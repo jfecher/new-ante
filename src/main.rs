@@ -20,7 +20,10 @@
 //! - `src/errors.rs`: Defines each error used in the program as well as the `Location` struct
 //! - `src/incremental.rs`: Some plumbing for the inc-complete library which also defines
 //!   which functions we're caching the result of.
-use incremental::{CompileFile, Db, FileId, SourceFile};
+use clap::{CommandFactory, Parser};
+use cli::{Cli, Completions};
+use errors::Diagnostic;
+use incremental::{CompileFile, Db, FileId, Parse, Resolve, SourceFile};
 use name_resolution::namespace::{CrateId, LocalModuleId, SourceFileId};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
@@ -40,32 +43,43 @@ mod type_inference;
 mod backend;
 
 // Util modules:
+mod cli;
 mod errors;
 mod incremental;
 mod vecmap;
 mod iterator_extensions;
 
-const INPUT_FILE: &str = "input.ex";
-const METADATA_FILE: &str = "incremental_metadata.ron";
-
 // Deserialize the compiler from our metadata file.
 // If we fail, just default to a fresh compiler with no cached compilations.
-fn make_compiler() -> Db {
-    match read_file(Path::new(METADATA_FILE)) {
+fn make_compiler(metadata_file: &Path) -> Db {
+    match read_file(metadata_file) {
         Ok(text) => ron::from_str(&text).unwrap_or_default(),
         Err(_) => Db::default(),
     }
 }
 
 fn main() {
-    let mut compiler = make_compiler();
+    if let Ok(Completions { shell_completion }) = Completions::try_parse() {
+        let mut cmd = Cli::command();
+        let name = cmd.get_name().to_string();
+        clap_complete::generate(shell_completion, &mut cmd, name, &mut std::io::stdout());
+    } else {
+        compile(Cli::parse())
+    }
+}
 
-    let source = read_file(Path::new(INPUT_FILE)).unwrap_or_else(|error| {
+fn compile(args: Cli) {
+    let filename = Path::new(&args.file);
+    let metadata_file = filename.with_extension(".inc");
+
+    let mut compiler = make_compiler(&metadata_file);
+
+    let source = read_file(filename).unwrap_or_else(|error| {
         eprintln!("error: {error}");
         std::process::exit(1);
     });
 
-    let file_name = Arc::new(PathBuf::from(INPUT_FILE));
+    let file_name = Arc::new(PathBuf::from(filename));
     let input_id = path_to_id(&file_name);
     compiler.update_input(FileId(file_name.clone()), input_id);
     compiler.update_input(SourceFile(input_id), source);
@@ -76,9 +90,16 @@ fn main() {
     // files which have changed. These are the inputs to our incremental compilation
     // and we can't dynamically update our inputs within another query. Instead, we
     // can query to collect them all and update them here at top-level.
-    let (files, mut errors) = find_changed_files::collect_all_changed_files(file_name, &mut compiler);
-    errors.extend(compile_all(files, &mut compiler));
+    let (_files, mut errors) = find_changed_files::collect_all_changed_files(file_name, &mut compiler);
 
+    let more_errors = if args.parse {
+        display_parse_tree(&compiler, input_id)
+    } else {
+        // Only name resolution is implemented currently
+        display_name_resolution(&compiler, input_id)
+    };
+
+    errors.extend(more_errors);
     println!("Compiler finished.\n");
 
     if !errors.is_empty() {
@@ -88,9 +109,27 @@ fn main() {
         println!("  {}", error.message());
     }
 
-    if let Err(error) = write_metadata(compiler) {
+    if let Err(error) = write_metadata(compiler, &metadata_file) {
         println!("\n{error}");
     }
+}
+
+fn display_parse_tree(compiler: &Db, input: SourceFileId) -> Vec<Diagnostic> {
+    let result = Parse(input).get(compiler);
+    println!("{}", result.cst.display(&result.top_level_data));
+    result.diagnostics.clone()
+}
+
+fn display_name_resolution(compiler: &Db, input: SourceFileId) -> Vec<Diagnostic> {
+    let parse = Parse(input).get(compiler);
+    let mut diagnostics = Vec::new();
+
+    for item in &parse.cst.top_level_items {
+        let resolve = Resolve(item.id).get(compiler);
+        diagnostics.extend(resolve.errors);
+    }
+
+    diagnostics
 }
 
 fn path_to_id(path: &Path) -> SourceFileId {
@@ -102,6 +141,7 @@ fn path_to_id(path: &Path) -> SourceFileId {
 /// Compile all the files in the set to python files. In a real compiler we may want
 /// to compile each as an independent llvm or cranelift module then link them all
 /// together at the end.
+#[allow(unused)]
 fn compile_all(files: BTreeSet<SourceFileId>, compiler: &mut Db) -> Errors {
     files.into_par_iter().flat_map(|file| {
         let (_text, errors) = CompileFile(file).get(compiler);
@@ -119,17 +159,17 @@ fn write_file(file_name: &Path, text: &str) -> Result<(), String> {
 
 /// This could be changed so that we only write if the metadata actually
 /// changed but to simplify things we just always write.
-fn write_metadata(compiler: Db) -> Result<(), String> {
+fn write_metadata(compiler: Db, metadata_file: &Path) -> Result<(), String> {
     // Using `to_writer` here would avoid the intermediate step of creating the string
     let serialized = ron::to_string(&compiler).map_err(|error| format!("Failed to serialize database:\n{error}"))?;
-    write_file(Path::new(METADATA_FILE), &serialized)
+    write_file(metadata_file, &serialized)
 }
 
 fn read_file(file_name: &std::path::Path) -> Result<String, String> {
-    let mut file = File::open(file_name).map_err(|error| format!("Failed to open `{INPUT_FILE}`:\n{error}"))?;
+    let mut file = File::open(file_name).map_err(|error| format!("Failed to open `{}`:\n{error}", file_name.display()))?;
 
     let mut text = String::new();
-    file.read_to_string(&mut text).map_err(|error| format!("Failed to read from file `{INPUT_FILE}`:\n{error}"))?;
+    file.read_to_string(&mut text).map_err(|error| format!("Failed to read from file `{}`:\n{error}", file_name.display()))?;
 
     Ok(text)
 }
