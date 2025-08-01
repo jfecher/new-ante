@@ -64,6 +64,10 @@ pub struct Cli {
     /// Print out the type of each definition
     #[arg(long, short = 't')]
     pub show_types: bool,
+
+    /// Enable incremental compilation by reading from and writing to metadata for the current program
+    #[arg(long, short = 'i')]
+    pub incremental: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, ValueEnum)]

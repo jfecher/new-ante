@@ -89,13 +89,14 @@ pub fn exit_query() {
     });
 }
 
-pub fn println(msg: String) {
-    let level = QUERY_NESTING.with(|cell| cell.get());
-    let spaces = "  ".repeat(level);
+/// Currently disabled until a Cli argument is added to opt into these traces
+pub fn println(_msg: String) {
+    // let level = QUERY_NESTING.with(|cell| cell.get());
+    // let spaces = "  ".repeat(level);
 
     // Thread ids are usually in the form `ThreadId(X)` or `ThreadId(XX)`.
     // Add some padding to keep output aligned for both cases.
-    println!("{:02?}: {spaces}- {msg}", std::thread::current().id());
+    // println!("{:02?}: {spaces}- {msg}", std::thread::current().id());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

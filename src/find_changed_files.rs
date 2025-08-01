@@ -77,7 +77,7 @@ impl Finder {
             let file = file_and_location.0.clone();
             let location = file_and_location.1.clone();
 
-            let file_id = FileId(file.clone()).get(compiler);
+            let file_id = super::path_to_id(&file);
             if self.done.contains(&file_id) {
                 continue;
             }

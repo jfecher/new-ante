@@ -333,7 +333,7 @@ impl Display for Token {
             Token::Indent => write!(f, "an indent"),
             Token::Unindent => write!(f, "an unindent"),
 
-            Token::LineComment(s) => write!(f, "`//{s}`"),
+            Token::LineComment(s) => write!(f, "//{s}"),
 
             Token::Identifier(s) => write!(f, "{s}"),
             Token::StringLiteral(s) => write!(f, "\"{s}\""),
@@ -341,9 +341,9 @@ impl Display for Token {
             Token::IntegerLiteral(x, Some(kind)) => write!(f, "{x}_{kind}"),
             Token::FloatLiteral(x, None) => write!(f, "{x}"),
             Token::FloatLiteral(x, Some(kind)) => write!(f, "{x}_{kind}"),
-            Token::CharLiteral(c) => write!(f, "'{c}"),
+            Token::CharLiteral(c) => write!(f, "c\"{c}\""),
             Token::BooleanLiteral(b) => write!(f, "{b}"),
-            Token::UnitLiteral => write!(f, "'()'"),
+            Token::UnitLiteral => write!(f, "()"),
 
             // Types
             Token::TypeName(n) => write!(f, "{n}"),

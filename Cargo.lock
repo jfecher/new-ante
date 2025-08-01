@@ -196,9 +196,9 @@ checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
 
 [[package]]
 name = "goldentests"
-version = "1.1.1"
+version = "1.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8476785a67758ffc17be1d41009468ef27fb96b5211c9d375a4356bf891dcbc5"
+checksum = "5bbd8173507cc5a82828b586f07c04bc11a4e6143003a4473292e5d8cd6e7a93"
 dependencies = [
  "colored",
  "rayon",

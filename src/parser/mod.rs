@@ -127,18 +127,12 @@ impl<'tokens> Parser<'tokens> {
         self.previous_token_span().in_file(self.file_id)
     }
 
-    /// Returns the next token.
-    /// Panics if the current token is EOF
-    fn next_token(&self) -> &'tokens Token {
-        &self.tokens[self.token_index + 1].0
-    }
-
     fn current_token_and_span(&self) -> &'tokens (Token, Span) {
         &self.tokens[self.token_index]
     }
 
     fn advance(&mut self) {
-        self.token_index += 1;
+        self.token_index = self.tokens.len().min(self.token_index + 1);
     }
 
     /// Advance the input if the current token matches the given token.
@@ -278,7 +272,7 @@ impl<'tokens> Parser<'tokens> {
                         indents -= 1;
                     }
                 }
-                Token::EndOfInput => break,
+                Token::EndOfInput => return,
                 _ => (),
             }
             self.advance();
@@ -860,7 +854,7 @@ impl<'tokens> Parser<'tokens> {
             }
 
             operator_stack.push(self.current_token_and_span());
-            self.next_token();
+            self.advance();
 
             let value = self.parse_term()?;
             results.push(value);
@@ -1080,7 +1074,8 @@ impl<'tokens> Parser<'tokens> {
 
         self.with_expr_id_and_location(|this| {
             loop {
-                match this.next_token() {
+                this.advance();
+                match this.current_token() {
                     Token::Indent => {
                         indent_count += 1;
                         tokens.push(Token::Indent);

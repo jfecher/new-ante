@@ -16,7 +16,7 @@ scc = { version = "2.3.4", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 
 [dev-dependencies]
-goldentests = "1.1.0"
+goldentests = "1.3.0"
 
 [profile.release]
 debug = true

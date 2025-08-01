@@ -51,11 +51,13 @@ mod iterator_extensions;
 
 // Deserialize the compiler from our metadata file.
 // If we fail, just default to a fresh compiler with no cached compilations.
-fn make_compiler(metadata_file: &Path) -> Db {
-    match read_file(metadata_file) {
-        Ok(text) => ron::from_str(&text).unwrap_or_default(),
-        Err(_) => Db::default(),
+fn make_compiler(metadata_file: &Path, incremental: bool) -> Db {
+    if incremental {
+        if let Ok(text) = read_file(metadata_file) {
+            return ron::from_str(&text).unwrap_or_default();
+        }
     }
+    Db::default()
 }
 
 fn main() {
@@ -70,9 +72,9 @@ fn main() {
 
 fn compile(args: Cli) {
     let filename = Path::new(&args.file);
-    let metadata_file = filename.with_extension(".inc");
+    let metadata_file = filename.with_extension("inc");
 
-    let mut compiler = make_compiler(&metadata_file);
+    let mut compiler = make_compiler(&metadata_file, args.incremental);
 
     let source = read_file(filename).unwrap_or_else(|error| {
         eprintln!("error: {error}");
@@ -83,8 +85,6 @@ fn compile(args: Cli) {
     let input_id = path_to_id(&file_name);
     compiler.update_input(FileId(file_name.clone()), input_id);
     compiler.update_input(SourceFile(input_id), source);
-
-    println!("Passes Run:");
 
     // First, run through our input file and any imports recursively to find any
     // files which have changed. These are the inputs to our incremental compilation
@@ -100,7 +100,6 @@ fn compile(args: Cli) {
     };
 
     errors.extend(more_errors);
-    println!("Compiler finished.\n");
 
     if !errors.is_empty() {
         println!("errors:");
@@ -109,8 +108,10 @@ fn compile(args: Cli) {
         println!("  {}", error.message());
     }
 
-    if let Err(error) = write_metadata(compiler, &metadata_file) {
-        println!("\n{error}");
+    if args.incremental {
+        if let Err(error) = write_metadata(compiler, &metadata_file) {
+            println!("\n{error}");
+        }
     }
 }
 
@@ -132,7 +133,7 @@ fn display_name_resolution(compiler: &Db, input: SourceFileId) -> Vec<Diagnostic
     diagnostics
 }
 
-fn path_to_id(path: &Path) -> SourceFileId {
+pub fn path_to_id(path: &Path) -> SourceFileId {
     let local_module_id = LocalModuleId(parser::ids::hash(path) as u32);
     // Temporarily assign crate id while crates are unimplemented
     SourceFileId { crate_id: CrateId(1), local_module_id }

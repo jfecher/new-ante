@@ -5,7 +5,7 @@
 // - The ability to call library functions at compile-time
 // - An API for these functions to query the type given as an argument and build an impl
 // - Comptime functions may only call functions in external libraries
-#derive Serialize
+derive Serialize
 type MyType a =
     #skip
     first: Maybe a
