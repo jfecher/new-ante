@@ -5,11 +5,17 @@ use super::{cst::{BorrowMode, Call, Comptime, Cst, Declaration, Definition, Effe
 pub struct CstDisplayContext<'a> {
     cst: &'a Cst,
     context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>,
+    config: CstDisplayConfig,
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct CstDisplayConfig {
+    pub show_comments: bool,
 }
 
 impl Cst {
     pub fn display<'a>(&'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>) -> CstDisplayContext<'a> {
-        CstDisplayContext { cst: self, context }
+        CstDisplayContext { cst: self, context, config: CstDisplayConfig::default() }
     }
 }
 
@@ -30,11 +36,17 @@ struct CstDisplay<'a> {
     indent_level: u32,
     current_item: Option<TopLevelId>,
     context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>,
+    config: CstDisplayConfig,
 }
 
 impl Display for CstDisplayContext<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        CstDisplay { context: self.context, indent_level: 0, current_item: None }.fmt_cst(&self.cst, f)
+        CstDisplay {
+            context: self.context,
+            indent_level: 0,
+            current_item: None,
+            config: self.config,
+        }.fmt_cst(&self.cst, f)
     }
 }
 
@@ -55,10 +67,12 @@ impl<'a> CstDisplay<'a> {
             writeln!(f)?;
         }
 
-        Ok(())
+        self.fmt_comments(&cst.ending_comments, f)
     }
 
     fn fmt_import(&mut self, import: &Import, f: &mut Formatter) -> std::fmt::Result {
+        self.fmt_comments(&import.comments, f)?;
+
         let path = import.module_path.to_string_lossy().replace("/", ".");
         write!(f, "import {path}.")?;
 
@@ -90,9 +104,11 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_comments(&self, comments: &[String], f: &mut Formatter) -> std::fmt::Result {
-        for comment in comments {
-            writeln!(f, "{comment}")?;
-            self.indent(f)?;
+        if self.config.show_comments {
+            for comment in comments {
+                writeln!(f, "{comment}")?;
+                self.indent(f)?;
+            }
         }
         Ok(())
     }

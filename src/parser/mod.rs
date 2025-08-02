@@ -89,7 +89,8 @@ impl<'tokens> Parser<'tokens> {
     fn parse(mut self) -> ParseResult {
         let imports = self.parse_imports();
         let top_level_items = self.parse_top_level_items();
-        let cst = Cst { imports, top_level_items };
+        let ending_comments = self.parse_comments();
+        let cst = Cst { imports, top_level_items, ending_comments };
         ParseResult {
             cst,
             diagnostics: self.diagnostics,
@@ -363,6 +364,7 @@ impl<'tokens> Parser<'tokens> {
 
     fn parse_imports(&mut self) -> Vec<Import> {
         let mut imports = Vec::new();
+        self.accept(Token::Newline);
 
         loop {
             let position_before_comments = self.token_index;
@@ -465,8 +467,22 @@ impl<'tokens> Parser<'tokens> {
         let mut items = Vec::new();
 
         while *self.current_token() != Token::EndOfInput {
-            if let Some(item) = self.try_parse_or_recover_to_newline(Self::parse_top_level_item) {
+            let position_before_comments = self.token_index;
+            let comments = self.parse_comments();
+
+            // We may have comments at the end of the file not attached to any top level item
+            if *self.current_token() == Token::EndOfInput {
+                self.token_index = position_before_comments;
+                return items;
+            }
+
+            if let Some(item) = self.try_parse_or_recover_to_newline(|this| this.parse_top_level_item(comments)) {
                 items.push(Arc::new(item));
+            }
+
+            // In case there is no newline at the end of the file
+            if *self.current_token() == Token::EndOfInput {
+                break;
             }
             self.expect_newline_with_recovery("a newline after the top level item");
         }
@@ -474,8 +490,7 @@ impl<'tokens> Parser<'tokens> {
         items
     }
 
-    fn parse_top_level_item(&mut self) -> Result<TopLevelItem> {
-        let comments = self.parse_comments();
+    fn parse_top_level_item(&mut self, comments: Vec<String>) -> Result<TopLevelItem> {
         let id: TopLevelId;
 
         let kind = match self.current_token() {

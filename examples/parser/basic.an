@@ -16,13 +16,11 @@ Foo.print self =
     print " "
     print self.y
 
-// args: --parse
 
-// This is the current stdout but it isn't correct
+// args: --parse
 // expected stdout:
 // import Foo.Bar
 // 
-// // Programs now require a main function
 // main () =
 //     mut a = 32
 //     println &a
@@ -33,13 +31,11 @@ Foo.print self =
 // 
 // Foo.print self =
 //     print "Foo "
-//     // Comments are only allowed between statements
 //     print self.x
 //     print " "
 //     print self.y
-// 
-// 
-// errors:
-//   Cannot read source file `Foo`, does it exist?
-//   Expected a top-level item but found `end of input`
-//   Expected a newline after the top level item but found `end of input`
+
+// expected stderr:
+// examples/parser/basic.an:1:8	error: Cannot read source file `Foo`, does it exist?
+// import Foo.Bar
+

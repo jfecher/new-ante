@@ -1,0 +1,11 @@
+main () =
+    if true else
+
+    bar a b = if then else
+
+// args: --parse --no-color
+// expected stdout: main () =
+
+// expected stderr:
+// examples/parser/parse_error.an:4:0	error: Expected an unindent but found `a newline`
+//     bar a b = if then else

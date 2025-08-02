@@ -104,12 +104,12 @@ fn compile(args: Cli) {
     errors.extend(more_errors);
 
     for error in errors {
-        println!("{}", error.display(true, &compiler));
+        eprintln!("{}", error.display(true, &compiler));
     }
 
     if args.incremental {
         if let Err(error) = write_metadata(compiler, &metadata_file) {
-            println!("\n{error}");
+            eprintln!("\n{error}");
         }
     }
 }

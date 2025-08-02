@@ -15,6 +15,9 @@ use super::ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 pub struct Cst {
     pub imports: Vec<Import>,
     pub top_level_items: Vec<Arc<TopLevelItem>>,
+
+    /// Comments after the last top level item
+    pub ending_comments: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]

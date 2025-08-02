@@ -1,0 +1,23 @@
+main () =
+    foo _ a
+    bar 1 _ 3
+
+    baz _ "test" _
+
+    qux 1 (_, 32)
+    quux 3 (_) _
+
+    2 + _
+
+// args: --parse
+// expected stdout:
+// main () =
+//     foo _ a
+//     bar 1 _ 3
+//     baz _ "test" _
+//     qux 1
+
+// expected stderr:
+// examples/parser/explicit_curry.an:7:10	error: Expected an unindent but found `(`
+//     qux 1 (_, 32)
+
