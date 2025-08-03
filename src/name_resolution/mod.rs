@@ -1,4 +1,4 @@
-use std::{collections::{BTreeMap, HashMap}, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
 use namespace::{CrateId, Namespace};
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,7 @@ struct Resolver<'local, 'inner> {
     path_links: BTreeMap<PathId, Origin>,
     name_links: BTreeMap<NameId, Origin>,
     errors: Errors,
-    names_in_global_scope: BTreeMap<Arc<String>, TopLevelId>,
+    names_in_global_scope: &'local BTreeMap<Arc<String>, TopLevelId>,
     names_in_local_scope: Vec<BTreeMap<Arc<String>, NameId>>,
     context: &'local TopLevelContext,
     compiler: &'local DbHandle<'inner>,
@@ -55,7 +55,8 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
     // Note that we discord errors here because they're errors for the entire file and we are
     // resolving just one statement in it. This does mean that `CompileFile` will later need to
     // manually query `VisibleDefinition` to pick these errors back up.
-    let (names_in_scope, _errors) = VisibleDefinitions(context.0.source_file).get(compiler);
+    let visible = VisibleDefinitions(context.0.source_file).get(compiler);
+    let names_in_scope = &visible.definitions;
 
     let mut resolver = Resolver::new(compiler, context, names_in_scope, &statement_ctx);
 
@@ -79,7 +80,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     fn new(
         compiler: &'local DbHandle<'inner>,
         resolve: &Resolve,
-        names_in_scope: BTreeMap<Arc<String>, TopLevelId>,
+        names_in_scope: &'local BTreeMap<Arc<String>, TopLevelId>,
         context: &'local TopLevelContext,
     ) -> Self {
         Self {
@@ -100,7 +101,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
 
     #[allow(unused)]
     fn namespace(&self) -> Namespace {
-        Namespace::Module(self.item.source_file.crate_id, self.item.source_file.local_module_id)
+        Namespace::Module(self.item.source_file)
     }
 
     fn push_local_scope(&mut self) {
@@ -122,14 +123,30 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
 
     /// Retrieve each visible namespace in the given namespace, restricting the namespace
     /// to only items visible from `self.namespace()`
-    fn visible_namespaces_in(&self, _namespace: Namespace) -> &HashMap<String, Namespace> {
-        todo!("visible_namespaces_in")
+    fn get_child_namespace(&self, _name: &String, namespace: Namespace) -> Option<Namespace> {
+        match namespace {
+            Namespace::Local => todo!("visible_namespaces_in Local"),
+            Namespace::Module(_) => todo!("visible_namespaces_in Module"),
+            Namespace::Type(_) => None,
+        }
     }
 
     /// Retrieve each visible item in the given namespace, restricting the namespace
     /// to only items visible from `self.namespace()`
-    fn visible_items_in(&self, _namespace: Namespace) -> &HashMap<String, Origin> {
-        todo!("visible_items_in")
+    fn get_item_in_namespace(&self, name: &String, namespace: Namespace) -> Option<Origin> {
+        match namespace {
+            this if this == self.namespace() => self.lookup_local_name(name),
+            Namespace::Local => self.lookup_local_name(name),
+            Namespace::Module(file_id) => {
+                let visible = &VisibleDefinitions(file_id).get(self.compiler);
+                visible.definitions.get(name).copied().map(Origin::TopLevelDefinition)
+            },
+            Namespace::Type(top_level_id) => {
+                let visible = &VisibleDefinitions(top_level_id.source_file).get(self.compiler);
+                let methods = visible.methods.get(&top_level_id)?;
+                methods.get(name).copied().map(Origin::TopLevelDefinition)
+            },
+        }
     }
 
     /// Lookup the given path in the given namespace
@@ -138,10 +155,9 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     {
         while path.len() > 1 {
             let (item_name, item_location) = path.next().unwrap();
-            let visible_namespaces = self.visible_namespaces_in(namespace);
 
-            if let Some(next_namespace) = visible_namespaces.get(item_name) {
-                namespace = next_namespace.clone();
+            if let Some(next_namespace) = self.get_child_namespace(item_name, namespace) {
+                namespace = next_namespace;
             } else {
                 let name = item_name.clone();
                 let location = item_location.clone();
@@ -159,9 +175,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             }
         }
 
-        let items = self.visible_items_in(namespace);
-        if let Some(origin) = items.get(name) {
-            Some(origin.clone());
+        if let Some(origin) = self.get_item_in_namespace(name, namespace) {
+            return Some(origin);
         }
 
         // No known origin.
@@ -178,7 +193,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     /// Lookup a single name (not a full path) in local scope
-    fn lookup_local_name(&mut self, name: &String) -> Option<Origin> {
+    fn lookup_local_name(&self, name: &String) -> Option<Origin> {
         for scope in self.names_in_local_scope.iter().rev() {
             if let Some(expr) = scope.get(name) {
                 return Some(Origin::Local(*expr));

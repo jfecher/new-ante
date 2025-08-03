@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use cst::{BorrowMode, Comptime, Index, Lambda, MemberAccess, Name, OwnershipMode, Pattern, SharedMode};
+use cst::{BorrowMode, Comptime, DefinitionName, Index, Lambda, MemberAccess, Name, OwnershipMode, Pattern, SharedMode};
 use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
@@ -501,7 +501,8 @@ impl<'tokens> Parser<'tokens> {
                     self.token_index -= 1;
                 }
 
-                id = self.new_top_level_id(definition.path.last());
+                let name = self.current_context.names[definition.name.item_name()].clone();
+                id = self.new_top_level_id(name);
                 TopLevelItemKind::Definition(definition)
             }
             Token::Type => {
@@ -538,7 +539,7 @@ impl<'tokens> Parser<'tokens> {
         let mutable = self.accept(Token::Mut);
 
         let start_location = self.current_token_location();
-        let path = self.parse_value_path()?;
+        let name = self.parse_definition_name()?;
         let parameters = self.parse_function_parameters();
 
         // If this is a lambda, reserve the lambda's expr id ahead of time so it is allocated
@@ -562,9 +563,25 @@ impl<'tokens> Parser<'tokens> {
                 body: rhs,
             });
             self.insert_expr(id, lambda, start_location);
-            Ok(Definition { mutable, path, typ: None, rhs: id })
+            Ok(Definition { mutable, name, typ: None, rhs: id })
         } else {
-            Ok(Definition { mutable, path, typ, rhs })
+            Ok(Definition { mutable, name, typ, rhs })
+        }
+    }
+
+    fn parse_definition_name(&mut self) -> Result<DefinitionName> {
+        match self.current_token() {
+            Token::TypeName(_) => {
+                let type_name = self.parse_type_name_id()?;
+                self.expect(Token::MemberAccess, "a `.` to separate this method's object type from its name")?;
+                let item_name = self.parse_ident_id()?;
+                Ok(DefinitionName::Method { type_name, item_name })
+            }
+            Token::Identifier(_) => {
+                let name = self.parse_ident_id()?;
+                Ok(DefinitionName::Single(name))
+            }
+            _ => self.expected("a definition name"),
         }
     }
 

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::parser::ids::TopLevelId;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub(super) enum Namespace {
     /// A local namespace within an expression with possibly both
     /// locals and globals visible. The actual module will should
@@ -11,7 +11,7 @@ pub(super) enum Namespace {
 
     /// A module within a crate
     #[allow(unused)]
-    Module(CrateId, LocalModuleId),
+    Module(SourceFileId),
 
     /// A type's namespace containing its methods
     #[allow(unused)]
@@ -20,7 +20,7 @@ pub(super) enum Namespace {
 
 impl Namespace {
     pub(super) fn crate_(crate_id: CrateId) -> Self {
-        Namespace::Module(crate_id, CRATE_ROOT_MODULE)
+        Namespace::Module(SourceFileId { crate_id, local_module_id: CRATE_ROOT_MODULE })
     }
 }
 

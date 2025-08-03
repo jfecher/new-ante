@@ -41,7 +41,12 @@ pub enum TopLevelItemKind {
 impl TopLevelItemKind {
     pub fn name(&self) -> ItemName {
         match self {
-            TopLevelItemKind::Definition(definition) => ItemName::Path(&definition.path),
+            TopLevelItemKind::Definition(definition) => {
+                match definition.name {
+                    DefinitionName::Single(name_id) => ItemName::Single(name_id),
+                    DefinitionName::Method { type_name, item_name } => ItemName::Method { type_name, item_name },
+                }
+            },
             TopLevelItemKind::TypeDefinition(type_definition) => ItemName::Single(type_definition.name),
             TopLevelItemKind::TraitDefinition(trait_definition) => ItemName::Single(trait_definition.name),
             TopLevelItemKind::TraitImpl(_) => ItemName::None,
@@ -56,17 +61,21 @@ impl TopLevelItemKind {
     }
 }
 
-pub enum ItemName<'a> {
+pub enum ItemName {
     Single(NameId),
-    Path(&'a Path),
+    Method { type_name: NameId, item_name: NameId },
     None,
 }
 
-impl<'a> ItemName<'a> {
+impl ItemName {
     pub fn to_string<'ctx>(&self, context: &'ctx super::TopLevelContext) -> Cow<'ctx, str> {
         match self {
             ItemName::Single(name) => Cow::Borrowed(&context.names[*name]),
-            ItemName::Path(path) => Cow::Owned(path.to_string()),
+            ItemName::Method { type_name, item_name } => {
+                let type_name = &context.names[*type_name];
+                let item_name = &context.names[*item_name];
+                Cow::Owned(format!("{type_name}.{item_name}"))
+            },
             ItemName::None => Cow::Borrowed("impl"),
         }
     }
@@ -174,10 +183,6 @@ pub struct Path {
 }
 
 impl Path {
-    pub fn last(&self) -> &String {
-        &self.components.last().unwrap().0
-    }
-
     pub fn into_file_path(self) -> Arc<PathBuf> {
         let mut path = PathBuf::new();
         for (component, _) in self.components {
@@ -216,9 +221,25 @@ pub enum Literal {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Definition {
     pub mutable: bool,
-    pub path: Path,
+    pub name: DefinitionName,
     pub typ: Option<Type>,
     pub rhs: ExprId,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum DefinitionName {
+    Single(NameId),
+    Method { type_name: NameId, item_name: NameId },
+}
+
+impl DefinitionName {
+    /// Returns the name of this item. If this is a method, the type name is ignored.
+    pub fn item_name(self) -> NameId {
+        match self {
+            DefinitionName::Single(name_id) => name_id,
+            DefinitionName::Method { item_name, .. } => item_name,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]

@@ -46,28 +46,28 @@ main () =
 // examples/parser/named_constructor.an:3:6	error: Expected an unindent but found `with`
 //     T with b = "one", a = 1
 // 
-// examples/parser/named_constructor.an:10:6	error: Expected `.` after module name but found `with`
+// examples/parser/named_constructor.an:10:6	error: Expected a `.` to separate this method's object type from its name but found `with`
 //     T with b, a
 // 
-// examples/parser/named_constructor.an:12:6	error: Expected `.` after module name but found `with`
+// examples/parser/named_constructor.an:12:6	error: Expected a `.` to separate this method's object type from its name but found `with`
 //     T with
 // 
-// examples/parser/named_constructor.an:17:10	error: Expected `.` after module name but found `with`
+// examples/parser/named_constructor.an:17:6	error: Expected an identifier but found `U`
 //     T.U.V with a, b
 // 
-// examples/parser/named_constructor.an:20:6	error: Expected `.` after module name but found `with`
+// examples/parser/named_constructor.an:20:6	error: Expected a `.` to separate this method's object type from its name but found `with`
 //     T with a = (1, 2)
 // 
-// examples/parser/named_constructor.an:22:6	error: Expected `.` after module name but found `with`
+// examples/parser/named_constructor.an:22:6	error: Expected a `.` to separate this method's object type from its name but found `with`
 //     T with a = 1,
 // 
-// examples/parser/named_constructor.an:25:6	error: Expected `.` after module name but found `with`
+// examples/parser/named_constructor.an:25:6	error: Expected a `.` to separate this method's object type from its name but found `with`
 //     T with a = (1, 2),
 // 
-// examples/parser/named_constructor.an:29:6	error: Expected `.` after module name but found `with`
+// examples/parser/named_constructor.an:29:6	error: Expected a `.` to separate this method's object type from its name but found `with`
 //     T with foo,
 // 
-// examples/parser/named_constructor.an:33:6	error: Expected `.` after module name but found `with`
+// examples/parser/named_constructor.an:33:6	error: Expected a `.` to separate this method's object type from its name but found `with`
 //     T with
 // 
 // examples/parser/named_constructor.an:40:0	error: Expected a top-level item but found `an unindent`

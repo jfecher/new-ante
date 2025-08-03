@@ -144,7 +144,14 @@ define_intermediate!(1, Parse -> Arc<ParseResult>, Storage, parser::parse_impl);
 /// referred to in any expression in the file.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VisibleDefinitions(pub SourceFileId);
-define_intermediate!(2, VisibleDefinitions -> (Definitions, Errors), Storage, definition_collection::visible_definitions_impl);
+define_intermediate!(2, VisibleDefinitions -> Arc<VisibleDefinitionsResult>, Storage, definition_collection::visible_definitions_impl);
+
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VisibleDefinitionsResult {
+    pub definitions: Definitions,
+    pub methods: BTreeMap<TopLevelId, Definitions>,
+    pub diagnostics: Errors,
+}
 
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VisibleTypes(pub SourceFileId);
@@ -157,13 +164,17 @@ define_intermediate!(20, VisibleTypes -> (Definitions, Errors), Storage, definit
 /// HashMap, since hashmap iteration in rust has a nondeterministic ordering.
 pub type Definitions = BTreeMap<Arc<String>, TopLevelId>;
 
+/// A map from each top-level type in a file to the methods defined on it.
+/// If a type in a file does not have any methods defined on it, it may not be in the map.
+pub type Methods = BTreeMap<TopLevelId, Definitions>;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Collect all exported definitions in a file. This separate step is important because we don't
 /// want ordinary name resolution of another file to depend upon private definitions in an import.
 /// Instead, it only depends on the `ExportedDefinitions` of that import.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportedDefinitions(pub SourceFileId);
-define_intermediate!(3, ExportedDefinitions -> (Definitions, Errors), Storage, definition_collection::exported_definitions_impl);
+define_intermediate!(3, ExportedDefinitions -> Arc<VisibleDefinitionsResult>, Storage, definition_collection::exported_definitions_impl);
 
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportedTypes(pub SourceFileId);

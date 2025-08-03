@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt::{Display, Formatter}, sync::Arc};
 
-use super::{cst::{BorrowMode, Call, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext};
+use super::{cst::{BorrowMode, Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, PatternId, TopLevelId}, TopLevelContext};
 
 pub struct CstDisplayContext<'a> {
     cst: &'a Cst,
@@ -122,7 +122,7 @@ impl<'a> CstDisplay<'a> {
             write!(f, "mut ")?;
         }
 
-        write!(f, "{}", definition.path)?;
+        self.fmt_definition_name(definition.name, f)?;
 
         if let Some(typ) = &definition.typ {
             write!(f, ": ")?;
@@ -137,8 +137,19 @@ impl<'a> CstDisplay<'a> {
         self.fmt_expr(definition.rhs, f)
     }
 
+    fn fmt_definition_name(&mut self, name: DefinitionName, f: &mut Formatter) -> std::fmt::Result {
+        match name {
+            DefinitionName::Single(name_id) => write!(f, "{}", self.context().names[name_id]),
+            DefinitionName::Method { type_name, item_name } => {
+                let type_name = &self.context().names[type_name];
+                let item_name = &self.context().names[item_name];
+                write!(f, "{type_name}.{item_name}")
+            },
+        }
+    }
+
     fn fmt_function(&mut self, definition: &Definition, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{}", definition.path)?;
+        self.fmt_definition_name(definition.name, f)?;
         self.fmt_lambda_inner(lambda, f)
     }
 
