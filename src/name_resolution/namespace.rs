@@ -37,8 +37,10 @@ pub struct SourceFileId {
 pub struct CrateId(pub u32);
 
 /// `Std` always has id 0
-#[allow(unused)]
 pub const STDLIB_CRATE: CrateId = CrateId(0);
+
+/// The local crate always has id 1
+pub const LOCAL_CRATE: CrateId = CrateId(1);
 
 /// A local module id is a hash of the module path from the crate root.
 /// Module ids are expected to be unique only within the same crate.

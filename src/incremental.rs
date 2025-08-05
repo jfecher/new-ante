@@ -4,7 +4,7 @@ use inc_complete::{define_input, define_intermediate, impl_storage, storage::Has
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend, definition_collection, diagnostics::{Errors, Location}, name_resolution::{self, namespace::{CrateId, SourceFileId}, ResolutionResult}, parser::{
+    backend, definition_collection, diagnostics::{Errors, Location}, find_files::CrateGraph, name_resolution::{self, namespace::{CrateId, SourceFileId}, ResolutionResult}, parser::{
         self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext,
     }, type_inference::{self, types::GeneralizedType, TypeCheckResult}
 };
@@ -44,9 +44,7 @@ pub struct Storage {
     type_checks: HashMapStorage<TypeCheck>,
     compiled_files: HashMapStorage<CompileFile>,
     file_ids: HashMapStorage<FileId>,
-
-    #[serde(skip)]
-    pub crates: Arc<BTreeMap<CrateId, CrateData>>,
+    pub crates: CrateGraph,
 }
 
 impl_storage!(Storage,
@@ -65,11 +63,15 @@ impl_storage!(Storage,
     file_ids: FileId,
 );
 
+#[derive(Serialize, Deserialize)]
 pub struct CrateData {
-    /// Each crate has its own database since metadata is serialized per-crate
-    #[allow(unused)]
-    pub db: Db,
     pub name: String,
+
+    /// Path to the folder containing this crates's files
+    pub path: PathBuf,
+
+    /// Direct dependencies of this crate
+    pub dependencies: Vec<CrateId>,
 }
 
 std::thread_local! {
@@ -110,11 +112,12 @@ pub struct SourceFile(pub SourceFileId);
 pub struct FileData {
     pub path: Arc<PathBuf>,
     pub contents: String,
+    pub submodules: BTreeMap<String, SourceFileId>,
 }
 
 impl FileData {
     pub fn new(path: Arc<PathBuf>, contents: String) -> FileData {
-        FileData { path, contents }
+        FileData { path, contents, submodules: BTreeMap::new() }
     }
 }
 

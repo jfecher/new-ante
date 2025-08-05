@@ -7,7 +7,7 @@ pub mod namespace;
 
 use crate::{
     diagnostics::{Diagnostic, Errors, Location},
-    incremental::{self, CrateData, DbHandle, GetItem, Resolve, VisibleDefinitions},
+    incremental::{self, CrateData, DbHandle, GetItem, Resolve, SourceFile, VisibleDefinitions},
     parser::{cst::{Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, NameId, PathId, PatternId, TopLevelId}, TopLevelContext},
 };
 
@@ -123,12 +123,14 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
 
     /// Retrieve each visible namespace in the given namespace, restricting the namespace
     /// to only items visible from `self.namespace()`
-    fn get_child_namespace(&self, _name: &String, namespace: Namespace) -> Option<Namespace> {
-        match namespace {
-            Namespace::Local => todo!("visible_namespaces_in Local"),
-            Namespace::Module(_) => todo!("visible_namespaces_in Module"),
-            Namespace::Type(_) => None,
-        }
+    fn get_child_namespace(&self, name: &String, namespace: Namespace) -> Option<Namespace> {
+        let file_data = match namespace {
+            Namespace::Local => SourceFile(self.item.source_file).get(self.compiler),
+            Namespace::Module(id) => SourceFile(id).get(self.compiler),
+            Namespace::Type(_) => return None,
+        };
+
+        file_data.submodules.get(name).copied().map(Namespace::Module)
     }
 
     /// Retrieve each visible item in the given namespace, restricting the namespace

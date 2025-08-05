@@ -34,7 +34,7 @@ use crate::diagnostics::Errors;
 
 // All the compiler passes:
 // (listed out of order because `cargo fmt` alphabetizes them)
-mod find_changed_files;
+mod find_files;
 mod definition_collection;
 mod lexer;
 mod name_resolution;
@@ -52,12 +52,17 @@ mod iterator_extensions;
 // Deserialize the compiler from our metadata file.
 // If we fail, just default to a fresh compiler with no cached compilations.
 fn make_compiler(metadata_file: &Path, incremental: bool) -> Db {
+    let crates = find_files::find_all_crates();
     if incremental {
         if let Ok(text) = read_file(metadata_file) {
-            return ron::from_str(&text).unwrap_or_default();
+            let mut db: Db = ron::from_str(&text).unwrap_or_default();
+            db.storage_mut().crates = crates;
+            return db;
         }
     }
-    Db::default()
+    let mut db = Db::default();
+    db.storage_mut().crates = crates;
+    db
 }
 
 fn main() {
@@ -92,7 +97,7 @@ fn compile(args: Cli) {
     // files which have changed. These are the inputs to our incremental compilation
     // and we can't dynamically update our inputs within another query. Instead, we
     // can query to collect them all and update them here at top-level.
-    let (_files, mut errors) = find_changed_files::collect_all_changed_files(file_name, &mut compiler);
+    let (_files, mut errors) = find_files::collect_all_files(file_name, &mut compiler);
 
     let more_errors = if args.parse {
         display_parse_tree(&compiler, input_id)

@@ -222,14 +222,13 @@ impl<'tokens> Parser<'tokens> {
 
     /// Return a hash of the given data guaranteed to be unique within the current module.
     fn hash_top_level_data(&mut self, data: &impl std::hash::Hash) -> u64 {
-        let mut collisions = 0;
-        loop {
+        for collisions in 0.. {
             let hash = ids::hash((data, collisions));
             if self.top_level_item_hashes.insert(hash) {
-                break hash;
+                return hash;
             }
-            collisions += 1;
         }
+        unreachable!()
     }
 
     /// Create a new TopLevelId from the name of a given top level item.
