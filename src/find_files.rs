@@ -1,105 +1,166 @@
-use std::{collections::{BTreeMap, BTreeSet}, path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, path::{Path, PathBuf}, sync::Arc};
 
+use clap::builder::OsStr;
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 
-use crate::{diagnostics::{Diagnostic, Errors, Location}, incremental::{CrateData, Db, FileData, FileId, GetImports, SourceFile}, name_resolution::namespace::{CrateId, SourceFileId, LOCAL_CRATE, STDLIB_CRATE}, read_file};
+use crate::{incremental::{Crate, Db, FileId, SourceFile}, name_resolution::namespace::{CrateId, SourceFileId, LOCAL_CRATE, STDLIB_CRATE}, read_file};
 
 const STDLIB_PATH: &str = "stdlib/Std";
 
-/// Before we start incremental compilation we have to collect all the inputs. This means finding
-/// all the source files used. To do this we find all the crates used first then search through all
-/// the files used by those crates.
-pub fn collect_all_files(start_file: Arc<PathBuf>, compiler: &mut Db) -> (BTreeSet<SourceFileId>, Errors) {
-    let mut finder = Finder::new();
-    let mut remaining_files = BTreeSet::new();
-    let start_file = FileId(start_file).get(compiler);
-    remaining_files.insert(start_file);
-
-    while !remaining_files.is_empty() {
-        remaining_files = finder.find_files_step(remaining_files, compiler);
-    }
-
-    (finder.done, finder.errors)
-}
-
-type FileName = Arc<PathBuf>;
-
-struct Finder {
-    queue: scc::Queue<(FileName, Location)>,
-    done: BTreeSet<SourceFileId>,
-    thread_pool: rayon::ThreadPool,
-    errors: Errors,
-}
-
-#[derive(Default, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct CrateGraph {
-    pub crates: BTreeMap<CrateId, CrateData>,
-}
+type CrateGraph = BTreeMap<CrateId, Crate>;
 
 // TODO:
 // - Error for cyclic dependencies
 // - Handle crate versions
-pub fn find_all_crates() -> CrateGraph {
-    let mut graph = CrateGraph::default();
-    graph.crates.insert(STDLIB_CRATE, CrateData {
+/// Scans the file system for all crates used and populates the Db with their source files
+pub fn populate_crates_and_files(compiler: &mut Db, starting_files: &[&Path]) {
+    // We must collect all crates and their source files first in this crate graph first
+    // before setting them in the Db at the end. If we set them before finding their source
+    // files we'd need to needlessly clone them and update the Db twice instead of once.
+    let mut crates = CrateGraph::default();
+    crates.insert(STDLIB_CRATE, Crate {
         name: "Std".to_string(),
         path: PathBuf::from(STDLIB_PATH),
         dependencies: Vec::new(),
-    });
-    // TODO: track name for local crate. Currently we only compile single source files
-    graph.crates.insert(LOCAL_CRATE, CrateData {
-        name: "Local".to_string(),
-        path: PathBuf::from("."),
-        dependencies: Vec::new(),
+        source_files: Vec::new(),
     });
 
-    let mut stack = vec![LOCAL_CRATE];
+    populate_local_crate_with_starting_files(compiler, &mut crates, starting_files);
+
+    let mut stack = vec![LOCAL_CRATE, STDLIB_CRATE];
     let mut finished = FxHashSet::default();
     finished.insert(STDLIB_CRATE);
 
     while let Some(crate_id) = stack.pop() {
-        let dependencies = find_crate_dependencies(&mut graph, crate_id);
+        add_source_files_of_crate(compiler, &mut crates, crate_id);
+
+        let dependencies = find_crate_dependencies(&mut crates, crate_id);
         for dependency in &dependencies {
             if finished.insert(*dependency) {
                 stack.push(*dependency);
             }
         }
 
-        graph.crates.get_mut(&crate_id).unwrap().dependencies = dependencies;
+        crates.get_mut(&crate_id).unwrap().dependencies = dependencies;
     }
-    graph
+
+    set_crate_inputs(compiler, crates);
 }
 
-fn find_crate_dependencies(graph: &mut CrateGraph, crate_id: CrateId) -> Vec<CrateId> {
-    // Every crate currently depends on the stdlib
-    graph.crates.insert(STDLIB_CRATE, CrateData {
-        name: "Std".to_string(),
-        path: PathBuf::from(STDLIB_PATH),
-        dependencies: Vec::new(),
-    });
+/// Create the local crate's Crate entry in the graph and populate it with the given starting files.
+fn populate_local_crate_with_starting_files(compiler: &mut Db, crates: &mut CrateGraph, starting_files: &[&Path]) {
+    let mut source_files = Vec::with_capacity(starting_files.len());
 
-    let mut deps_folder = graph.crates[&crate_id].path.clone();
+    for path in starting_files {
+        let path = path.to_path_buf();
+        let id = SourceFileId::new(LOCAL_CRATE, &path);
+        let data = read_file_data(path.clone());
+        id.set(compiler, Arc::new(data));
+        FileId(Arc::new(path)).set(compiler, id);
+        source_files.push(id);
+    }
+
+    // TODO: track name for local crate. Currently we only compile single source files
+    // but have the infrastructure here to collect source files of crates and their dependencies.
+    // We're only missing CLI options.
+    crates.insert(LOCAL_CRATE, Crate {
+        name: "Local".to_string(),
+        path: PathBuf::from("."),
+        dependencies: Vec::new(),
+        source_files,
+    });
+}
+
+/// Set each CrateId -> Crate mapping as an input to the Db
+/// We can only do this once each crate's source files have been collected.
+fn set_crate_inputs(compiler: &mut Db, crates: CrateGraph) {
+    for (crate_id, crate_) in crates {
+        crate_id.set(compiler, Arc::new(crate_));
+    }
+}
+
+/// Find all Ante source files in the given crate. Currently this is hard coded
+/// to only look in the `src` directory.
+fn add_source_files_of_crate(compiler: &mut Db, crates: &mut CrateGraph, crate_id: CrateId) {
+    let mut src_folder = crates[&crate_id].path.clone();
+    src_folder.push("src");
+
+    let mut remaining = vec![src_folder];
+    let mut source_files = Vec::new();
+
+    // Push every crate in the `deps` folder as a new crate
+    while let Some(src_folder) = remaining.pop() {
+        // We should error in the future when failing to read a directory but for now we want to
+        // allow either the local crate or the stdlib to not be present and still compile when
+        // we're only working on a single source file. We may want to separate the compile mode
+        // more explicitly in the CLI in the future.
+        let Ok(src_folder) = src_folder.read_dir() else { continue };
+
+        for file in src_folder {
+            if let Ok(file) = file {
+                let path = file.path();
+                if path.is_dir() {
+                    remaining.push(path);
+                } else if path.extension() == Some(&OsStr::from("an")) {
+                    let id = SourceFileId::new(crate_id, &path);
+                    let data = read_file_data(path.clone());
+                    id.set(compiler, Arc::new(data));
+                    FileId(Arc::new(path)).set(compiler, id);
+                    source_files.push(id);
+                }
+            }
+        }
+    }
+
+    // `extend` instead of setting it in case this is LOCAL_CRATE and `populate_local_crate_with_starting_files`
+    // populated it with an initial set of files manually specified by the user.
+    crates.get_mut(&crate_id).unwrap().source_files.extend(source_files);
+}
+
+fn read_file_data(file: PathBuf) -> SourceFile {
+    let file = Arc::new(file);
+    let text = match read_file(&file) {
+        Ok(text) => text,
+        Err(_) => {
+            // A proper Diagnostic here would be better but there is no source location to use.
+            eprintln!("warning: failed to read file {}", file.display());
+            String::new()
+        }
+    };
+    SourceFile::new(file, text)
+}
+
+fn find_crate_dependencies(crates: &mut CrateGraph, crate_id: CrateId) -> Vec<CrateId> {
+    let mut deps_folder = crates[&crate_id].path.clone();
     deps_folder.push("deps");
 
+    // Every crate currently depends on the stdlib
+    let mut dependencies = vec![STDLIB_CRATE];
     let mut remaining = vec![deps_folder];
-    let mut dependencies = Vec::new();
 
     // Push every crate in the `deps` folder as a new crate
     while let Some(deps_folder) = remaining.pop() {
-        for dependency in deps_folder.read_dir().expect("Failed to read `deps` directory to find crate dependencies") {
+        // We should error in the future when failing to read a directory but for now we want to
+        // allow either the local crate or the stdlib to not be present and still compile when
+        // we're only working on a single source file. We may want to separate the compile mode
+        // more explicitly in the CLI in the future.
+        let Ok(deps_folder) = deps_folder.read_dir() else { continue };
+
+        for dependency in deps_folder {
             if let Ok(dependency) = dependency {
                 let path = dependency.path();
-                let name = path.with_extension("").file_name().unwrap().to_string_lossy().into_owned();
-                let id = new_crate_id(&graph, &name, 0);
-                dependencies.push(id);
+                if path.is_dir() {
+                    let name = path.file_name().unwrap().to_string_lossy().into_owned();
+                    let id = new_crate_id(&crates, &name, 0);
+                    dependencies.push(id);
 
-                graph.crates.insert(id, CrateData {
-                    name,
-                    path,
-                    dependencies: Vec::new(),
-                });
+                    crates.insert(id, Crate {
+                        name,
+                        path,
+                        dependencies: Vec::new(),
+                        source_files: Vec::new(),
+                    });
+                }
             }
         }
     }
@@ -108,73 +169,14 @@ fn find_crate_dependencies(graph: &mut CrateGraph, crate_id: CrateId) -> Vec<Cra
 }
 
 /// Create a new unique CrateId from the crate's name and version
-fn new_crate_id(graph: &CrateGraph, name: &String, version: u32) -> CrateId {
+fn new_crate_id(crates: &CrateGraph, name: &String, version: u32) -> CrateId {
     for collisions in 0.. {
         let hash = crate::parser::ids::hash((name, version, collisions));
         let id = CrateId(hash as u32);
 
-        if !graph.crates.contains_key(&id) {
+        if !crates.contains_key(&id) {
             return id;
         }
     }
-    unreachable!()
-}
-
-impl Finder {
-    fn new() -> Self {
-        let thread_pool = rayon::ThreadPoolBuilder::new().build().unwrap();
-        Self { thread_pool, queue: Default::default(), done: Default::default(), errors: Vec::new() }
-    }
-
-    /// Search through all files in the queue, parse them, and wait until they finish.
-    /// Afterward, update all the new inputs found. We must wait for them to finish before
-    /// updating any new inputs, even though this limits concurrency, because it is not possible
-    /// to update inputs while incremental computations are running in general (inc-complete
-    /// forbids this, salsa cancels ongoing computations, etc). 
-    fn find_files_step(&mut self, files: BTreeSet<SourceFileId>, compiler: &mut Db) -> BTreeSet<SourceFileId> {
-        let compiler_ref: &Db = &compiler;
-        let queue = &self.queue;
-        self.thread_pool.scope(|scope| {
-            for file in files {
-                if self.done.contains(&file) {
-                    continue;
-                }
-                self.done.insert(file);
-
-                // Parse and collect imports of the file in a separate thread. This can be helpful
-                // when files contain many imports, so we can parse many of them simultaneously.
-                scope.spawn(move |_| {
-                    for import in GetImports(file).get(compiler_ref) {
-                        queue.push(import);
-                    }
-                });
-            }
-        });
-
-        // Wait for all threads to complete before updating new files because we need exclusive
-        // access to Compiler
-        let mut new_files = BTreeSet::new();
-        while let Some(file_and_location) = self.queue.pop() {
-            let file = file_and_location.0.clone();
-            let location = file_and_location.1.clone();
-
-            let file_id = super::path_to_id(&file);
-            if self.done.contains(&file_id) {
-                continue;
-            }
-
-            let text = read_file(&file).unwrap_or_else(|_| {
-                self.errors.push(Diagnostic::UnknownImportFile { file_name: file.clone(), location });
-
-                // Treat file as an empty string. This will probably just lead to more errors but does
-                // let us continue to collect name/type errors for other files
-                String::new()
-            });
-
-            let file_data = FileData::new(file, text);
-            SourceFile(file_id).set(compiler, Arc::new(file_data));
-            new_files.insert(file_id);
-        }
-        new_files
-    }
+    unreachable!("We have somehow had i32::MAX hash collisions")
 }

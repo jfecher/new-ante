@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use colored::{ColoredString, Colorize};
 use serde::{Deserialize, Serialize};
 
-use crate::{incremental::{Db, SourceFile}, lexer::token::Token};
+use crate::{incremental::Db, lexer::token::Token};
 
 mod location;
 
@@ -109,7 +109,7 @@ impl Diagnostic {
         let location = self.location();
         let start = location.span.start;
 
-        let file = SourceFile(location.file_id).get(compiler);
+        let file = location.file_id.get(compiler);
         let relative_path = os_agnostic_display_path(&file.path, show_color);
 
         writeln!(f, "{}:{}:{}\t{} {}", relative_path, start.line_number, start.column_number, self.marker(show_color), self.message())?;

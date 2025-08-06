@@ -31,6 +31,13 @@ pub struct SourceFileId {
     pub local_module_id: LocalModuleId,
 }
 
+impl SourceFileId {
+    pub fn new(crate_id: CrateId, path: &std::path::Path) -> SourceFileId {
+        let local_module_id = LocalModuleId(crate::parser::ids::hash(path) as u32);
+        SourceFileId { crate_id, local_module_id }
+    }
+}
+
 /// A crate's id is a hash of its name and its version.
 /// Crate ids are expected to be globally unique.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

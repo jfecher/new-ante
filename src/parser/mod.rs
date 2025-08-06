@@ -5,7 +5,7 @@ use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{diagnostics::{Diagnostic, ErrorDefault, Location, LocationData, Span}, incremental::{self, SourceFile}, lexer::{token::Token, Lexer}, name_resolution::namespace::SourceFileId, vecmap::VecMap};
+use crate::{diagnostics::{Diagnostic, ErrorDefault, Location, LocationData, Span}, incremental, lexer::{token::Token, Lexer}, name_resolution::namespace::SourceFileId, vecmap::VecMap};
 
 use self::cst::{Cst, Import, Path, TopLevelItem, TopLevelItemKind, TypeDefinition, Type, Expr, TypeDefinitionBody, Literal, SequenceItem, Definition, Call};
 
@@ -68,7 +68,7 @@ struct Parser<'tokens> {
 }
 
 pub fn parse_impl(ctx: &incremental::Parse, db: &incremental::DbHandle) -> Arc<ParseResult> {
-    let file = SourceFile(ctx.0).get(db);
+    let file = ctx.0.get(db);
     let tokens = Lexer::new(&file.contents).collect::<Vec<_>>();
     Arc::new(Parser::new(ctx.0, &tokens).parse())
 }

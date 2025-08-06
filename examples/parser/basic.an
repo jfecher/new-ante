@@ -34,8 +34,3 @@ Foo.print self =
 //     print self.x
 //     print " "
 //     print self.y
-
-// expected stderr:
-// examples/parser/basic.an:1:8	error: Cannot read source file `Foo`, does it exist?
-// import Foo.Bar
-

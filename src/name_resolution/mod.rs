@@ -1,13 +1,13 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use namespace::{CrateId, Namespace};
+use namespace::{Namespace, LOCAL_CRATE};
 use serde::{Deserialize, Serialize};
 
 pub mod namespace;
 
 use crate::{
     diagnostics::{Diagnostic, Errors, Location},
-    incremental::{self, CrateData, DbHandle, GetItem, Resolve, SourceFile, VisibleDefinitions},
+    incremental::{self, DbHandle, GetItem, Resolve, VisibleDefinitions},
     parser::{cst::{Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, NameId, PathId, PatternId, TopLevelId}, TopLevelContext},
 };
 
@@ -40,11 +40,6 @@ pub enum Origin {
     Local(NameId),
     /// This name did not resolve, try to perform type based resolution on it during type inference
     TypeResolution,
-}
-
-/// Retrieves the crate dependencies for the current crate
-pub fn dependencies<'db>(compiler: &'db DbHandle) -> &'db BTreeMap<CrateId, CrateData> {
-    &compiler.storage().crates
 }
 
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
@@ -125,8 +120,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     /// to only items visible from `self.namespace()`
     fn get_child_namespace(&self, name: &String, namespace: Namespace) -> Option<Namespace> {
         let file_data = match namespace {
-            Namespace::Local => SourceFile(self.item.source_file).get(self.compiler),
-            Namespace::Module(id) => SourceFile(id).get(self.compiler),
+            Namespace::Local => self.item.source_file.get(self.compiler),
+            Namespace::Module(id) => id.get(self.compiler),
             Namespace::Type(_) => return None,
         };
 
@@ -215,12 +210,13 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             let (first, _) = components.peek().unwrap();
 
             // Check if it is an absolute path
-            let crates = dependencies(self.compiler);
-            for (crate_id, crate_data) in crates {
-                if **first == crate_data.name {
+            let local_crate = LOCAL_CRATE.get(self.compiler);
+            for dependency_id in &local_crate.dependencies {
+                let dependency = dependency_id.get(self.compiler);
+                if **first == dependency.name {
                     // Discard the crate name
                     components.next();
-                    return self.lookup_in(components, Namespace::crate_(*crate_id));
+                    return self.lookup_in(components, Namespace::crate_(*dependency_id));
                 }
             }
         }

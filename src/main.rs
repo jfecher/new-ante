@@ -23,11 +23,12 @@
 use clap::{CommandFactory, Parser};
 use cli::{Cli, Completions};
 use diagnostics::Diagnostic;
-use incremental::{CompileFile, Db, FileData, FileId, Parse, Resolve, SourceFile};
-use name_resolution::namespace::{CrateId, LocalModuleId, SourceFileId};
+use find_files::populate_crates_and_files;
+use incremental::{CompileFile, Db, Parse, Resolve};
+use name_resolution::namespace::{CrateId, LocalModuleId, SourceFileId, LOCAL_CRATE};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
-    collections::BTreeSet, fs::File, io::{Read, Write}, path::{Path, PathBuf}, sync::Arc
+    collections::BTreeSet, fs::File, io::{Read, Write}, path::Path
 };
 
 use crate::diagnostics::Errors;
@@ -52,17 +53,12 @@ mod iterator_extensions;
 // Deserialize the compiler from our metadata file.
 // If we fail, just default to a fresh compiler with no cached compilations.
 fn make_compiler(metadata_file: &Path, incremental: bool) -> Db {
-    let crates = find_files::find_all_crates();
     if incremental {
         if let Ok(text) = read_file(metadata_file) {
-            let mut db: Db = ron::from_str(&text).unwrap_or_default();
-            db.storage_mut().crates = crates;
-            return db;
+            return ron::from_str(&text).unwrap_or_default();
         }
     }
-    let mut db = Db::default();
-    db.storage_mut().crates = crates;
-    db
+    Db::default()
 }
 
 fn main() {
@@ -81,32 +77,16 @@ fn compile(args: Cli) {
 
     let mut compiler = make_compiler(&metadata_file, args.incremental);
 
-    let source = read_file(filename).unwrap_or_else(|error| {
-        eprintln!("error: {error}");
-        std::process::exit(1);
-    });
+    // TODO: If the compiler is created from incremental metadata, any previous input
+    // files that are no longer used are never cleared.
+    populate_crates_and_files(&mut compiler, &[filename]);
 
-    let file_name = Arc::new(PathBuf::from(filename));
-    let input_id = path_to_id(&file_name);
-    compiler.update_input(FileId(file_name.clone()), input_id);
-
-    let file = FileData::new(file_name.clone(), source);
-    compiler.update_input(SourceFile(input_id), Arc::new(file));
-
-    // First, run through our input file and any imports recursively to find any
-    // files which have changed. These are the inputs to our incremental compilation
-    // and we can't dynamically update our inputs within another query. Instead, we
-    // can query to collect them all and update them here at top-level.
-    let (_files, mut errors) = find_files::collect_all_files(file_name, &mut compiler);
-
-    let more_errors = if args.parse {
-        display_parse_tree(&compiler, input_id)
+    let errors = if args.parse {
+        display_parse_tree(&compiler)
     } else {
         // Only name resolution is implemented currently
-        display_name_resolution(&compiler, input_id)
+        display_name_resolution(&compiler)
     };
-
-    errors.extend(more_errors);
 
     for error in errors {
         eprintln!("{}", error.display(true, &compiler));
@@ -119,28 +99,36 @@ fn compile(args: Cli) {
     }
 }
 
-fn display_parse_tree(compiler: &Db, input: SourceFileId) -> Vec<Diagnostic> {
-    let result = Parse(input).get(compiler);
-    println!("{}", result.cst.display(&result.top_level_data));
-    result.diagnostics.clone()
-}
-
-fn display_name_resolution(compiler: &Db, input: SourceFileId) -> Vec<Diagnostic> {
-    let parse = Parse(input).get(compiler);
+fn display_parse_tree(compiler: &Db) -> Vec<Diagnostic> {
+    let local_crate = LOCAL_CRATE.get(compiler);
     let mut diagnostics = Vec::new();
 
-    for item in &parse.cst.top_level_items {
-        let resolve = Resolve(item.id).get(compiler);
-        diagnostics.extend(resolve.errors);
+    for file in &local_crate.source_files {
+        let result = Parse(*file).get(compiler);
+        println!("{}", result.cst.display(&result.top_level_data));
+        diagnostics.extend(result.diagnostics.iter().cloned())
     }
-
     diagnostics
 }
 
-pub fn path_to_id(path: &Path) -> SourceFileId {
+fn display_name_resolution(compiler: &Db) -> Vec<Diagnostic> {
+    let local_crate = LOCAL_CRATE.get(compiler);
+    let mut diagnostics = Vec::new();
+
+    for file in &local_crate.source_files {
+        let parse = Parse(*file).get(compiler);
+
+        for item in &parse.cst.top_level_items {
+            let resolve = Resolve(item.id).get(compiler);
+            diagnostics.extend(resolve.errors);
+        }
+    }
+    diagnostics
+}
+
+pub fn path_to_id(crate_id: CrateId, path: &Path) -> SourceFileId {
     let local_module_id = LocalModuleId(parser::ids::hash(path) as u32);
-    // Temporarily assign crate id while crates are unimplemented
-    SourceFileId { crate_id: CrateId(1), local_module_id }
+    SourceFileId { crate_id, local_module_id }
 }
 
 /// Compile all the files in the set to python files. In a real compiler we may want
