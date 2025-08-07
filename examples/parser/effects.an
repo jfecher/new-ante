@@ -1,9 +1,9 @@
 
-effect Log with log: String -> Unit
+effect Log with log: fn String -> Unit
 
 effect Use a with
-    get: Unit -> a
-    set: a - i32 -> Unit
+    get: fn Unit -> a
+    set: fn a I32 -> Unit
 
 main () =
     handle log "test1"
@@ -25,22 +25,29 @@ main () =
     | return _ -> "foo"
     | log _ -> "impossible"
 
-map1 (l: List a) (f: a -> b can Log) : List b = ()
+map1 (l: List a) (f: fn a -> b can Log) : List b = ()
 
-map2 (l: List a) (f: a -> b pure) : List b = ()
+map2 (l: List a) (f: fn a -> b pure) : List b = ()
 
-map3 (l: List a) (f: a -> b pure) : List b pure = ()
+map3 (l: List a) (f: fn a -> b pure) : List b pure = ()
 
-map4 (l: List a) (f: a -> b) : List b can Log = ()
+map4 (l: List a) (f: fn a -> b) : List b can Log = ()
 
 // args: --parse
-// expected stdout: main () =
-
-
+// expected stdout:
+// main () =
+// 
+// map1 (l: List a) (f: fn a -> b can Log) : List b = ()
+// 
+// map2 (l: List a) (f: fn a -> b pure) : List b = ()
+// 
+// map3 (l: List a) (f: fn a -> b pure) : List b pure = ()
+// 
+// map4 (l: List a) (f: fn a -> b) : List b can Log = ()
 
 // expected stderr:
 // examples/parser/effects.an:2:0	error: Expected a top-level item but found `effect`
-// effect Log with log: String -> Unit
+// effect Log with log: fn String -> Unit
 // 
 // examples/parser/effects.an:4:0	error: Expected a top-level item but found `effect`
 // effect Use a with
@@ -77,16 +84,4 @@ map4 (l: List a) (f: a -> b) : List b can Log = ()
 // 
 // examples/parser/effects.an:26:4	error: Expected a top-level item but found `|`
 //     | log _ -> "impossible"
-// 
-// examples/parser/effects.an:28:14	error: Expected `=` to begin the function body but found `a`
-// map1 (l: List a) (f: a -> b can Log) : List b = ()
-// 
-// examples/parser/effects.an:30:14	error: Expected `=` to begin the function body but found `a`
-// map2 (l: List a) (f: a -> b pure) : List b = ()
-// 
-// examples/parser/effects.an:32:14	error: Expected `=` to begin the function body but found `a`
-// map3 (l: List a) (f: a -> b pure) : List b pure = ()
-// 
-// examples/parser/effects.an:34:14	error: Expected `=` to begin the function body but found `a`
-// map4 (l: List a) (f: a -> b) : List b can Log = ()
 

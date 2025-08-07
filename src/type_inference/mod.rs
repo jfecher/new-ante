@@ -154,7 +154,12 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             Expr::Literal(Literal::Integer(_, Some(kind))) => {
                 Type::Primitive(PrimitiveType::Int(*kind))
             },
+            Expr::Literal(Literal::Float(_, Some(kind))) => {
+                Type::Primitive(PrimitiveType::Float(*kind))
+            },
+            Expr::Literal(Literal::Bool(_)) => Type::Primitive(PrimitiveType::Bool),
             Expr::Literal(Literal::Integer(_, None)) => todo!(),
+            Expr::Literal(Literal::Float(_, None)) => todo!(),
             Expr::Literal(Literal::String(_)) => todo!(),
             Expr::Variable(_identifier) => {
                 // If this is a built-in, get that type. Otherwise, lookup or query its type.

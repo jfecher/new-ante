@@ -1,15 +1,15 @@
 
 trait Show a with
-    show: a -> String
+    show: fn a -> String
 
 trait Cast a b -> c with
-    cast: a -> b
+    cast: fn a -> b
 
 // A collection c of elements of type e
 // The element type is uniquely determined by the collection's type c
 trait Collection c -> e with
-    push: c - e -> c
-    pop: c -> Maybe e
+    push: fn c - e -> c
+    pop: fn c -> Maybe e
     empty: c
 
 

@@ -53,6 +53,7 @@ pub struct FunctionType {
 pub enum PrimitiveType {
     Error,
     Unit,
+    Bool,
     Pointer,
     Int(IntegerKind),
     Float(FloatKind),
@@ -174,6 +175,7 @@ impl std::fmt::Display for PrimitiveType {
         match self {
             PrimitiveType::Error => write!(f, "(error)"),
             PrimitiveType::Unit => write!(f, "Unit"),
+            PrimitiveType::Bool => write!(f, "Bool"),
             PrimitiveType::Pointer => write!(f, "Ptr"),
             PrimitiveType::Int(kind) => write!(f, "{kind}"),
             PrimitiveType::Float(kind) => write!(f, "{kind}"),

@@ -2,7 +2,7 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{diagnostics::{ErrorDefault, Location}, lexer::token::{FloatKind, IntegerKind, Token}};
+use crate::{diagnostics::{ErrorDefault, Location}, lexer::token::{FloatKind, IntegerKind, Token, F64}};
 
 use super::ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 
@@ -216,7 +216,9 @@ pub struct SequenceItem {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Literal {
     Unit,
+    Bool(bool),
     Integer(u64, Option<IntegerKind>),
+    Float(F64, Option<FloatKind>),
     String(String),
 }
 
@@ -286,6 +288,7 @@ impl OwnershipMode {
 pub struct Lambda {
     pub parameters: Vec<PatternId>,
     pub return_type: Option<Type>,
+    pub effects: Option<Vec<EffectType>>,
     pub body: ExprId,
 }
 

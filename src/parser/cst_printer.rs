@@ -163,6 +163,7 @@ impl<'a> CstDisplay<'a> {
         if let Some(typ) = &lambda.return_type {
             write!(f, " : ")?;
             self.fmt_type(typ, f)?;
+            self.fmt_effect_clause(&lambda.effects, f)?;
         }
 
         write!(f, " =")?;
@@ -170,6 +171,53 @@ impl<'a> CstDisplay<'a> {
             write!(f, " ")?;
         }
         self.fmt_expr(lambda.body, f)
+    }
+
+    /// Formats an effect clause with a leading space
+    fn fmt_effect_clause(&self, effects: &Option<Vec<EffectType>>, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(effects) = effects {
+            if effects.is_empty() {
+                write!(f, " pure")?;
+            } else {
+                write!(f, " can ")?;
+                for (i, effect) in effects.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    self.fmt_effect_type(effect, f)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn fmt_effect_type(&self, effect: &EffectType, f: &mut Formatter) -> std::fmt::Result {
+        match effect {
+            EffectType::Known(path_id, args) => {
+                write!(f, "{}", self.context().paths[*path_id])?;
+                self.fmt_type_args(args, f)
+            },
+            EffectType::Variable(name_id) => write!(f, "{}", self.context().names[*name_id]),
+        }
+    }
+
+    /// Formats type arguments with a leading space in front of each (including the first)
+    fn fmt_type_args(&self, args: &[Type], f: &mut Formatter) -> std::fmt::Result {
+        let requires_parens = |typ: &Type| {
+            matches!(typ, Type::Function(_) | Type::TypeApplication(..))
+        };
+
+        for arg in args {
+            if requires_parens(arg) {
+                write!(f, " (")?;
+                self.fmt_type(arg, f)?;
+                write!(f, ")")?;
+            } else {
+                write!(f, " ")?;
+                self.fmt_type(arg, f)?;
+            }
+        }
+        Ok(())
     }
 
     fn indent(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -243,61 +291,15 @@ impl<'a> CstDisplay<'a> {
             self.fmt_type(constructor, f)?;
         }
 
-        for arg in args {
-            if requires_parens(arg) {
-                write!(f, " (")?;
-                self.fmt_type(arg, f)?;
-                write!(f, ")")?;
-            } else {
-                write!(f, " ")?;
-                self.fmt_type(arg, f)?;
-            }
-        }
-
-        Ok(())
+        self.fmt_type_args(args, f)
     }
 
     fn fmt_function_type(&self, function_type: &FunctionType, f: &mut Formatter) -> std::fmt::Result {
-        for parameter in &function_type.parameters {
-            if matches!(parameter, Type::Function(_) | Type::TypeApplication(..)) {
-                write!(f, "(")?;
-                self.fmt_type(parameter, f)?;
-                write!(f, ") -> ")?;
-            } else {
-                self.fmt_type(parameter, f)?;
-                write!(f, " -> ")?;
-            }
-        }
+        write!(f, "fn")?;
+        self.fmt_type_args(&function_type.parameters, f)?;
+        write!(f, " -> ")?;
         self.fmt_type(&function_type.return_type, f)?;
-
-        if let Some(effects) = &function_type.effects {
-            if effects.is_empty() {
-                write!(f, " pure")?;
-            } else {
-                write!(f, " can ")?;
-                for (i, effect) in effects.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, ", ")?;
-                    }
-                    self.fmt_effect(effect, f)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn fmt_effect(&self, effect: &EffectType, f: &mut Formatter) -> std::fmt::Result {
-        match effect {
-            EffectType::Known(path, args) => {
-                write!(f, "{}", self.context().paths[*path])?;
-                for arg in args {
-                    write!(f, " ")?;
-                    self.fmt_type(arg, f)?;
-                }
-                Ok(())
-            },
-            EffectType::Variable(name) => write!(f, "{}", self.context().names[*name]),
-        }
+        self.fmt_effect_clause(&function_type.effects, f)
     }
 
     fn fmt_expr(&mut self, expr: ExprId, f: &mut Formatter) -> std::fmt::Result {
@@ -321,10 +323,13 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_literal(&mut self, literal: &Literal, f: &mut Formatter) -> std::fmt::Result {
         match literal {
+            Literal::Unit => write!(f, "()"),
+            Literal::Bool(value) => write!(f, "{value}"),
+            Literal::String(s) => write!(f, "\"{s}\""),
             Literal::Integer(x, Some(kind)) => write!(f, "{x}_{kind}"),
             Literal::Integer(x, None) => write!(f, "{x}"),
-            Literal::String(s) => write!(f, "\"{s}\""),
-            Literal::Unit => write!(f, "()"),
+            Literal::Float(x, Some(kind)) => write!(f, "{x}_{kind}"),
+            Literal::Float(x, None) => write!(f, "{x}"),
         }
     }
 

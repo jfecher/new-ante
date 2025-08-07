@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use cst::{BorrowMode, Comptime, DefinitionName, Index, Lambda, MemberAccess, Name, OwnershipMode, Pattern, SharedMode};
+use cst::{BorrowMode, Comptime, DefinitionName, EffectType, Index, Lambda, MemberAccess, Name, OwnershipMode, Pattern, SharedMode};
 use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
@@ -546,8 +546,10 @@ impl<'tokens> Parser<'tokens> {
         let lambda = (parameters.len() != 0).then(|| self.reserve_expr());
 
         let mut typ = None;
+        let mut effects = None;
         if self.accept(Token::Colon) {
             typ = self.parse_with_recovery(Self::parse_type, Token::Equal, &[Token::Newline, Token::Indent]).ok();
+            effects = self.parse_effects_clause();
         }
         self.expect(Token::Equal, "`=` to begin the function body")?;
 
@@ -559,6 +561,7 @@ impl<'tokens> Parser<'tokens> {
             let lambda = Expr::Lambda(Lambda {
                 parameters,
                 return_type: typ,
+                effects,
                 body: rhs,
             });
             self.insert_expr(id, lambda, start_location);
@@ -677,12 +680,66 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn parse_type(&mut self) -> Result<Type> {
-        let typ = self.parse_type_arg()?;
-        let mut args = Vec::new();
-
-        while let Ok(typ) = self.parse_type_arg() {
-            args.push(typ);
+        match self.current_token() {
+            Token::Fn => self.parse_function_type(),
+            _ => self.parse_type_application(),
         }
+    }
+
+    fn parse_function_type(&mut self) -> Result<Type> {
+        self.expect(Token::Fn, "`fn` to start this function type")?;
+
+        let mut parameters = self.many0(Self::parse_type_arg);
+        if parameters.is_empty() {
+            parameters.push(Type::Unit);
+        }
+
+        self.expect(Token::RightArrow, "`->` to separate this function type's parameters from its return type")?;
+        let return_type = Box::new(self.parse_type()?);
+        let effects = self.parse_effects_clause();
+
+        Ok(Type::Function(cst::FunctionType { parameters, return_type, effects }))
+    }
+
+    /// The effect clause on a function or function type.
+    ///
+    /// effects_clause: 'can' effect_type (',' effect_type)*
+    ///               | 'pure'
+    ///               | %empty
+    fn parse_effects_clause(&mut self) -> Option<Vec<EffectType>> {
+        match self.current_token() {
+            Token::Can => {
+                self.advance();
+                Some(self.delimited(Self::parse_effect_type, Token::Comma, false))
+            }
+            Token::Pure => {
+                self.advance();
+                Some(Vec::new())
+            }
+            _ => None,
+        }
+    }
+
+    fn parse_effect_type(&mut self) -> Result<EffectType> {
+        match self.current_token() {
+            Token::TypeName(_) => {
+                let path = self.parse_type_path_id()?;
+                let args = self.many0(Self::parse_type_arg);
+                Ok(EffectType::Known(path, args))
+            }
+            Token::Identifier(_) => {
+                let name = self.parse_ident_id()?;
+                Ok(EffectType::Variable(name))
+            }
+            _ => self.expected("an effect name"),
+        }
+    }
+
+    /// Parses a type application or a single type argument
+    /// type_application: parse_type_arg+
+    fn parse_type_application(&mut self) -> Result<Type> {
+        let typ = self.parse_type_arg()?;
+        let args = self.many0(Self::parse_type_arg);
 
         if args.is_empty() {
             Ok(typ)
@@ -1052,6 +1109,7 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
+    /// Parse an indivisible expression which is valid anywhere a value is expected
     fn parse_quark(&mut self) -> Result<ExprId> {
         match self.current_token() {
             Token::IntegerLiteral(value, kind) => {
@@ -1062,7 +1120,36 @@ impl<'tokens> Parser<'tokens> {
                 Ok(self.push_expr(expr, location))
             }
             Token::StringLiteral(s) => self.parse_string(s.clone()),
+            Token::BooleanLiteral(value) => {
+                let location = self.current_token_location();
+                self.advance();
+                let expr = Expr::Literal(Literal::Bool(*value));
+                Ok(self.push_expr(expr, location))
+            }
+            Token::FloatLiteral(value, kind) => {
+                let (value, kind) = (*value, *kind);
+                let location = self.current_token_location();
+                self.advance();
+                let expr = Expr::Literal(Literal::Float(value, kind));
+                Ok(self.push_expr(expr, location))
+            }
             Token::Identifier(_) | Token::TypeName(_) => self.parse_variable(),
+            Token::ParenthesisLeft => {
+                self.advance();
+                // These `too_far` tokens aren't accurate, they may appear in an expression.
+                // What we really want is a recover with balanced parens such that if a mismatched
+                // `]`, `)` or unindent is found we halt the recovery. `recover_to_next_newline` is
+                // almost this.
+                let too_far = &[Token::Newline, Token::Indent, Token::Unindent];
+                let expr = self.parse_expr_with_recovery(Self::parse_expression, Token::ParenthesisRight, too_far)?;
+                self.expect(Token::ParenthesisRight, "a `)` to close the opening `(` from the parameter")?;
+                Ok(expr)
+            }
+            Token::UnitLiteral => {
+                let location = self.current_token_location();
+                self.advance();
+                Ok(self.push_expr(Expr::Literal(Literal::Unit), location))
+            }
             _ => self.expected("an expression"),
         }
     }

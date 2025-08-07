@@ -22,38 +22,31 @@ t = 3 : I32
 // expected stdout:
 // type Struct1 =
 //     a: I32
+//     b: F64
+//     c: String
 // 
 // type Struct2 =
 //     a: Thingy
-//     b: Generic
-// 
-// type Union1 =
-//     Variant1
-//     Variant2
-// 
-// type Maybe =
-//     Some a
-//     None
-// 
-// type List =
-//     Nil
-//     Cons a
-// 
-// t = 3
-
-// expected stderr:
-// examples/parser/type_decl.an:2:24	error: Expected a newline after the top level item but found `F64`
-// type Struct1 = a:I32, b:F64, c:String
-// 
-// examples/parser/type_decl.an:6:15	error: Expected an unindent but found `t`
 //     b: Generic t Thingy
 // 
-// examples/parser/type_decl.an:14:29	error: Expected a newline after the top level item but found `(`
+// type Union1 =
+//     | Variant1
+//     | Variant2
+// 
+// type Maybe =
+//     | Some a
+//     | None
+// 
+// type List =
+//     | Nil
+//     | Cons a (error)
+// 
+// t = 3: I32
+
+// expected stderr:
+// examples/parser/type_decl.an:14:30	error: Expected a type but found `&`
 // type List a = | Nil | Cons a (&List a)
 // 
 // examples/parser/type_decl.an:17:19	error: Expected a field name or `|` to start this type body but found `&`
 // type UniquePtr a = &a
-// 
-// examples/parser/type_decl.an:19:6	error: Expected a newline after the top level item but found `:`
-// t = 3 : I32
 
