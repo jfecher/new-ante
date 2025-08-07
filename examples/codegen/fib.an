@@ -1,0 +1,11 @@
+fib n =
+    if n < 2 then n
+    else fib (n - 2) + fib (n - 1)
+
+print (fib 10)
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/fib.an:2:9	error: `<` is not defined, was it a typo?
+//     if n < 2 then n
+

@@ -1,0 +1,14 @@
+
+trait Foo a -> b with
+    foo: a -> b
+
+impl Foo I32 String with
+    foo _ = "hi"
+
+str = foo 0i32
+
+// args: --check --show-types
+// expected stderr:
+// examples/typechecking/trait_fundep_result.an:8:6	error: `foo` is not defined, was it a typo?
+// str = foo 0i32
+

@@ -1,0 +1,13 @@
+get_closure () =
+    foo = "hi there"
+    stuff () = print foo
+    stuff
+
+foo = get_closure ()
+foo ()
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/closure_return.an:4:4	error: `stuff` is not defined, was it a typo?
+//     stuff
+

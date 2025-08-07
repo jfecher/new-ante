@@ -1,9 +1,13 @@
-use std::{collections::BTreeMap, path::{Path, PathBuf}, sync::Arc};
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
 use clap::builder::OsStr;
 use rustc_hash::FxHashSet;
 
-use crate::{incremental::{Crate, Db, FileId, SourceFile}, name_resolution::namespace::{CrateId, SourceFileId, LOCAL_CRATE, STDLIB_CRATE}, read_file};
+use crate::{
+    incremental::{Crate, Db, FileId, SourceFile},
+    name_resolution::namespace::{CrateId, SourceFileId, LOCAL_CRATE, STDLIB_CRATE},
+    read_file,
+};
 
 const STDLIB_PATH: &str = "stdlib/Std";
 
@@ -13,17 +17,20 @@ type CrateGraph = BTreeMap<CrateId, Crate>;
 // - Error for cyclic dependencies
 // - Handle crate versions
 /// Scans the file system for all crates used and populates the Db with their source files
-pub fn populate_crates_and_files(compiler: &mut Db, starting_files: &[&Path]) {
+pub fn populate_crates_and_files(compiler: &mut Db, starting_files: &[PathBuf]) {
     // We must collect all crates and their source files first in this crate graph first
     // before setting them in the Db at the end. If we set them before finding their source
     // files we'd need to needlessly clone them and update the Db twice instead of once.
     let mut crates = CrateGraph::default();
-    crates.insert(STDLIB_CRATE, Crate {
-        name: "Std".to_string(),
-        path: PathBuf::from(STDLIB_PATH),
-        dependencies: Vec::new(),
-        source_files: Vec::new(),
-    });
+    crates.insert(
+        STDLIB_CRATE,
+        Crate {
+            name: "Std".to_string(),
+            path: PathBuf::from(STDLIB_PATH),
+            dependencies: Vec::new(),
+            source_files: Vec::new(),
+        },
+    );
 
     populate_local_crate_with_starting_files(compiler, &mut crates, starting_files);
 
@@ -48,7 +55,11 @@ pub fn populate_crates_and_files(compiler: &mut Db, starting_files: &[&Path]) {
 }
 
 /// Create the local crate's Crate entry in the graph and populate it with the given starting files.
-fn populate_local_crate_with_starting_files(compiler: &mut Db, crates: &mut CrateGraph, starting_files: &[&Path]) {
+fn populate_local_crate_with_starting_files(
+    compiler: &mut Db,
+    crates: &mut CrateGraph,
+    starting_files: &[PathBuf],
+) {
     let mut source_files = Vec::with_capacity(starting_files.len());
 
     for path in starting_files {
@@ -63,12 +74,15 @@ fn populate_local_crate_with_starting_files(compiler: &mut Db, crates: &mut Crat
     // TODO: track name for local crate. Currently we only compile single source files
     // but have the infrastructure here to collect source files of crates and their dependencies.
     // We're only missing CLI options.
-    crates.insert(LOCAL_CRATE, Crate {
-        name: "Local".to_string(),
-        path: PathBuf::from("."),
-        dependencies: Vec::new(),
-        source_files,
-    });
+    crates.insert(
+        LOCAL_CRATE,
+        Crate {
+            name: "Local".to_string(),
+            path: PathBuf::from("."),
+            dependencies: Vec::new(),
+            source_files,
+        },
+    );
 }
 
 /// Set each CrateId -> Crate mapping as an input to the Db
@@ -94,7 +108,9 @@ fn add_source_files_of_crate(compiler: &mut Db, crates: &mut CrateGraph, crate_i
         // allow either the local crate or the stdlib to not be present and still compile when
         // we're only working on a single source file. We may want to separate the compile mode
         // more explicitly in the CLI in the future.
-        let Ok(src_folder) = src_folder.read_dir() else { continue };
+        let Ok(src_folder) = src_folder.read_dir() else {
+            continue;
+        };
 
         for file in src_folder {
             if let Ok(file) = file {
@@ -114,7 +130,11 @@ fn add_source_files_of_crate(compiler: &mut Db, crates: &mut CrateGraph, crate_i
 
     // `extend` instead of setting it in case this is LOCAL_CRATE and `populate_local_crate_with_starting_files`
     // populated it with an initial set of files manually specified by the user.
-    crates.get_mut(&crate_id).unwrap().source_files.extend(source_files);
+    crates
+        .get_mut(&crate_id)
+        .unwrap()
+        .source_files
+        .extend(source_files);
 }
 
 fn read_file_data(file: PathBuf) -> SourceFile {
@@ -144,7 +164,9 @@ fn find_crate_dependencies(crates: &mut CrateGraph, crate_id: CrateId) -> Vec<Cr
         // allow either the local crate or the stdlib to not be present and still compile when
         // we're only working on a single source file. We may want to separate the compile mode
         // more explicitly in the CLI in the future.
-        let Ok(deps_folder) = deps_folder.read_dir() else { continue };
+        let Ok(deps_folder) = deps_folder.read_dir() else {
+            continue;
+        };
 
         for dependency in deps_folder {
             if let Ok(dependency) = dependency {
@@ -154,12 +176,15 @@ fn find_crate_dependencies(crates: &mut CrateGraph, crate_id: CrateId) -> Vec<Cr
                     let id = new_crate_id(&crates, &name, 0);
                     dependencies.push(id);
 
-                    crates.insert(id, Crate {
-                        name,
-                        path,
-                        dependencies: Vec::new(),
-                        source_files: Vec::new(),
-                    });
+                    crates.insert(
+                        id,
+                        Crate {
+                            name,
+                            path,
+                            dependencies: Vec::new(),
+                            source_files: Vec::new(),
+                        },
+                    );
                 }
             }
         }

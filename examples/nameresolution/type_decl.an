@@ -1,0 +1,23 @@
+
+type Struct1 = a:I32, b:F64, c:String
+
+type Thingy = Struct1
+
+type Generic a b = first: a, second: b
+
+type Struct2 t =
+    a: Thingy
+    b: Generic t Thingy
+
+type Union1 a b = | Variant1 | Variant2
+
+type Option a =
+   | Just a
+   | Nothing
+
+t = Just 1
+
+type MyRef a = &a
+
+// args: --check
+// expected stdout:

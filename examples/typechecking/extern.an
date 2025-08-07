@@ -1,0 +1,13 @@
+
+extern foo: a -> b
+
+extern
+    add: I32 - I32 -> I32
+    puts2: String -> Unit
+    exit2: I32 -> never_returns
+
+foo 1
+puts2 "test"
+exit2 0
+
+// args: --check --show-types

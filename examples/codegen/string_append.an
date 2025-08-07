@@ -1,0 +1,4 @@
+a = "你好"
+print (a ++ "，世界")
+
+// args: --delete-binary

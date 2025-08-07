@@ -15,71 +15,132 @@ pub type Errors = Vec<Diagnostic>;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum Diagnostic {
     // TODO: `message` could be an enum to save allocation costs
-    ParserExpected { message: String, actual: Token, location: Location },
+    ParserExpected {
+        message: String,
+        actual: Token,
+        location: Location,
+    },
 
-    NameAlreadyInScope { name: Arc<String>, first_location: Location, second_location: Location },
-    ImportedNameAlreadyInScope { name: Arc<String>, first_location: Location, second_location: Location },
-    UnknownImportFile { file_name: Arc<PathBuf>, location: Location },
-    NameNotInScope { name: Arc<String>, location: Location },
-    ExpectedType { actual: String, expected: String, location: Location },
-    RecursiveType { typ: String, location: Location },
-    NamespaceNotFound { name: String, location: Location },
-    NameNotFound { name: Arc<String>, location: Location },
+    NameAlreadyInScope {
+        name: Arc<String>,
+        first_location: Location,
+        second_location: Location,
+    },
+    ImportedNameAlreadyInScope {
+        name: Arc<String>,
+        first_location: Location,
+        second_location: Location,
+    },
+    UnknownImportFile {
+        file_name: Arc<PathBuf>,
+        location: Location,
+    },
+    NameNotInScope {
+        name: Arc<String>,
+        location: Location,
+    },
+    ExpectedType {
+        actual: String,
+        expected: String,
+        location: Location,
+    },
+    RecursiveType {
+        typ: String,
+        location: Location,
+    },
+    NamespaceNotFound {
+        name: String,
+        location: Location,
+    },
+    NameNotFound {
+        name: Arc<String>,
+        location: Location,
+    },
 }
 
 impl Diagnostic {
     fn kind(&self) -> DiagnosticKind {
         use Diagnostic::*;
         match self {
-            NameAlreadyInScope { .. } | ImportedNameAlreadyInScope { .. } => DiagnosticKind::Warning,
+            NameAlreadyInScope { .. } | ImportedNameAlreadyInScope { .. } => {
+                DiagnosticKind::Warning
+            }
             _ => DiagnosticKind::Error,
         }
     }
 
     pub fn message(&self) -> String {
         match self {
-            Diagnostic::ParserExpected { message, actual, location: _ } => {
+            Diagnostic::ParserExpected {
+                message,
+                actual,
+                location: _,
+            } => {
                 format!("Expected {message} but found `{actual}`")
-            },
-            Diagnostic::NameAlreadyInScope { name, first_location: _, second_location: _ } => {
+            }
+            Diagnostic::NameAlreadyInScope {
+                name,
+                first_location: _,
+                second_location: _,
+            } => {
                 format!("`{name}` was already defined")
-            },
-            Diagnostic::ImportedNameAlreadyInScope { name, first_location: _, second_location: _ } => {
+            }
+            Diagnostic::ImportedNameAlreadyInScope {
+                name,
+                first_location: _,
+                second_location: _,
+            } => {
                 format!("This imports `{name}`, which has already been defined")
-            },
-            Diagnostic::UnknownImportFile { file_name, location: _ } => {
-                format!("Cannot read source file `{}`, does it exist?", file_name.display())
-            },
+            }
+            Diagnostic::UnknownImportFile {
+                file_name,
+                location: _,
+            } => {
+                format!(
+                    "Cannot read source file `{}`, does it exist?",
+                    file_name.display()
+                )
+            }
             Diagnostic::NameNotInScope { name, location: _ } => {
                 format!("`{name}` is not defined, was it a typo?")
-            },
-            Diagnostic::ExpectedType { actual, expected, location: _ } => {
+            }
+            Diagnostic::ExpectedType {
+                actual,
+                expected,
+                location: _,
+            } => {
                 format!("Expected type `{expected}` but found `{actual}`")
-            },
+            }
             Diagnostic::RecursiveType { typ, location: _ } => {
                 format!("Binding here would create an infinitely recursive type with `{typ}`")
-            },
+            }
             Diagnostic::NamespaceNotFound { name, location: _ } => {
                 format!("Namespace `{name}` not found in path")
-            },
+            }
             Diagnostic::NameNotFound { name, location: _ } => {
                 format!("`{name}` not found in scope")
-            },
+            }
         }
     }
 
     /// The primary source location of this diagnostic
     pub fn location(&self) -> &Location {
         match self {
-            Diagnostic::ParserExpected { location, .. } |
-            Diagnostic::NameAlreadyInScope { second_location: location, .. } |
-            Diagnostic::ImportedNameAlreadyInScope { second_location: location, .. } |
-            Diagnostic::UnknownImportFile { location, .. } |
-            Diagnostic::NameNotInScope { location, .. } |
-            Diagnostic::ExpectedType { location, .. } |
-            Diagnostic::RecursiveType { location, .. } |
-            Diagnostic::NamespaceNotFound { location, .. } |
-            Diagnostic::NameNotFound { location, .. } => location,
+            Diagnostic::ParserExpected { location, .. }
+            | Diagnostic::NameAlreadyInScope {
+                second_location: location,
+                ..
+            }
+            | Diagnostic::ImportedNameAlreadyInScope {
+                second_location: location,
+                ..
+            }
+            | Diagnostic::UnknownImportFile { location, .. }
+            | Diagnostic::NameNotInScope { location, .. }
+            | Diagnostic::ExpectedType { location, .. }
+            | Diagnostic::RecursiveType { location, .. }
+            | Diagnostic::NamespaceNotFound { location, .. }
+            | Diagnostic::NameNotFound { location, .. } => location,
         }
     }
 
@@ -102,19 +163,40 @@ impl Diagnostic {
     }
 
     pub fn display(self, show_color: bool, compiler: &Db) -> DiagnosticDisplay {
-        DiagnosticDisplay { diagnostic: self, compiler, show_color  }
+        DiagnosticDisplay {
+            diagnostic: self,
+            compiler,
+            show_color,
+        }
     }
 
-    fn format(&self, f: &mut std::fmt::Formatter, show_color: bool, compiler: &Db) -> std::fmt::Result {
+    fn format(
+        &self,
+        f: &mut std::fmt::Formatter,
+        show_color: bool,
+        compiler: &Db,
+    ) -> std::fmt::Result {
         let location = self.location();
         let start = location.span.start;
 
         let file = location.file_id.get(compiler);
         let relative_path = os_agnostic_display_path(&file.path, show_color);
 
-        writeln!(f, "{}:{}:{}\t{} {}", relative_path, start.line_number, start.column_number, self.marker(show_color), self.message())?;
+        writeln!(
+            f,
+            "{}:{}:{}\t{} {}",
+            relative_path,
+            start.line_number,
+            start.column_number,
+            self.marker(show_color),
+            self.message()
+        )?;
 
-        let line = file.contents.lines().nth(start.line_number.max(1) as usize - 1).unwrap_or("");
+        let line = file
+            .contents
+            .lines()
+            .nth(start.line_number.max(1) as usize - 1)
+            .unwrap_or("");
 
         let start_column = start.column_number.max(1) as usize - 1;
         let length = location.span.end.byte_index - start.byte_index;
@@ -124,7 +206,11 @@ impl Diagnostic {
 
         // write the first part of the line, then the erroring part in red, then the rest
         write!(f, "{}", &line[0..start_column])?;
-        write!(f, "{}", self.color(&line[start_column..start_column + length], show_color))?;
+        write!(
+            f,
+            "{}",
+            self.color(&line[start_column..start_column + length], show_color)
+        )?;
         writeln!(f, "{}", &line[start_column + length..])?;
 
         // If we're not printing in color, print a `^^^` indicator to show where the error is.

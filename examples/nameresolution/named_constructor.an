@@ -1,0 +1,20 @@
+type T a b =
+  x: a
+  y: b
+
+x = 4
+
+t1 = T with x = 3, z = 5
+t2 = T with y = 3.2, x
+
+// Declarations should not leak from the named constructor
+z = y * 2.0
+
+// args: --check
+// expected stderr:
+// examples/nameresolution/named_constructor.an:11:6	error: `*` is not defined, was it a typo?
+// z = y * 2.0
+// 
+// examples/nameresolution/named_constructor.an:11:4	error: `y` is not defined, was it a typo?
+// z = y * 2.0
+

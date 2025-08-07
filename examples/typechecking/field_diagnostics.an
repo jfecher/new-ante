@@ -1,0 +1,56 @@
+tuple = (1, 1)
+
+_ = (&&tuple).first
+
+_ = tuple.!first
+_ = tuple.!missing
+
+imm_ref = &tuple
+_ = imm_ref.!first
+_ = imm_ref.!missing
+
+mut mut_tuple = (1, 1)
+
+_ = mut_tuple.&missing
+_ = mut_tuple.!missing
+
+mut_ref = !mut_tuple
+
+_ = mut_ref.&missing
+_ = mut_ref.!missing
+
+_ = (!&tuple).!first
+
+// flags: --check
+
+// expected stderr:
+// examples/typechecking/field_diagnostics.an:1:11	error: `,` is not defined, was it a typo?
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:3:5	error: `&` is not defined, was it a typo?
+// _ = (&&tuple).first
+// 
+// examples/typechecking/field_diagnostics.an:3:6	error: `&` is not defined, was it a typo?
+// _ = (&&tuple).first
+// 
+// examples/typechecking/field_diagnostics.an:8:10	error: `&` is not defined, was it a typo?
+// imm_ref = &tuple
+// 
+// examples/typechecking/field_diagnostics.an:14:4	error: `mut_tuple` is not defined, was it a typo?
+// _ = mut_tuple.&missing
+// 
+// examples/typechecking/field_diagnostics.an:15:4	error: `mut_tuple` is not defined, was it a typo?
+// _ = mut_tuple.!missing
+// 
+// examples/typechecking/field_diagnostics.an:17:10	error: `!` is not defined, was it a typo?
+// mut_ref = !mut_tuple
+// 
+// examples/typechecking/field_diagnostics.an:17:11	error: `mut_tuple` is not defined, was it a typo?
+// mut_ref = !mut_tuple
+// 
+// examples/typechecking/field_diagnostics.an:22:5	error: `!` is not defined, was it a typo?
+// _ = (!&tuple).!first
+// 
+// examples/typechecking/field_diagnostics.an:22:6	error: `&` is not defined, was it a typo?
+// _ = (!&tuple).!first
+

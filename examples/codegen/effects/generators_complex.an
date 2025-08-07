@@ -1,0 +1,57 @@
+effect Emit a with
+    emit: a -> Unit
+
+iota (n: U32) = loop (i = 0) ->
+    if i < n then
+        emit i
+        recur (i + 1)
+
+filter (stream: Unit -> Unit can Emit a) (f: a -> Bool pure) =
+    handle stream ()
+    | emit x ->
+        if f x then
+            emit x
+        resume ()
+
+map (stream: Unit -> Unit can Emit a) (f: a -> b pure): Unit can Emit b =
+    handle stream ()
+    | emit x ->
+        emit (f x)
+        resume ()
+
+enumerate (stream: Unit -> Unit can Emit a): Unit can Emit (U32, a) =
+    // Bug: can't mutably capture i in handle branch if it is declared as `mut i`
+    i = !0u32
+    handle stream ()
+    | emit x ->
+        emit (i, x)
+        i := @i + 1
+        resume ()
+
+for (stream: Unit -> Unit can Emit a) (f: a -> Unit pure) =
+    handle stream ()
+    | emit x ->
+        f x
+        resume ()
+
+even x = x % 2 == 0
+
+my_print (x1: !U32, U32) =
+    x = @first x1
+    y = second x1
+    print "${x}, ${y}"
+
+iota 10
+    with filter even
+    with map (_ * 2u32)
+    with enumerate
+    with for my_print
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/effects/generators_complex.an:37:15	error: `==` is not defined, was it a typo?
+// even x = x % 2 == 0
+// 
+// examples/codegen/effects/generators_complex.an:37:11	error: `%` is not defined, was it a typo?
+// even x = x % 2 == 0
+

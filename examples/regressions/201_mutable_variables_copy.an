@@ -1,0 +1,13 @@
+mut x = 4
+y = x
+print y
+x := 5
+print y
+
+// This used to print 4, 5
+
+// args: --delete-binary
+// expected stderr:
+// examples/regressions/201_mutable_variables_copy.an:2:4	error: `x` is not defined, was it a typo?
+// y = x
+

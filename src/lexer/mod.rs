@@ -38,7 +38,7 @@
 //!       is how expressions can be continued in ante despite most ending on a Newline.
 pub mod token;
 
-use crate::diagnostics::{Span, Position};
+use crate::diagnostics::{Position, Span};
 use std::{str::Chars, sync::Arc};
 use token::{lookup_keyword, ClosingBracket, FloatKind, IntegerKind, LexerError, Token, F64};
 
@@ -78,11 +78,17 @@ struct IndentLevel {
 
 impl IndentLevel {
     fn new(column: usize) -> IndentLevel {
-        IndentLevel { column, ignored: false }
+        IndentLevel {
+            column,
+            ignored: false,
+        }
     }
 
     fn ignored(column: usize) -> IndentLevel {
-        IndentLevel { column, ignored: true }
+        IndentLevel {
+            column,
+            ignored: true,
+        }
     }
 }
 
@@ -99,12 +105,19 @@ impl<'contents> Lexer<'contents> {
             file_contents,
             current_position: Position::start(),
             token_start_position: Position::start(),
-            indent_levels: vec![IndentLevel { column: 0, ignored: false }],
+            indent_levels: vec![IndentLevel {
+                column: 0,
+                ignored: false,
+            }],
             current_indent_level: 0,
             return_newline: false,
             previous_token_expects_indent: false,
             chars,
-            open_braces: OpenBraces { parenthesis: 0, curly: 0, square: 0 },
+            open_braces: OpenBraces {
+                parenthesis: 0,
+                curly: 0,
+                square: 0,
+            },
             pending_interpolations: Vec::new(),
         }
     }
@@ -152,7 +165,10 @@ impl<'contents> Lexer<'contents> {
         // no token ends in a `\n` so we can ignore the line number
         end.column_number += 1;
         end.byte_index += 1;
-        Span { start: self.token_start_position, end }
+        Span {
+            start: self.token_start_position,
+            end,
+        }
     }
 
     fn advance_with(&mut self, token: Token) -> IterElem {
@@ -268,10 +284,8 @@ impl<'contents> Lexer<'contents> {
                     Token::IntegerLiteral(x, kind) => {
                         let x = format!("-{}", x).parse::<i64>().unwrap();
                         Token::IntegerLiteral(x as u64, kind)
-                    },
-                    Token::FloatLiteral(x, kind) => {
-                        Token::FloatLiteral(F64(-x.0), kind)
                     }
+                    Token::FloatLiteral(x, kind) => Token::FloatLiteral(F64(-x.0), kind),
                     _ => unreachable!(),
                 };
                 (token, location)
@@ -288,9 +302,10 @@ impl<'contents> Lexer<'contents> {
 
         match lookup_keyword(word) {
             Some(keyword) => {
-                self.previous_token_expects_indent = Lexer::should_expect_indent_after_token(&keyword);
+                self.previous_token_expects_indent =
+                    Lexer::should_expect_indent_after_token(&keyword);
                 Some((keyword, location))
-            },
+            }
             None if is_type => Some((Token::TypeName(word.to_owned()), location)),
             None => Some((Token::Identifier(word.to_owned()), location)),
         }
@@ -303,7 +318,7 @@ impl<'contents> Lexer<'contents> {
             let current_char = match (self.current, self.next) {
                 ('$', '{') => {
                     return Some((Token::StringLiteral(contents), self.locate()));
-                },
+                }
                 ('\\', c) => {
                     self.advance();
                     match c {
@@ -315,9 +330,9 @@ impl<'contents> Lexer<'contents> {
                         _ => {
                             let error = LexerError::InvalidEscapeSequence(self.current);
                             return self.advance2_with(Token::Error(error));
-                        },
+                        }
                     }
-                },
+                }
                 (c, _) => c,
             };
             contents.push(current_char);
@@ -346,7 +361,7 @@ impl<'contents> Lexer<'contents> {
                     let bracket = ClosingBracket::from_token(&token).unwrap();
                     bracket_stack.push(bracket);
                     tokens.push(token)
-                },
+                }
                 token @ (Token::Unindent | Token::ParenthesisRight | Token::BracketRight) => {
                     match bracket_stack.pop() {
                         Some(matching) if matching.token() == token => tokens.push(token),
@@ -389,7 +404,7 @@ impl<'contents> Lexer<'contents> {
                 _ => {
                     let error = LexerError::InvalidEscapeSequence(self.current);
                     return self.advance2_with(Token::Error(error));
-                },
+                }
             }
         } else {
             self.current
@@ -414,7 +429,7 @@ impl<'contents> Lexer<'contents> {
             (c, _) if c.is_whitespace() => {
                 let error = LexerError::InvalidCharacterInSignificantWhitespace(self.current);
                 self.advance_with(Token::Error(error))
-            },
+            }
 
             ('/', '*') => self.lex_multiline_comment(),
 
@@ -434,7 +449,10 @@ impl<'contents> Lexer<'contents> {
         if new_indent == self.current_indent_level + 1 {
             self.indent_levels.push(IndentLevel::new(new_indent));
             self.current_indent_level = new_indent;
-            Some((Token::Error(LexerError::IndentChangeTooSmall), self.locate()))
+            Some((
+                Token::Error(LexerError::IndentChangeTooSmall),
+                self.locate(),
+            ))
         } else if self.previous_token_expects_indent {
             self.indent_levels.push(IndentLevel::new(new_indent));
             self.current_indent_level = new_indent;
@@ -538,17 +556,17 @@ impl<'contents> Iterator for Lexer<'contents> {
                 } else {
                     self.advance_with(Token::EndOfInput)
                 }
-            },
+            }
             ('"', _) => self.lex_string(),
             ('}', _) if matched_interpolation => {
                 self.current = '"';
                 self.pending_interpolations.pop();
                 Some((Token::InterpolateRight, self.locate()))
-            },
+            }
             ('$', '{') => {
                 self.pending_interpolations.push(self.open_braces.curly);
                 self.advance2_with(Token::InterpolateLeft)
-            },
+            }
             ('\'', _) => self.lex_quoted(),
             ('/', '/') => self.lex_singleline_comment(),
             ('/', '*') => self.lex_multiline_comment(),
@@ -558,15 +576,15 @@ impl<'contents> Iterator for Lexer<'contents> {
             (':', '=') => {
                 self.previous_token_expects_indent = true;
                 self.advance2_with(Token::Assignment)
-            },
+            }
             ('=', _) => {
                 self.previous_token_expects_indent = true;
                 self.advance_with(Token::Equal)
-            },
+            }
             ('-', '>') => {
                 self.previous_token_expects_indent = true;
                 self.advance2_with(Token::RightArrow)
-            },
+            }
             ('.', '&') => {
                 self.advance();
                 self.advance();
@@ -575,7 +593,7 @@ impl<'contents> Iterator for Lexer<'contents> {
                 } else {
                     Some((Token::MemberRef, self.locate()))
                 }
-            },
+            }
             ('.', '!') => {
                 self.advance();
                 self.advance();
@@ -584,7 +602,7 @@ impl<'contents> Iterator for Lexer<'contents> {
                 } else {
                     Some((Token::MemberMut, self.locate()))
                 }
-            },
+            }
             ('.', '[') => self.advance2_with(Token::Index),
             ('.', _) => self.advance_with(Token::MemberAccess),
             ('-', _) => self.lex_negative(),
@@ -600,23 +618,23 @@ impl<'contents> Iterator for Lexer<'contents> {
             ('(', _) => {
                 self.open_braces.parenthesis += 1;
                 self.advance_with(Token::ParenthesisLeft)
-            },
+            }
             (')', _) => {
                 // This will overflow if there are mismatched parenthesis,
                 // should we handle this inside the lexer,
                 // or leave that to the parsing stage?
                 self.open_braces.parenthesis = self.open_braces.parenthesis.saturating_sub(1);
                 self.advance_with(Token::ParenthesisRight)
-            },
+            }
             ('+', _) => self.advance_with(Token::Add),
             ('[', _) => {
                 self.open_braces.square += 1;
                 self.advance_with(Token::BracketLeft)
-            },
+            }
             (']', _) => {
                 self.open_braces.square = self.open_braces.square.saturating_sub(1);
                 self.advance_with(Token::BracketRight)
-            },
+            }
             ('|', _) => self.advance_with(Token::Pipe),
             (':', _) => self.advance_with(Token::Colon),
             (';', _) => self.advance_with(Token::Semicolon),

@@ -1,0 +1,10 @@
+import Vec.empty push
+
+mut v = empty ()
+
+push !v 3i32
+push !v 4
+
+print v
+
+// args: --delete-binary

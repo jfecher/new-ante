@@ -1,0 +1,3 @@
+a = "test".c_string
+
+// args: --check --show-types

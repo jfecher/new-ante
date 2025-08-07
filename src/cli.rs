@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Parser, ValueEnum, ValueHint};
 use clap_complete::Shell;
 
@@ -10,9 +12,9 @@ pub struct Completions {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Path to the source file
+    /// Path to the source files
     #[arg(value_hint=ValueHint::FilePath)]
-    pub file: String,
+    pub files: Vec<PathBuf>,
 
     /// Print out the input file annotated with inferred lifetimes of heap allocations
     #[arg(long, short = 'L')]

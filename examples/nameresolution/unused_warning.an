@@ -1,0 +1,10 @@
+
+id x = x
+
+id x = error
+
+// args: --check
+// expected stderr:
+// examples/nameresolution/unused_warning.an:4:7	error: `error` is not defined, was it a typo?
+// id x = error
+

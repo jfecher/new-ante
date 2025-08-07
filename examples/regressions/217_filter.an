@@ -1,0 +1,37 @@
+effect Emit a with
+    emit: a -> Unit
+
+iota (n: U32) = loop (i = 0) ->
+    if i < n then
+        emit i
+        recur (i + 1)
+
+// Removing the `can` here used to panic
+filter (stream: Unit -> Unit) (f: a -> Bool pure) =
+    handle 
+        stream ()
+    | emit x ->
+        if f x then
+            emit x
+        resume ()
+
+for (stream: Unit -> Unit can Emit a) (f: a -> Unit pure) =
+    handle 
+        stream ()
+    | emit x ->
+        f x
+        resume ()
+
+zero_to_nine () =
+    iota 10
+
+filtered () =
+    filter zero_to_nine (fn x -> x % 2 == 0)
+
+for filtered print
+
+// args: --delete-binary
+// expected stderr:
+// examples/regressions/217_filter.an:29:4	error: `filter` is not defined, was it a typo?
+//     filter zero_to_nine (fn x -> x % 2 == 0)
+

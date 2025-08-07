@@ -1,0 +1,38 @@
+// Mutually recursive definitions which type check when partially annotated despite
+// `t != u` and neither ex1a nor ex1b being generalized when ex1b is called within ex1a.
+// To do this we need to initialize them with partially generalized types:
+//   ex1a: forall t. t -> b1 -> r1
+//   ex1b: forall u. u -> b2 -> r2
+// Such that b1, b2, r1, and r2 can still be further refined.
+ex1a (a: t) b =
+    ex1b a b
+    0u32
+
+ex1b (a: u) b =
+    ex1a a b
+    1u32
+
+
+// Second example
+trait T1 a with trait1: a -> Unit
+trait T2 a with trait2: a -> Unit
+
+ex2a (a: t) b =
+    ex2b a b
+    trait1 a
+
+ex2b (a: u) b =
+    ex2c a b
+    trait2 a
+
+ex2c (a: v) b =
+    ex2a a b
+
+// args: --check --show-types
+// expected stderr:
+// examples/typechecking/mutual_recursion_rigid.an:22:4	error: `trait1` is not defined, was it a typo?
+//     trait1 a
+// 
+// examples/typechecking/mutual_recursion_rigid.an:26:4	error: `trait2` is not defined, was it a typo?
+//     trait2 a
+

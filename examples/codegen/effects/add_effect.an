@@ -1,0 +1,38 @@
+effect Add with
+    add: U32 -> Unit
+
+foo () can Add =
+    print "foo"
+    add 1
+    add 2
+
+bar () =
+    print "bar"
+    add 3
+    add 4
+
+sum_all () =
+    handle
+        foo ()
+        bar ()
+        0
+    | add y ->
+        print "add called"
+        r = resume ()
+        print "add resume finished"
+        y + r
+
+// 10
+sum_all () |> print
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/effects/add_effect.an:10:4	error: `print` is not defined, was it a typo?
+//     print "bar"
+// 
+// examples/codegen/effects/add_effect.an:11:4	error: `add` is not defined, was it a typo?
+//     add 3
+// 
+// examples/codegen/effects/add_effect.an:12:4	error: `add` is not defined, was it a typo?
+//     add 4
+

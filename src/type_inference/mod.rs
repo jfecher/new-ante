@@ -7,7 +7,11 @@ use crate::{
     diagnostics::Errors,
     incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheck},
     name_resolution::{Origin, ResolutionResult},
-    parser::{cst::{Expr, Literal, TopLevelItemKind}, ids::{ExprId, NameId, PathId, PatternId, TopLevelId}, TopLevelContext},
+    parser::{
+        cst::{Expr, Literal, TopLevelItemKind},
+        ids::{ExprId, NameId, PathId, PatternId, TopLevelId},
+        TopLevelContext,
+    },
     type_inference::types::{GeneralizedType, TopLevelType, TypeVariableId},
 };
 
@@ -106,7 +110,11 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     }
 
     fn finish(self, typ: GeneralizedType) -> TypeCheckResult {
-        TypeCheckResult { typ, expr_types: self.pattern_types, errors: self.errors }
+        TypeCheckResult {
+            typ,
+            expr_types: self.pattern_types,
+            errors: self.errors,
+        }
     }
 
     fn next_type_variable(&mut self) -> TopLevelType {
@@ -138,11 +146,19 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
         match typ {
             TopLevelType::Generic(name) => TopLevelType::Generic(name.clone()),
             TopLevelType::TypeVariable(_) => todo!(),
-            TopLevelType::Function { parameter, return_type } => {
-                let parameter = Arc::new(self.replace_type_variables_with_named_generics(parameter));
-                let return_type = Arc::new(self.replace_type_variables_with_named_generics(return_type));
-                TopLevelType::Function { parameter, return_type }
-            },
+            TopLevelType::Function {
+                parameter,
+                return_type,
+            } => {
+                let parameter =
+                    Arc::new(self.replace_type_variables_with_named_generics(parameter));
+                let return_type =
+                    Arc::new(self.replace_type_variables_with_named_generics(return_type));
+                TopLevelType::Function {
+                    parameter,
+                    return_type,
+                }
+            }
             TopLevelType::Primitive(_) => todo!(),
             TopLevelType::TypeApplication(..) => todo!(),
         }
@@ -153,10 +169,10 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             Expr::Literal(Literal::Unit) => Type::unit(),
             Expr::Literal(Literal::Integer(_, Some(kind))) => {
                 Type::Primitive(PrimitiveType::Int(*kind))
-            },
+            }
             Expr::Literal(Literal::Float(_, Some(kind))) => {
                 Type::Primitive(PrimitiveType::Float(*kind))
-            },
+            }
             Expr::Literal(Literal::Bool(_)) => Type::Primitive(PrimitiveType::Bool),
             Expr::Literal(Literal::Integer(_, None)) => todo!(),
             Expr::Literal(Literal::Float(_, None)) => todo!(),
@@ -164,7 +180,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             Expr::Variable(_identifier) => {
                 // If this is a built-in, get that type. Otherwise, lookup or query its type.
                 todo!()
-            },
+            }
             Expr::Call(_call) => todo!(),
             Expr::Lambda(_lambda) => todo!(),
             Expr::Sequence(_items) => todo!(),

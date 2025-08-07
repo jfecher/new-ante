@@ -7,7 +7,11 @@
 //! the lexing phase of the compiler. The resulting tokens are then
 //! fed into the parser to verify the program's grammar and create
 //! an abstract syntax tree.
-use std::{fmt::{self, Display}, str::FromStr, sync::Arc};
+use std::{
+    fmt::{self, Display},
+    str::FromStr,
+    sync::Arc,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +28,7 @@ pub enum LexerError {
     InvalidIntegerSuffx,
     InvalidFloatSuffx,
     IndentChangeTooSmall, // All indentation changes must be >= 2 spaces in size difference relative to the previous level
-    UnindentToNewLevel,   // Unindented to a new indent level rather than returning to a previous one
+    UnindentToNewLevel, // Unindented to a new indent level rather than returning to a previous one
     Expected(char),
     UnknownChar(char),
     MismatchedBracketInQuote { expected: ClosingBracket },

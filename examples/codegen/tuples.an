@@ -1,0 +1,10 @@
+
+foo (a, b, _) =
+    _: string = a
+    print b
+
+foo ("test", 2, 'c')
+
+foo ("hi", 7, 2.0, 3, 4, 5)
+
+// args: --delete-binary

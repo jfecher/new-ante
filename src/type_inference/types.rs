@@ -1,8 +1,16 @@
-use std::{collections::{BTreeMap, BTreeSet}, rc::Rc, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+    sync::Arc,
+};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{iterator_extensions::vecmap, lexer::token::{FloatKind, IntegerKind}, parser::ids::ExprId};
+use crate::{
+    iterator_extensions::vecmap,
+    lexer::token::{FloatKind, IntegerKind},
+    parser::ids::ExprId,
+};
 
 /// A top-level type is a type which may be in a top-level signature.
 /// This notably excludes unbound type variables. Unlike `Type`, top-level
@@ -96,18 +104,22 @@ impl Type {
                 let return_type = Rc::new(Self::from_ast_type(&function.return_type));
 
                 let effects = match function.effects.as_ref() {
-                    Some(effects) => todo!(),//Rc::new(Self::from_ast_type(effects)),
+                    Some(effects) => todo!(), //Rc::new(Self::from_ast_type(effects)),
                     None => todo!(),
                 };
-                Type::Function(FunctionType { parameters, return_type, effects })
-            },
+                Type::Function(FunctionType {
+                    parameters,
+                    return_type,
+                    effects,
+                })
+            }
             crate::parser::cst::Type::Error => Type::Primitive(PrimitiveType::Error),
             crate::parser::cst::Type::Unit => Type::Primitive(PrimitiveType::Unit),
             crate::parser::cst::Type::TypeApplication(f, args) => {
                 let f = Rc::new(Self::from_ast_type(f));
                 let args = Rc::new(vecmap(args, Type::from_ast_type));
                 Type::TypeApplication(f, args)
-            },
+            }
         }
     }
 
@@ -117,7 +129,10 @@ impl Type {
     }
 
     pub fn display<'a, 'b>(&'a self, bindings: &'b TypeBindings) -> TypePrinter<'a, 'b> {
-        TypePrinter { typ: self, bindings }
+        TypePrinter {
+            typ: self,
+            bindings,
+        }
     }
 
     pub fn find_all_generics(&self) -> Vec<Arc<String>> {
@@ -161,10 +176,10 @@ impl TypePrinter<'_, '_> {
                 } else {
                     write!(f, "{id}")
                 }
-            },
+            }
             Type::Function(_function) => {
                 todo!("format function type")
-            },
+            }
             Type::TypeApplication(_, _) => todo!("format type application"),
         }
     }
@@ -218,7 +233,10 @@ impl GeneralizedType {
     }
 
     pub fn display<'a, 'b>(&'a self, bindings: &'b TypeBindings) -> TopLevelTypePrinter<'a, 'b> {
-        TopLevelTypePrinter { typ: self, bindings }
+        TopLevelTypePrinter {
+            typ: self,
+            bindings,
+        }
     }
 
     #[allow(unused)]

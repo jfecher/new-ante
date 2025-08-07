@@ -1,0 +1,18 @@
+type T = a: I32, b: String
+
+t = T 1 "one"
+printne "t = "
+printne (t.a)
+printne ", "
+
+puts t.b.c_string
+
+s = Some 2
+
+match s
+| Some x -> 
+    printne "s = "
+    print x
+| None -> print "s = None"
+
+// args: --delete-binary

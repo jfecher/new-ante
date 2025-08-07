@@ -1,0 +1,29 @@
+
+foo a b c =
+    a + b + c
+
+plus2 = foo _ 2 _
+plus4 = foo 2 2 _
+
+print <| plus4 2
+print <| plus2 38 2
+
+4 |> (_ + 2) |> print
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/explicit_curry.an:3:10	error: `+` is not defined, was it a typo?
+//     a + b + c
+// 
+// examples/codegen/explicit_curry.an:3:6	error: `+` is not defined, was it a typo?
+//     a + b + c
+// 
+// examples/codegen/explicit_curry.an:5:12	error: `_` is not defined, was it a typo?
+// plus2 = foo _ 2 _
+// 
+// examples/codegen/explicit_curry.an:5:16	error: `_` is not defined, was it a typo?
+// plus2 = foo _ 2 _
+// 
+// examples/codegen/explicit_curry.an:6:16	error: `_` is not defined, was it a typo?
+// plus4 = foo 2 2 _
+

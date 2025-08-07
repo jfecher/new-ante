@@ -8,7 +8,15 @@ pub mod namespace;
 use crate::{
     diagnostics::{Diagnostic, Errors, Location},
     incremental::{self, DbHandle, GetItem, Resolve, VisibleDefinitions},
-    parser::{cst::{Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody}, ids::{ExprId, NameId, PathId, PatternId, TopLevelId}, TopLevelContext},
+    parser::{
+        cst::{
+            Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern,
+            Generics, Path, Pattern, TopLevelItemKind, TraitDefinition, TraitImpl, Type,
+            TypeDefinition, TypeDefinitionBody,
+        },
+        ids::{ExprId, NameId, PathId, PatternId, TopLevelId},
+        TopLevelContext,
+    },
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -45,7 +53,10 @@ pub enum Origin {
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
     incremental::enter_query();
     let (statement, statement_ctx) = GetItem(context.0.clone()).get(compiler);
-    incremental::println(format!("Resolving {}", statement.kind.name_string(&statement_ctx)));
+    incremental::println(format!(
+        "Resolving {}",
+        statement.kind.name_string(&statement_ctx)
+    ));
 
     // Note that we discord errors here because they're errors for the entire file and we are
     // resolving just one statement in it. This does mean that `CompileFile` will later need to
@@ -58,11 +69,17 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
     match &statement.kind {
         TopLevelItemKind::Definition(definition) => {
             resolver.resolve_expr(definition.rhs);
-        },
-        TopLevelItemKind::TypeDefinition(type_definition) => resolver.resolve_type_definition(type_definition),
-        TopLevelItemKind::TraitDefinition(trait_definition) => resolver.resolve_trait_definition(trait_definition),
+        }
+        TopLevelItemKind::TypeDefinition(type_definition) => {
+            resolver.resolve_type_definition(type_definition)
+        }
+        TopLevelItemKind::TraitDefinition(trait_definition) => {
+            resolver.resolve_trait_definition(trait_definition)
+        }
         TopLevelItemKind::TraitImpl(trait_impl) => resolver.resolve_trait_impl(trait_impl),
-        TopLevelItemKind::EffectDefinition(effect_definition) => resolver.resolve_effect_definition(effect_definition),
+        TopLevelItemKind::EffectDefinition(effect_definition) => {
+            resolver.resolve_effect_definition(effect_definition)
+        }
         TopLevelItemKind::Extern(extern_) => resolver.resolve_extern(extern_),
         TopLevelItemKind::Comptime(comptime_) => resolver.resolve_comptime(comptime_),
     }
@@ -91,7 +108,11 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     fn result(self) -> ResolutionResult {
-        ResolutionResult { path_origins: self.path_links, name_origins: self.name_links, errors: self.errors }
+        ResolutionResult {
+            path_origins: self.path_links,
+            name_origins: self.name_links,
+            errors: self.errors,
+        }
     }
 
     #[allow(unused)]
@@ -125,7 +146,11 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             Namespace::Type(_) => return None,
         };
 
-        file_data.submodules.get(name).copied().map(Namespace::Module)
+        file_data
+            .submodules
+            .get(name)
+            .copied()
+            .map(Namespace::Module)
     }
 
     /// Retrieve each visible item in the given namespace, restricting the namespace
@@ -136,19 +161,24 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             Namespace::Local => self.lookup_local_name(name),
             Namespace::Module(file_id) => {
                 let visible = &VisibleDefinitions(file_id).get(self.compiler);
-                visible.definitions.get(name).copied().map(Origin::TopLevelDefinition)
-            },
+                visible
+                    .definitions
+                    .get(name)
+                    .copied()
+                    .map(Origin::TopLevelDefinition)
+            }
             Namespace::Type(top_level_id) => {
                 let visible = &VisibleDefinitions(top_level_id.source_file).get(self.compiler);
                 let methods = visible.methods.get(&top_level_id)?;
                 methods.get(name).copied().map(Origin::TopLevelDefinition)
-            },
+            }
         }
     }
 
     /// Lookup the given path in the given namespace
-    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace) -> Option<Origin> 
-        where Iter: ExactSizeIterator<Item = &'a (String, Location)>
+    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace) -> Option<Origin>
+    where
+        Iter: ExactSizeIterator<Item = &'a (String, Location)>,
     {
         while path.len() > 1 {
             let (item_name, item_location) = path.next().unwrap();
@@ -158,7 +188,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             } else {
                 let name = item_name.clone();
                 let location = item_location.clone();
-                self.errors.push(Diagnostic::NamespaceNotFound { name, location });
+                self.errors
+                    .push(Diagnostic::NamespaceNotFound { name, location });
                 return None;
             }
         }
@@ -184,7 +215,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         } else {
             let location = location.clone();
             let name = Arc::new(name.clone());
-            self.errors.push(Diagnostic::NameNotInScope { name, location });
+            self.errors
+                .push(Diagnostic::NameNotInScope { name, location });
             None
         }
     }
@@ -241,7 +273,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 for arg in &call.arguments {
                     self.resolve_expr(*arg);
                 }
-            },
+            }
             Expr::Lambda(lambda) => {
                 // Resolve body with the parameter name in scope
                 self.push_local_scope();
@@ -251,7 +283,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
 
                 self.resolve_expr(lambda.body);
                 self.pop_local_scope();
-            },
+            }
             Expr::Sequence(sequence) => {
                 self.push_local_scope();
                 for item in sequence {
@@ -266,7 +298,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             Expr::Index(index) => {
                 self.resolve_expr(index.object);
                 self.resolve_expr(index.index);
-            },
+            }
             Expr::If(if_) => {
                 self.resolve_expr(if_.condition);
 
@@ -279,7 +311,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     self.resolve_expr(else_);
                     self.pop_local_scope();
                 }
-            },
+            }
             Expr::Match(match_) => {
                 self.resolve_expr(match_.expression);
                 for (pattern, branch) in &match_.cases {
@@ -288,13 +320,13 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     self.resolve_expr(*branch);
                     self.pop_local_scope();
                 }
-            },
+            }
             Expr::Reference(reference) => {
                 self.resolve_expr(reference.rhs);
-            },
+            }
             Expr::TypeAnnotation(type_annotation) => {
                 self.resolve_expr(type_annotation.lhs);
-            },
+            }
             Expr::Quoted(_) => (),
             Expr::Error => (),
         }
@@ -309,7 +341,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         match &self.context.patterns[pattern] {
             Pattern::Variable(name) => {
                 self.declare_name(*name);
-            },
+            }
             Pattern::Literal(_) => (),
             // In a constructor pattern such as `Struct foo bar baz` or `(a, b)` the arguments
             // should be declared but the function itself should never be.
@@ -317,12 +349,12 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 for arg in args {
                     self.declare_names_in_pattern(*arg, declare_type_vars);
                 }
-            },
+            }
             Pattern::Error => (),
             Pattern::TypeAnnotation(pattern, typ) => {
                 self.declare_names_in_pattern(*pattern, declare_type_vars);
                 self.resolve_type(typ, declare_type_vars);
-            },
+            }
         }
     }
 
@@ -332,11 +364,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     /// an error will be issued.
     fn resolve_type(&mut self, typ: &Type, declare_type_vars: bool) {
         match typ {
-            Type::Error
-            | Type::Unit
-            | Type::Integer(_)
-            | Type::Float(_)
-            | Type::String => (),
+            Type::Error | Type::Unit | Type::Integer(_) | Type::Float(_) | Type::String => (),
             Type::Named(path) => self.link(*path),
             Type::Variable(name) => self.resolve_type_variable(*name, declare_type_vars),
             Type::Function(function) => {
@@ -350,13 +378,13 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                         self.resolve_effect_type(effect, declare_type_vars);
                     }
                 }
-            },
+            }
             Type::TypeApplication(f, args) => {
                 self.resolve_type(f, declare_type_vars);
                 for arg in args {
                     self.resolve_type(arg, declare_type_vars);
                 }
-            },
+            }
         }
     }
 
@@ -369,8 +397,10 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 for arg in args {
                     self.resolve_type(arg, declare_type_vars);
                 }
-            },
-            EffectType::Variable(name_id) => self.resolve_type_variable(*name_id, declare_type_vars),
+            }
+            EffectType::Variable(name_id) => {
+                self.resolve_type_variable(*name_id, declare_type_vars)
+            }
         }
     }
 
@@ -384,7 +414,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         } else {
             let location = self.context.name_locations[name_id].clone();
             let name = self.context.names[name_id].clone();
-            self.errors.push(Diagnostic::NameNotFound { name, location });
+            self.errors
+                .push(Diagnostic::NameNotFound { name, location });
         }
     }
 
@@ -397,14 +428,14 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 for (_name, field_type) in fields {
                     self.resolve_type(field_type, false);
                 }
-            },
+            }
             TypeDefinitionBody::Enum(variants) => {
                 for (_name, variant_args) in variants {
                     for arg in variant_args {
                         self.resolve_type(arg, false);
                     }
                 }
-            },
+            }
         }
     }
 
@@ -468,7 +499,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 for path in paths {
                     self.link(*path);
                 }
-            },
+            }
             Comptime::Definition(definition) => self.resolve_definition(definition),
         }
     }

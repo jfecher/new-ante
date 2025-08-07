@@ -1,0 +1,12 @@
+main () =
+    foo = "hi there"
+    stuff () = print foo
+    stuff ()
+
+main ()
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/closure_basic.an:4:4	error: `stuff` is not defined, was it a typo?
+//     stuff ()
+

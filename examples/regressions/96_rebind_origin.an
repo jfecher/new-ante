@@ -1,0 +1,15 @@
+
+origin foo =
+    cast foo : U64
+
+twice foo bar =
+    origin foo
+    origin bar
+
+twice 1u8 2u16
+
+// args: --delete-binary
+// expected stderr:
+// examples/regressions/96_rebind_origin.an:3:4	error: `cast` is not defined, was it a typo?
+//     cast foo : U64
+

@@ -1,0 +1,27 @@
+// Regression for #215
+effect Emit a with
+    emit: a -> Unit
+
+iota (n: U32) = loop (i = 0) ->
+    if i < n then
+        emit i
+        recur (i + 1)
+
+filter stream predicate =
+    handle stream ()
+    | emit x ->
+        if predicate x then
+            emit x
+        resume ()
+
+for stream f =
+    handle stream ()
+    | emit x ->
+        f x
+        resume ()
+
+iota 10
+    with filter (fn x -> x % 2 == 0)
+    with for print
+
+// args: --check --show-types

@@ -1,0 +1,25 @@
+
+effect Three with
+    one: fn Unit -> Unit
+    two: fn I32 -> I32
+    three: fn I32 - I32 -> I32
+
+effect State a with
+    get: fn Unit -> a
+    put: fn a -> Unit
+
+
+handle ()
+| one () -> ()
+| one () -> ()
+
+
+handle ()
+| get () -> resume ()
+| put () -> ()
+
+handle ()
+| put () -> ()
+| three 0 1 -> ()
+
+// args: --check

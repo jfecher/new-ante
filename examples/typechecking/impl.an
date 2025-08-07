@@ -1,0 +1,26 @@
+
+trait Foo a with
+    foo: a - a -> a
+
+impl Foo I32 with
+    foo _a b = b
+
+impl Foo F64 with
+    foo _a b = b
+
+
+a = foo 1 2i32
+b = foo 1.0 2.0
+c = foo "one" "two"
+
+// args: --check --show-types
+// expected stderr:
+// examples/typechecking/impl.an:12:4	error: `foo` is not defined, was it a typo?
+// a = foo 1 2i32
+// 
+// examples/typechecking/impl.an:13:4	error: `foo` is not defined, was it a typo?
+// b = foo 1.0 2.0
+// 
+// examples/typechecking/impl.an:14:4	error: `foo` is not defined, was it a typo?
+// c = foo "one" "two"
+

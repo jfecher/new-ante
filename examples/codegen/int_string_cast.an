@@ -1,0 +1,35 @@
+debug str =
+  print <|
+    "string: " ++
+    str ++
+    " len: " ++
+    cast str.length
+
+debug <| cast (255: U8)
+
+debug <| cast -1024
+
+debug <| cast 0
+
+debug <| cast 10
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/int_string_cast.an:2:8	error: `<|` is not defined, was it a typo?
+//   print <|
+// 
+// examples/codegen/int_string_cast.an:2:2	error: `print` is not defined, was it a typo?
+//   print <|
+// 
+// examples/codegen/int_string_cast.an:5:13	error: `++` is not defined, was it a typo?
+//     " len: " ++
+// 
+// examples/codegen/int_string_cast.an:4:8	error: `++` is not defined, was it a typo?
+//     str ++
+// 
+// examples/codegen/int_string_cast.an:3:15	error: `++` is not defined, was it a typo?
+//     "string: " ++
+// 
+// examples/codegen/int_string_cast.an:6:4	error: `cast` is not defined, was it a typo?
+//     cast str.length
+

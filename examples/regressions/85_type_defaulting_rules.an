@@ -1,0 +1,39 @@
+// #85: Compiler crash when compiling some polymorphic integer operations
+// Before the fix this crashed during codegen with:
+//   thread 'main' panicked at 'internal error: entered unreachable code: There is no code in a trait definition that can be codegen'd.
+//   No cached impl for printne 50: (unit -> unit)', src/llvm/mod.rs:438:17
+
+count_down n f =
+    if n > 0 then
+        f n
+        count_down (n - 1) f
+
+main () =
+    // Making this mutable helps prevent inlining
+    mut offset = 1
+    count_down 3 fn x ->
+        print (x + offset)
+
+    print_offset _ = print offset
+    closure = count_down _ print_offset
+    closure 2
+
+main ()
+
+// args: --delete-binary
+// expected stderr:
+// examples/regressions/85_type_defaulting_rules.an:7:9	error: `>` is not defined, was it a typo?
+//     if n > 0 then
+// 
+// examples/regressions/85_type_defaulting_rules.an:9:22	error: `-` is not defined, was it a typo?
+//         count_down (n - 1) f
+// 
+// examples/regressions/85_type_defaulting_rules.an:17:21	error: `print` is not defined, was it a typo?
+//     print_offset _ = print offset
+// 
+// examples/regressions/85_type_defaulting_rules.an:17:27	error: `offset` is not defined, was it a typo?
+//     print_offset _ = print offset
+// 
+// examples/regressions/85_type_defaulting_rules.an:18:25	error: `_` is not defined, was it a typo?
+//     closure = count_down _ print_offset
+

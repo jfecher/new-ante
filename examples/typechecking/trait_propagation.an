@@ -1,0 +1,20 @@
+
+extern bar : a
+
+trait Baz a with baz : a -> Unit
+
+foo () = baz bar
+
+// This test ensures the Baz constraint is solved in foo
+// rather than being propagated up into its signature just
+// because it has a typevariable.
+//
+
+// args: --check --show-types
+// expected stderr:
+// examples/typechecking/trait_propagation.an:6:9	error: `baz` is not defined, was it a typo?
+// foo () = baz bar
+// 
+// examples/typechecking/trait_propagation.an:6:13	error: `bar` is not defined, was it a typo?
+// foo () = baz bar
+

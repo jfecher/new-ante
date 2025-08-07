@@ -1,0 +1,4 @@
+
+print (true and true or false and false)
+
+// args: --delete-binary

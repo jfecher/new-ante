@@ -1,0 +1,13 @@
+trait Foo a b with
+    foo: fn a -> b
+    bar: a
+
+impl Foo I32 String with
+    foo _x = "test"
+    baz = 2  // error: baz not in foo
+    // error: missing definition of foo
+
+foo 3
+bar : Unit
+
+// args: --check

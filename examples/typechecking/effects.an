@@ -1,0 +1,34 @@
+effect Log with
+    log: String -> Unit
+
+effect Use a with
+    get: Unit -> a
+    set: a -> Unit
+
+// Expect `can Use Unit` and not `can Log`
+handle_basic () = 
+    handle log "test1"
+    | log v -> set v
+
+use_resume () =
+    handle ()
+    // Test these two 'resume's refer to two different variables
+    // with incompatible types
+    | get () -> resume 3i32
+    | set _ -> resume ()
+
+does_use x =
+    y = get ()
+    set (y + x)
+
+// args: --check --show-types
+// expected stderr:
+// examples/typechecking/effects.an:22:4	error: `set` is not defined, was it a typo?
+//     set (y + x)
+// 
+// examples/typechecking/effects.an:22:11	error: `+` is not defined, was it a typo?
+//     set (y + x)
+// 
+// examples/typechecking/effects.an:22:9	error: `y` is not defined, was it a typo?
+//     set (y + x)
+

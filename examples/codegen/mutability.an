@@ -1,0 +1,19 @@
+mut num = 32
+print num
+num := 7
+print num
+
+mutate !num
+print num
+
+mutate (n: !I32) =
+    x = double @n
+    n := x
+
+double x = x * 2
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/mutability.an:13:13	error: `*` is not defined, was it a typo?
+// double x = x * 2
+

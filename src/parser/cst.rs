@@ -2,7 +2,10 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{diagnostics::{ErrorDefault, Location}, lexer::token::{FloatKind, IntegerKind, Token, F64}};
+use crate::{
+    diagnostics::{ErrorDefault, Location},
+    lexer::token::{FloatKind, IntegerKind, Token, F64},
+};
 
 use super::ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 
@@ -41,16 +44,26 @@ pub enum TopLevelItemKind {
 impl TopLevelItemKind {
     pub fn name(&self) -> ItemName {
         match self {
-            TopLevelItemKind::Definition(definition) => {
-                match definition.name {
-                    DefinitionName::Single(name_id) => ItemName::Single(name_id),
-                    DefinitionName::Method { type_name, item_name } => ItemName::Method { type_name, item_name },
-                }
+            TopLevelItemKind::Definition(definition) => match definition.name {
+                DefinitionName::Single(name_id) => ItemName::Single(name_id),
+                DefinitionName::Method {
+                    type_name,
+                    item_name,
+                } => ItemName::Method {
+                    type_name,
+                    item_name,
+                },
             },
-            TopLevelItemKind::TypeDefinition(type_definition) => ItemName::Single(type_definition.name),
-            TopLevelItemKind::TraitDefinition(trait_definition) => ItemName::Single(trait_definition.name),
+            TopLevelItemKind::TypeDefinition(type_definition) => {
+                ItemName::Single(type_definition.name)
+            }
+            TopLevelItemKind::TraitDefinition(trait_definition) => {
+                ItemName::Single(trait_definition.name)
+            }
             TopLevelItemKind::TraitImpl(_) => ItemName::None,
-            TopLevelItemKind::EffectDefinition(effect_definition) => ItemName::Single(effect_definition.name),
+            TopLevelItemKind::EffectDefinition(effect_definition) => {
+                ItemName::Single(effect_definition.name)
+            }
             TopLevelItemKind::Extern(extern_) => ItemName::Single(extern_.declaration.name),
             TopLevelItemKind::Comptime(_) => ItemName::None,
         }
@@ -63,7 +76,10 @@ impl TopLevelItemKind {
 
 pub enum ItemName {
     Single(NameId),
-    Method { type_name: NameId, item_name: NameId },
+    Method {
+        type_name: NameId,
+        item_name: NameId,
+    },
     None,
 }
 
@@ -71,11 +87,14 @@ impl ItemName {
     pub fn to_string<'ctx>(&self, context: &'ctx super::TopLevelContext) -> Cow<'ctx, str> {
         match self {
             ItemName::Single(name) => Cow::Borrowed(&context.names[*name]),
-            ItemName::Method { type_name, item_name } => {
+            ItemName::Method {
+                type_name,
+                item_name,
+            } => {
                 let type_name = &context.names[*type_name];
                 let item_name = &context.names[*item_name];
                 Cow::Owned(format!("{type_name}.{item_name}"))
-            },
+            }
             ItemName::None => Cow::Borrowed("impl"),
         }
     }
@@ -233,7 +252,10 @@ pub struct Definition {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum DefinitionName {
     Single(NameId),
-    Method { type_name: NameId, item_name: NameId },
+    Method {
+        type_name: NameId,
+        item_name: NameId,
+    },
 }
 
 impl DefinitionName {

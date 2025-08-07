@@ -1,0 +1,23 @@
+effect Count with
+    count: Unit -> Unit
+
+foo () =
+    count ()
+    repeat 10 fn _ -> count ()
+
+handle_count f =
+    handle
+        f ()
+        0
+    | count () -> 1 + resume ()
+
+handle_count foo
+
+// args: --check --show-types
+// expected stderr:
+// examples/typechecking/count_effect.an:5:4	error: `count` is not defined, was it a typo?
+//     count ()
+// 
+// examples/typechecking/count_effect.an:6:4	error: `repeat` is not defined, was it a typo?
+//     repeat 10 fn _ -> count ()
+

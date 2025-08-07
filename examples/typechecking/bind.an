@@ -1,0 +1,13 @@
+bind opt f =
+    match opt
+    | Some x -> f x
+    | None -> None
+
+ret x = Some x
+
+x = Some 10i32
+
+add_one x =
+    bind x (fn x -> ret (x + 1i32))
+
+// args: --check --show-types

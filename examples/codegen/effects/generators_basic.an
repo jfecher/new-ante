@@ -1,0 +1,17 @@
+effect Emit a with
+    emit: a -> Unit
+
+iota (n: U32) = loop (i = 0) ->
+    if i < n then
+        emit i
+        recur (i + 1)
+
+for stream f =
+    handle stream ()
+    | emit x ->
+        f x
+        resume ()
+
+for (fn () -> iota 10) print
+
+// args: --delete-binary

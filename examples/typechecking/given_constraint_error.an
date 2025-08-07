@@ -1,0 +1,5 @@
+
+impl Print a given DoesNotExist a with
+    printne _ = ()
+
+// args: --check

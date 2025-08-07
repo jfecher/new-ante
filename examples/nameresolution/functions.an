@@ -1,0 +1,21 @@
+
+recursion n f =
+    if n > 0 then
+        f ()
+        recursion (n - 1) f
+
+type List a = | Nil | Cons a (List a)
+
+map l f =
+    match l
+    | Nil -> Nil
+    | Cons x xs -> Cons (f x) (map xs f)
+
+// args: --check
+// expected stderr:
+// examples/nameresolution/functions.an:3:9	error: `>` is not defined, was it a typo?
+//     if n > 0 then
+// 
+// examples/nameresolution/functions.an:5:21	error: `-` is not defined, was it a typo?
+//         recursion (n - 1) f
+

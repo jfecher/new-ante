@@ -1,0 +1,9 @@
+type Foo a b=
+  x: a
+  y: b
+
+hello_foo y = Foo with x = "Hello World", y
+
+foo = hello_foo 42
+
+// args: --check --show-types

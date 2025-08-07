@@ -1,0 +1,32 @@
+type S = message: String
+
+impl Print S with
+    printne s = printne s.message
+
+// If the compiler decides to pass by reference, the code becomes:
+// void foo(const S *x, S *y) {
+//    ...
+// }
+// which can mutate x when x == y if not careful
+foo (x: S) (y: S) =
+    printne "x before: "
+    print x
+    mut z = y
+    z.!message := "modifying y"
+    printne "x after:  "
+    print x
+
+mut x = S "original x string"
+foo x x
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/pass_by_ref.an:12:4	error: `printne` is not defined, was it a typo?
+//     printne "x before: "
+// 
+// examples/codegen/pass_by_ref.an:13:4	error: `print` is not defined, was it a typo?
+//     print x
+// 
+// examples/codegen/pass_by_ref.an:15:4	error: `z` is not defined, was it a typo?
+//     z.!message := "modifying y"
+

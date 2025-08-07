@@ -4,9 +4,15 @@ use inc_complete::{define_input, define_intermediate, impl_storage, storage::Has
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend, definition_collection, diagnostics::{Errors, Location}, name_resolution::{self, namespace::{CrateId, SourceFileId}, ResolutionResult}, parser::{
-        self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext,
-    }, type_inference::{self, types::GeneralizedType, TypeCheckResult}
+    backend, definition_collection,
+    diagnostics::{Errors, Location},
+    name_resolution::{
+        self,
+        namespace::{CrateId, SourceFileId},
+        ResolutionResult,
+    },
+    parser::{self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext},
+    type_inference::{self, types::GeneralizedType, TypeCheckResult},
 };
 
 /// A wrapper over inc-complete's database with our specific storage type to hold
@@ -100,7 +106,11 @@ pub struct SourceFile {
 
 impl SourceFile {
     pub fn new(path: Arc<PathBuf>, contents: String) -> SourceFile {
-        SourceFile { path, contents, submodules: BTreeMap::new() }
+        SourceFile {
+            path,
+            contents,
+            submodules: BTreeMap::new(),
+        }
     }
 }
 
@@ -137,7 +147,6 @@ pub struct CrateName(pub CrateId);
 define_intermediate!(30, CrateName -> Arc<String>, Storage, |ctx, db| {
     Arc::new(ctx.0.get(db).name.clone())
 });
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// For each file name, we cache the parse result of that file. This includes not only

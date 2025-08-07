@@ -1,0 +1,12 @@
+import T
+
+// Module imports can form a cycle!
+u x = t x
+
+// args: --check examples/nameresolution/T.an
+// expected exit status: 101
+// expected stderr:
+// thread 'main' panicked at src/incremental.rs:278:1:
+// Attempted to call `run` function on input FileId, did you forget to call `update_input`?
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+

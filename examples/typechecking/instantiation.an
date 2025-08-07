@@ -1,0 +1,15 @@
+
+add m n = fn f -> fn x -> m f (n f x)  // (a -> b -> c) -> (a -> d -> b) -> a -> d -> c
+
+one f x = f x  // (a -> b) -> a -> b
+two1 f x = f (f x) // (a -> a) -> a -> a
+
+two2 = add one one
+
+// id is polymorphic, expect no error here
+id 3
+id "four"
+
+id x = x
+
+// args: --check --show-types

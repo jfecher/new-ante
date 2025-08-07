@@ -1,4 +1,7 @@
-use std::{marker::PhantomData, ops::{Index, IndexMut}};
+use std::{
+    marker::PhantomData,
+    ops::{Index, IndexMut},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -10,19 +13,28 @@ pub struct VecMap<K, V> {
 
 impl<K, V> Default for VecMap<K, V> {
     fn default() -> Self {
-        Self { items: Vec::new(), id: PhantomData }
+        Self {
+            items: Vec::new(),
+            id: PhantomData,
+        }
     }
 }
 
 impl<K, V> VecMap<K, V> {
-    pub fn push(&mut self, item: V) -> K where K: From<usize> {
+    pub fn push(&mut self, item: V) -> K
+    where
+        K: From<usize>,
+    {
         let key = K::from(self.items.len());
         self.items.push(item);
         key
     }
 }
 
-impl<K, V> Index<K> for VecMap<K, V> where K: Into<usize> {
+impl<K, V> Index<K> for VecMap<K, V>
+where
+    K: Into<usize>,
+{
     type Output = V;
 
     fn index(&self, index: K) -> &Self::Output {
@@ -30,27 +42,39 @@ impl<K, V> Index<K> for VecMap<K, V> where K: Into<usize> {
     }
 }
 
-impl<K, V> IndexMut<K> for VecMap<K, V> where K: Into<usize> {
+impl<K, V> IndexMut<K> for VecMap<K, V>
+where
+    K: Into<usize>,
+{
     fn index_mut(&mut self, index: K) -> &mut Self::Output {
         &mut self.items[index.into()]
     }
 }
 
-impl<K, V> Serialize for VecMap<K, V> where V: Serialize {
+impl<K, V> Serialize for VecMap<K, V>
+where
+    V: Serialize,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer
+        S: serde::Serializer,
     {
         self.items.serialize(serializer)
     }
 }
 
-impl<'de, K, V> Deserialize<'de> for VecMap<K, V> where V: Deserialize<'de> {
+impl<'de, K, V> Deserialize<'de> for VecMap<K, V>
+where
+    V: Deserialize<'de>,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>
+        D: serde::Deserializer<'de>,
     {
         let items = Deserialize::deserialize(deserializer)?;
-        Ok(VecMap { items, id: PhantomData })
+        Ok(VecMap {
+            items,
+            id: PhantomData,
+        })
     }
 }

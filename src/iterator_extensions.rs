@@ -1,7 +1,8 @@
 /// Shorthand for `items.into_iter().map(f).collect()`
 #[inline]
 pub(crate) fn map<T, U, R>(items: impl IntoIterator<Item = T>, f: impl FnMut(T) -> U) -> R
-    where R: FromIterator<U>
+where
+    R: FromIterator<U>,
 {
     items.into_iter().map(f).collect()
 }

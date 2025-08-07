@@ -1,0 +1,11 @@
+foo x =
+    y = fn _ -> x
+    y
+
+// type should be a -> (b -> a)
+
+// args: --check --show-types
+// expected stderr:
+// examples/typechecking/generalization.an:3:4	error: `y` is not defined, was it a typo?
+//     y
+

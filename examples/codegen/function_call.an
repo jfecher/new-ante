@@ -1,0 +1,9 @@
+show x = puts x.c_string
+
+show "foo"
+
+// args: --delete-binary
+// expected stderr:
+// examples/codegen/function_call.an:1:10	error: `puts` is not defined, was it a typo?
+// show x = puts x.c_string
+
