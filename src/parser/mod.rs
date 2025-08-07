@@ -677,6 +677,22 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn parse_type(&mut self) -> Result<Type> {
+        let typ = self.parse_type_arg()?;
+        let mut args = Vec::new();
+
+        while let Ok(typ) = self.parse_type_arg() {
+            args.push(typ);
+        }
+
+        if args.is_empty() {
+            Ok(typ)
+        } else {
+            Ok(Type::TypeApplication(Box::new(typ), args))
+        }
+    }
+
+    // Parse a type in a function argument position. e.g. `a` in `Foo a b c`
+    fn parse_type_arg(&mut self) -> Result<Type> {
         match self.current_token() {
             Token::UnitType => {
                 self.advance();
@@ -686,6 +702,14 @@ impl<'tokens> Parser<'tokens> {
                 self.advance();
                 Ok(Type::Integer(*kind))
             }
+            Token::FloatType(kind) => {
+                self.advance();
+                Ok(Type::Float(*kind))
+            }
+            Token::StringType => {
+                self.advance();
+                Ok(Type::String)
+            }
             Token::TypeName(_) => {
                 let path = self.parse_type_path_id()?;
                 Ok(Type::Named(path))
@@ -693,6 +717,13 @@ impl<'tokens> Parser<'tokens> {
             Token::Identifier(_) => {
                 let name = self.parse_ident_id()?;
                 Ok(Type::Variable(name))
+            }
+            Token::ParenthesisLeft => {
+                self.advance();
+                let too_far = &[Token::Newline, Token::Indent, Token::Unindent];
+                let typ = self.parse_with_recovery(Self::parse_type, Token::ParenthesisRight, too_far)?;
+                self.expect(Token::ParenthesisRight, "a `)` to close the opening `(` from the parameter")?;
+                Ok(typ)
             }
             _ => self.expected("a type"),
         }
@@ -902,20 +933,37 @@ impl<'tokens> Parser<'tokens> {
         Ok(results.pop().unwrap())
     }
 
+    /// term: term ':' type
+    ///     | term_inner
     fn parse_term(&mut self) -> Result<ExprId> {
+        let start = self.current_token_span();
+        let mut lhs = self.parse_term_inner()?;
+
+        while self.accept(Token::Colon) {
+            let typ = self.parse_type()?;
+            let end = self.previous_token_span();
+            let location = start.to(&end).in_file(self.file_id);
+
+            let expr = Expr::TypeAnnotation(cst::TypeAnnotation { lhs, rhs: typ });
+            lhs = self.push_expr(expr, location);
+        }
+        Ok(lhs)
+    }
+
+    fn parse_term_inner(&mut self) -> Result<ExprId> {
         match self.current_token() {
             // definition, variable, function call
             Token::Identifier(_) | Token::TypeName(_) => {
                 self.parse_function_call_or_atom()
             }
             Token::Subtract | Token::Ampersand | Token::ExclamationMark | Token::At => {
-                self.parse_unary()
+                self.parse_left_unary()
             }
             _ => self.parse_atom(),
         }
     }
 
-    fn parse_unary(&mut self) -> Result<ExprId> {
+    fn parse_left_unary(&mut self) -> Result<ExprId> {
         match self.current_token() {
             operator @ (Token::Subtract | Token::ExclamationMark | Token::Ampersand | Token::At) => {
                 let call_id = self.reserve_expr();
@@ -923,7 +971,7 @@ impl<'tokens> Parser<'tokens> {
 
                 let operator_location = self.current_token_location();
                 self.advance();
-                let rhs = self.parse_unary()?;
+                let rhs = self.parse_left_unary()?;
                 let location = operator_location.to(&self.expr_location(rhs));
 
                 let components = vec![(operator.to_string(), operator_location.clone())];
@@ -946,7 +994,7 @@ impl<'tokens> Parser<'tokens> {
                 self.with_expr_id_and_location(|this| {
                     let operator_location = this.current_token_location();
                     this.advance();
-                    let rhs = this.parse_unary()?;
+                    let rhs = this.parse_left_unary()?;
                     let components = vec![(Token::At.to_string(), operator_location.clone())];
                     let path_id = this.push_path(Path { components }, operator_location.clone());
                     let function = this.push_expr(Expr::Variable(path_id), operator_location);
@@ -962,7 +1010,7 @@ impl<'tokens> Parser<'tokens> {
 
                 self.with_expr_id_and_location(|this| {
                     this.advance();
-                    let rhs = this.parse_unary()?;
+                    let rhs = this.parse_left_unary()?;
                     Ok(Expr::Reference(cst::Reference { mode, rhs }))
                 })
             }

@@ -2,7 +2,7 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{diagnostics::{ErrorDefault, Location}, lexer::token::{IntegerKind, Token}};
+use crate::{diagnostics::{ErrorDefault, Location}, lexer::token::{FloatKind, IntegerKind, Token}};
 
 use super::ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 
@@ -88,8 +88,10 @@ pub enum Type {
     Named(PathId),
     Variable(NameId),
     Integer(IntegerKind),
+    Float(FloatKind),
     Function(FunctionType),
     TypeApplication(Box<Type>, Vec<Type>),
+    String,
 }
 
 impl ErrorDefault for Type {

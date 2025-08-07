@@ -2,7 +2,7 @@ use std::{collections::{BTreeMap, BTreeSet}, rc::Rc, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{iterator_extensions::vecmap, lexer::token::IntegerKind, parser::ids::ExprId};
+use crate::{iterator_extensions::vecmap, lexer::token::{FloatKind, IntegerKind}, parser::ids::ExprId};
 
 /// A top-level type is a type which may be in a top-level signature.
 /// This notably excludes unbound type variables. Unlike `Type`, top-level
@@ -55,6 +55,9 @@ pub enum PrimitiveType {
     Unit,
     Pointer,
     Int(IntegerKind),
+    Float(FloatKind),
+    /// TODO: This should be a struct type
+    String,
 }
 
 /// Maps type variables to their bindings
@@ -83,6 +86,8 @@ impl Type {
     pub fn from_ast_type(typ: &crate::parser::cst::Type) -> Type {
         match typ {
             crate::parser::cst::Type::Integer(kind) => Type::Primitive(PrimitiveType::Int(*kind)),
+            crate::parser::cst::Type::Float(kind) => Type::Primitive(PrimitiveType::Float(*kind)),
+            crate::parser::cst::Type::String => Type::Primitive(PrimitiveType::String),
             crate::parser::cst::Type::Named(_path) => todo!("Resolve named types"),
             crate::parser::cst::Type::Variable(_name) => todo!("Resolve named types"),
             crate::parser::cst::Type::Function(function) => {
@@ -171,6 +176,8 @@ impl std::fmt::Display for PrimitiveType {
             PrimitiveType::Unit => write!(f, "Unit"),
             PrimitiveType::Pointer => write!(f, "Ptr"),
             PrimitiveType::Int(kind) => write!(f, "{kind}"),
+            PrimitiveType::Float(kind) => write!(f, "{kind}"),
+            PrimitiveType::String => write!(f, "String"),
         }
     }
 }

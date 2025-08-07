@@ -204,7 +204,7 @@ impl<'a> CstDisplay<'a> {
                 self.indent_level += 1;
                 for (name, params) in variants {
                     self.newline(f)?;
-                    write!(f, "{name}")?;
+                    write!(f, "| {name}")?;
                     for param in params {
                         write!(f, " ")?;
                         self.fmt_type(param, f)?;
@@ -223,8 +223,10 @@ impl<'a> CstDisplay<'a> {
             Type::Variable(name) => write!(f, "{}", self.context().names[*name]),
             Type::Unit => write!(f, "Unit"),
             Type::Integer(kind) => write!(f, "{kind}"),
+            Type::Float(kind) => write!(f, "{kind}"),
             Type::Function(function_type) => self.fmt_function_type(function_type, f),
             Type::TypeApplication(constructor, args) => self.fmt_type_application(constructor, args, f),
+            Type::String => write!(f, "String"),
         }
     }
 

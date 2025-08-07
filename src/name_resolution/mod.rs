@@ -332,11 +332,13 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     /// an error will be issued.
     fn resolve_type(&mut self, typ: &Type, declare_type_vars: bool) {
         match typ {
-            Type::Error => (),
-            Type::Unit => (),
+            Type::Error
+            | Type::Unit
+            | Type::Integer(_)
+            | Type::Float(_)
+            | Type::String => (),
             Type::Named(path) => self.link(*path),
             Type::Variable(name) => self.resolve_type_variable(*name, declare_type_vars),
-            Type::Integer(_) => (),
             Type::Function(function) => {
                 for parameter in &function.parameters {
                     self.resolve_type(parameter, declare_type_vars);
