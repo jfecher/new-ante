@@ -7,7 +7,7 @@ pub mod namespace;
 
 use crate::{
     diagnostics::{Diagnostic, Errors, Location},
-    incremental::{self, DbHandle, GetItem, Resolve, VisibleDefinitions},
+    incremental::{self, DbHandle, GetCrateGraph, GetItem, Resolve, VisibleDefinitions},
     parser::{
         cst::{
             Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern,
@@ -242,9 +242,12 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             let (first, _) = components.peek().unwrap();
 
             // Check if it is an absolute path
-            let local_crate = LOCAL_CRATE.get(self.compiler);
+            let crates = GetCrateGraph.get(self.compiler);
+            let local_crate = &crates[&LOCAL_CRATE];
+
             for dependency_id in &local_crate.dependencies {
-                let dependency = dependency_id.get(self.compiler);
+                let dependency = &crates[dependency_id];
+
                 if **first == dependency.name {
                     // Discard the crate name
                     components.next();

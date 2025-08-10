@@ -20,7 +20,7 @@ pub enum Diagnostic {
         actual: Token,
         location: Location,
     },
-
+    ExpectedPathForImport { location: Arc<LocationData> },
     NameAlreadyInScope {
         name: Arc<String>,
         first_location: Location,
@@ -78,6 +78,9 @@ impl Diagnostic {
             } => {
                 format!("Expected {message} but found `{actual}`")
             }
+            Diagnostic::ExpectedPathForImport { .. } => {
+                "Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported".to_string()
+            }
             Diagnostic::NameAlreadyInScope {
                 name,
                 first_location: _,
@@ -127,6 +130,7 @@ impl Diagnostic {
     pub fn location(&self) -> &Location {
         match self {
             Diagnostic::ParserExpected { location, .. }
+            | Diagnostic::ExpectedPathForImport { location }
             | Diagnostic::NameAlreadyInScope {
                 second_location: location,
                 ..

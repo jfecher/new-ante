@@ -421,6 +421,19 @@ impl<'tokens> Parser<'tokens> {
             if let Some(mut path) =
                 self.try_parse_or_recover_to_newline(Self::parse_type_or_value_path)
             {
+                // `import Crate.Module`
+                // with just a single path component, nothing actually gets imported
+                if path.components.len() < 2 {
+                    // The path parser shouldn't parse empty paths
+                    assert_eq!(path.components.len(), 1);
+                    let location = path.components[0].1.clone();
+                    self.diagnostics.push(Diagnostic::ExpectedPathForImport { location });
+                    self.recover_to_next_newline();
+                    continue;
+                }
+
+                let crate_name = path.components.remove(0).0;
+
                 let mut items = Vec::with_capacity(1);
                 if let Some(item) = path.components.pop() {
                     items.push(item);
@@ -439,6 +452,7 @@ impl<'tokens> Parser<'tokens> {
                 let path = path.into_file_path();
                 imports.push(Import {
                     comments,
+                    crate_name,
                     module_path: path,
                     items,
                     location,

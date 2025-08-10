@@ -1,16 +1,13 @@
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    diagnostics::{Diagnostic, Errors, Location},
-    incremental::{
-        self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, FileId, GetImports,
-        Methods, Parse, VisibleDefinitions, VisibleDefinitionsResult, VisibleTypes,
-    },
-    parser::{
+    diagnostics::{Diagnostic, Errors, Location}, incremental::{
+        self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, GetCrateGraph, GetImports, Methods, Parse, VisibleDefinitions, VisibleDefinitionsResult, VisibleTypes
+    }, name_resolution::namespace::SourceFileId, parser::{
         cst::{ItemName, Name, TopLevelItem, TopLevelItemKind},
         ids::NameId,
         ParseResult,
-    },
+    }
 };
 
 /// Collect all definitions which should be visible to expressions within this file.
@@ -31,10 +28,10 @@ pub fn visible_definitions_impl(
     for import in &ast.cst.imports {
         // Ignore errors from imported files. We want to only collect errors
         // from this file. Otherwise we'll duplicate errors.
-        // TODO: This id should be optional in case the path doesn't exist
-        // TODO: `import.path` includes the imported item too - we want just the module path
-        // TODO: The module path is empty for something like `import T` leading to a panic
-        let import_file_id = FileId(import.module_path.clone()).get(db);
+        // TODO: Still issue an error if the file name is not found
+        let Some(import_file_id) = get_file_id(&import.crate_name, &import.module_path, db) else {
+            continue
+        };
         let exported = ExportedDefinitions(import_file_id).get(db);
 
         for (exported_name, exported_id) in &exported.definitions {
@@ -63,6 +60,18 @@ pub fn visible_definitions_impl(
     Arc::new(visible)
 }
 
+fn get_file_id(target_crate_name: &String, module_path: &PathBuf, db: &DbHandle) -> Option<SourceFileId> {
+    let crates = GetCrateGraph.get(db);
+
+    for (_, crate_) in crates.iter() {
+        if crate_.name == *target_crate_name {
+            return crate_.source_files.get(module_path).copied();
+        }
+    }
+
+    None
+}
+
 pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions, Errors) {
     incremental::enter_query();
     incremental::println(format!("Collecting visible types in {:?}", context.0));
@@ -76,7 +85,9 @@ pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions
     for import in &ast.cst.imports {
         // Ignore errors from imported files. We want to only collect errors
         // from this file. Otherwise we'll duplicate errors.
-        let import_file_id = FileId(import.module_path.clone()).get(db);
+        let Some(import_file_id) = get_file_id(&import.crate_name, &import.module_path, db) else {
+            continue
+        };
         let (exports, _errors) = ExportedTypes(import_file_id).get(db);
 
         for (exported_name, exported_id) in exports {

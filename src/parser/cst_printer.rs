@@ -95,8 +95,12 @@ impl<'a> CstDisplay<'a> {
     fn fmt_import(&mut self, import: &Import, f: &mut Formatter) -> std::fmt::Result {
         self.fmt_comments(&import.comments, f)?;
 
+        write!(f, "import {}.", import.crate_name)?;
+
         let path = import.module_path.to_string_lossy().replace("/", ".");
-        write!(f, "import {path}.")?;
+        if !path.is_empty() {
+            write!(f, "{path}.")?;
+        }
 
         for (i, (item, _location)) in import.items.iter().enumerate() {
             if i != 0 {

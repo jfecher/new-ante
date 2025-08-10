@@ -4,14 +4,14 @@ use clap::builder::OsStr;
 use rustc_hash::FxHashSet;
 
 use crate::{
-    incremental::{Crate, Db, FileId, SourceFile},
+    incremental::{Crate, Db, GetCrateGraph, SourceFile},
     name_resolution::namespace::{CrateId, SourceFileId, LOCAL_CRATE, STDLIB_CRATE},
     read_file,
 };
 
 const STDLIB_PATH: &str = "stdlib/Std";
 
-type CrateGraph = BTreeMap<CrateId, Crate>;
+pub type CrateGraph = BTreeMap<CrateId, Crate>;
 
 // TODO:
 // - Error for cyclic dependencies
@@ -24,12 +24,7 @@ pub fn populate_crates_and_files(compiler: &mut Db, starting_files: &[PathBuf]) 
     let mut crates = CrateGraph::default();
     crates.insert(
         STDLIB_CRATE,
-        Crate {
-            name: "Std".to_string(),
-            path: PathBuf::from(STDLIB_PATH),
-            dependencies: Vec::new(),
-            source_files: Vec::new(),
-        },
+        Crate::new("Std".to_string(), PathBuf::from(STDLIB_PATH)),
     );
 
     populate_local_crate_with_starting_files(compiler, &mut crates, starting_files);
@@ -60,37 +55,32 @@ fn populate_local_crate_with_starting_files(
     crates: &mut CrateGraph,
     starting_files: &[PathBuf],
 ) {
-    let mut source_files = Vec::with_capacity(starting_files.len());
+    let mut source_files = BTreeMap::new();
 
     for path in starting_files {
         let path = path.to_path_buf();
         let id = SourceFileId::new(LOCAL_CRATE, &path);
         let data = read_file_data(path.clone());
         id.set(compiler, Arc::new(data));
-        FileId(Arc::new(path)).set(compiler, id);
-        source_files.push(id);
+        source_files.insert(Arc::new(path), id);
     }
 
     // TODO: track name for local crate. Currently we only compile single source files
     // but have the infrastructure here to collect source files of crates and their dependencies.
     // We're only missing CLI options.
-    crates.insert(
-        LOCAL_CRATE,
-        Crate {
-            name: "Local".to_string(),
-            path: PathBuf::from("."),
-            dependencies: Vec::new(),
-            source_files,
-        },
-    );
+    let crate_ = Crate {
+        name: "Local".to_string(),
+        path: PathBuf::from("."),
+        dependencies: Vec::new(),
+        source_files
+    };
+    crates.insert(LOCAL_CRATE, crate_);
 }
 
 /// Set each CrateId -> Crate mapping as an input to the Db
 /// We can only do this once each crate's source files have been collected.
 fn set_crate_inputs(compiler: &mut Db, crates: CrateGraph) {
-    for (crate_id, crate_) in crates {
-        crate_id.set(compiler, Arc::new(crate_));
-    }
+    GetCrateGraph.set(compiler, Arc::new(crates));
 }
 
 /// Find all Ante source files in the given crate. Currently this is hard coded
@@ -100,7 +90,7 @@ fn add_source_files_of_crate(compiler: &mut Db, crates: &mut CrateGraph, crate_i
     src_folder.push("src");
 
     let mut remaining = vec![src_folder];
-    let mut source_files = Vec::new();
+    let mut source_files = BTreeMap::new();
 
     // Push every crate in the `deps` folder as a new crate
     while let Some(src_folder) = remaining.pop() {
@@ -121,8 +111,9 @@ fn add_source_files_of_crate(compiler: &mut Db, crates: &mut CrateGraph, crate_i
                     let id = SourceFileId::new(crate_id, &path);
                     let data = read_file_data(path.clone());
                     id.set(compiler, Arc::new(data));
-                    FileId(Arc::new(path)).set(compiler, id);
-                    source_files.push(id);
+                    let path = Arc::new(path);
+                    println!("Inserting `{}`", path.display());
+                    source_files.insert(path, id);
                 }
             }
         }
@@ -150,6 +141,8 @@ fn read_file_data(file: PathBuf) -> SourceFile {
     SourceFile::new(file, text)
 }
 
+/// TODO: This creates a new dependency for each dependency found.
+/// It never checks for duplicates.
 fn find_crate_dependencies(crates: &mut CrateGraph, crate_id: CrateId) -> Vec<CrateId> {
     let mut deps_folder = crates[&crate_id].path.clone();
     deps_folder.push("deps");
@@ -176,15 +169,7 @@ fn find_crate_dependencies(crates: &mut CrateGraph, crate_id: CrateId) -> Vec<Cr
                     let id = new_crate_id(&crates, &name, 0);
                     dependencies.push(id);
 
-                    crates.insert(
-                        id,
-                        Crate {
-                            name,
-                            path,
-                            dependencies: Vec::new(),
-                            source_files: Vec::new(),
-                        },
-                    );
+                    crates.insert(id, Crate::new(name, path));
                 }
             }
         }

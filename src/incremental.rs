@@ -1,18 +1,14 @@
 use std::{cell::Cell, collections::BTreeMap, path::PathBuf, sync::Arc};
 
-use inc_complete::{define_input, define_intermediate, impl_storage, storage::HashMapStorage};
+use inc_complete::{define_input, define_intermediate, impl_storage, storage::{HashMapStorage, SingletonStorage}};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend, definition_collection,
-    diagnostics::{Errors, Location},
-    name_resolution::{
+    backend, definition_collection, diagnostics::{Errors, Location}, find_files::CrateGraph, name_resolution::{
         self,
         namespace::{CrateId, SourceFileId},
         ResolutionResult,
-    },
-    parser::{self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext},
-    type_inference::{self, types::GeneralizedType, TypeCheckResult},
+    }, parser::{self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext}, type_inference::{self, types::GeneralizedType, TypeCheckResult}
 };
 
 /// A wrapper over inc-complete's database with our specific storage type to hold
@@ -38,8 +34,7 @@ pub type DbHandle<'db> = inc_complete::DbHandle<'db, Storage>;
 #[derive(Default, Serialize, Deserialize)]
 pub struct Storage {
     files: HashMapStorage<SourceFileId>,
-    file_ids: HashMapStorage<FileId>,
-    crates: HashMapStorage<CrateId>,
+    crate_graph: SingletonStorage<GetCrateGraph>,
     parse_results: HashMapStorage<Parse>,
     visible_definitions: HashMapStorage<VisibleDefinitions>,
     visible_types: HashMapStorage<VisibleTypes>,
@@ -55,8 +50,7 @@ pub struct Storage {
 
 impl_storage!(Storage,
     files: SourceFileId,
-    file_ids: FileId,
-    crates: CrateId,
+    crate_graph: GetCrateGraph,
     parse_results: Parse,
     visible_definitions: VisibleDefinitions,
     visible_types: VisibleTypes,
@@ -131,12 +125,24 @@ pub struct Crate {
 
     /// All source files within this crate. This excludes any files
     /// owned by dependencies.
-    pub source_files: Vec<SourceFileId>,
+    ///
+    /// The path buf these are keyed on does not include the `src` directory.
+    /// For example, a module `MyCrate.Foo.Bar` would correspond to the path `foo/bar.an`
+    pub source_files: BTreeMap<Arc<PathBuf>, SourceFileId>,
 }
+
+impl Crate {
+    pub fn new(name: String, path: PathBuf) -> Crate {
+        Crate { name, path, dependencies: Vec::new(), source_files: BTreeMap::new() }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct GetCrateGraph;
 
 // SourceFileIds along with CrateIds are the main inputs to the compiler.
 // A CrateId maps to a Crate which is used for organizing dependencies.
-define_input!(20, CrateId -> Arc<Crate>, Storage);
+define_input!(20, GetCrateGraph -> Arc<CrateGraph>, Storage);
 
 /// Any full path from a crate to module in name resolution must query the
 /// crate names of all dependencies. To avoid all of name resolution changing
@@ -145,7 +151,10 @@ define_input!(20, CrateId -> Arc<Crate>, Storage);
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CrateName(pub CrateId);
 define_intermediate!(30, CrateName -> Arc<String>, Storage, |ctx, db| {
-    Arc::new(ctx.0.get(db).name.clone())
+    match GetCrateGraph.get(db).get(&ctx.0) {
+        Some(crate_) => Arc::new(crate_.name.clone()),
+        None => Arc::new("(none)".to_string()),
+    }
 });
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -279,9 +288,3 @@ define_intermediate!(130, TypeCheck -> TypeCheckResult, Storage, type_inference:
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompileFile(pub SourceFileId);
 define_intermediate!(140, CompileFile -> (String, Errors), Storage, backend::compile_file_impl);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-/// Returns the SourceFileId for a given file path
-#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FileId(pub Arc<PathBuf>);
-define_input!(150, FileId -> SourceFileId, Storage);

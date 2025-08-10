@@ -24,7 +24,7 @@ use clap::{CommandFactory, Parser};
 use cli::{Cli, Completions};
 use diagnostics::Diagnostic;
 use find_files::populate_crates_and_files;
-use incremental::{CompileFile, Db, Parse, Resolve};
+use incremental::{CompileFile, Db, GetCrateGraph, Parse, Resolve};
 use name_resolution::namespace::{CrateId, LocalModuleId, SourceFileId, LOCAL_CRATE};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
@@ -108,10 +108,11 @@ fn compile(args: Cli) {
 }
 
 fn display_parse_tree(compiler: &Db) -> Vec<Diagnostic> {
-    let local_crate = LOCAL_CRATE.get(compiler);
+    let crates = GetCrateGraph.get(compiler);
+    let local_crate = &crates[&LOCAL_CRATE];
     let mut diagnostics = Vec::new();
 
-    for file in &local_crate.source_files {
+    for (_, file) in &local_crate.source_files {
         let result = Parse(*file).get(compiler);
         println!("{}", result.cst.display(&result.top_level_data));
         diagnostics.extend(result.diagnostics.iter().cloned())
@@ -120,10 +121,11 @@ fn display_parse_tree(compiler: &Db) -> Vec<Diagnostic> {
 }
 
 fn display_name_resolution(compiler: &Db) -> Vec<Diagnostic> {
-    let local_crate = LOCAL_CRATE.get(compiler);
+    let crates = GetCrateGraph.get(compiler);
+    let local_crate = &crates[&LOCAL_CRATE];
     let mut diagnostics = Vec::new();
 
-    for file in &local_crate.source_files {
+    for (_, file) in &local_crate.source_files {
         let parse = Parse(*file).get(compiler);
 
         for item in &parse.cst.top_level_items {

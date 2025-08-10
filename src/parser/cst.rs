@@ -217,7 +217,10 @@ impl Path {
 pub struct Import {
     pub comments: Vec<String>,
 
-    /// For a given import `import Foo.Bar.Baz.a, b, c`, `module_path` will contain `Foo.Bar.Baz`
+    /// For a given import `import Foo.Bar.Baz.a, b, c`, `crate_name` will contain `Foo`
+    pub crate_name: String,
+
+    /// For a given import `import Foo.Bar.Baz.a, b, c`, `module_path` will contain `Bar/Baz.an`
     /// TODO: Investigate whether this breaks serialization stability across Windows <-> Unix
     pub module_path: Arc<PathBuf>,
 
