@@ -24,6 +24,9 @@ _ = (!&tuple).!first
 // flags: --check
 
 // expected stderr:
+// examples/typechecking/field_diagnostics.an:12:0	error: Expected a top-level item but found `mut`
+// mut mut_tuple = (1, 1)
+// 
 // examples/typechecking/field_diagnostics.an:1:11	error: `,` is not defined, was it a typo?
 // tuple = (1, 1)
 // 

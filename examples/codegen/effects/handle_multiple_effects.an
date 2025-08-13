@@ -18,6 +18,18 @@ print <| read_or_zero foo
 
 // args: --delete-binary
 // expected stderr:
+// examples/codegen/effects/handle_multiple_effects.an:2:0	error: Expected a top-level item but found `effect`
+// effect Fail with
+// 
+// examples/codegen/effects/handle_multiple_effects.an:5:0	error: Expected a top-level item but found `effect`
+// effect Read a with
+// 
+// examples/codegen/effects/handle_multiple_effects.an:9:4	error: Expected an unindent but found `handle`
+//     handle Some <| f ()
+// 
+// examples/codegen/effects/handle_multiple_effects.an:17:6	error: Expected `=` to begin the function body but found `<|`
+// print <| read_or_zero foo
+// 
 // examples/codegen/effects/handle_multiple_effects.an:14:18	error: `fail` is not defined, was it a typo?
 //     if false then fail ()
 // 

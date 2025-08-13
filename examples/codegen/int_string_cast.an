@@ -15,6 +15,18 @@ debug <| cast 10
 
 // args: --delete-binary
 // expected stderr:
+// examples/codegen/int_string_cast.an:8:6	error: Expected `=` to begin the function body but found `<|`
+// debug <| cast (255: U8)
+// 
+// examples/codegen/int_string_cast.an:10:6	error: Expected `=` to begin the function body but found `<|`
+// debug <| cast -1024
+// 
+// examples/codegen/int_string_cast.an:12:6	error: Expected `=` to begin the function body but found `<|`
+// debug <| cast 0
+// 
+// examples/codegen/int_string_cast.an:14:6	error: Expected `=` to begin the function body but found `<|`
+// debug <| cast 10
+// 
 // examples/codegen/int_string_cast.an:2:8	error: `<|` is not defined, was it a typo?
 //   print <|
 // 

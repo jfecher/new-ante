@@ -12,6 +12,12 @@ foo () = baz bar
 
 // args: --check --show-types
 // expected stderr:
+// examples/typechecking/trait_propagation.an:2:0	error: Expected a top-level item but found `extern`
+// extern bar : a
+// 
+// examples/typechecking/trait_propagation.an:4:0	error: Expected a top-level item but found `trait`
+// trait Baz a with baz : a -> Unit
+// 
 // examples/typechecking/trait_propagation.an:6:9	error: `baz` is not defined, was it a typo?
 // foo () = baz bar
 // 

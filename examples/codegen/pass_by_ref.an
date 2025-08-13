@@ -21,6 +21,18 @@ foo x x
 
 // args: --delete-binary
 // expected stderr:
+// examples/codegen/pass_by_ref.an:3:0	error: Expected a top-level item but found `impl`
+// impl Print S with
+// 
+// examples/codegen/pass_by_ref.an:15:15	error: Expected an unindent but found `:=`
+//     z.!message := "modifying y"
+// 
+// examples/codegen/pass_by_ref.an:19:0	error: Expected a top-level item but found `mut`
+// mut x = S "original x string"
+// 
+// examples/codegen/pass_by_ref.an:22:0	error: Expected `=` to begin the function body but found `a newline`
+// // args: --delete-binary
+// 
 // examples/codegen/pass_by_ref.an:12:4	error: `printne` is not defined, was it a typo?
 //     printne "x before: "
 // 

@@ -1,21 +1,22 @@
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    diagnostics::{Diagnostic, Errors, Location}, incremental::{
-        self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, GetCrateGraph, GetImports, Methods, Parse, VisibleDefinitions, VisibleDefinitionsResult, VisibleTypes
-    }, name_resolution::namespace::SourceFileId, parser::{
+    diagnostics::{Diagnostic, Errors, Location},
+    incremental::{
+        self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, GetCrateGraph, GetImports, Methods, Parse,
+        VisibleDefinitions, VisibleDefinitionsResult, VisibleTypes,
+    },
+    name_resolution::namespace::SourceFileId,
+    parser::{
         cst::{ItemName, Name, TopLevelItem, TopLevelItemKind},
         ids::NameId,
         ParseResult,
-    }
+    },
 };
 
 /// Collect all definitions which should be visible to expressions within this file.
 /// This includes all top-level definitions within this file, as well as any imported ones.
-pub fn visible_definitions_impl(
-    context: &VisibleDefinitions,
-    db: &DbHandle,
-) -> Arc<VisibleDefinitionsResult> {
+pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> Arc<VisibleDefinitionsResult> {
     incremental::enter_query();
     incremental::println(format!("Collecting visible definitions in {:?}", context.0));
 
@@ -30,7 +31,7 @@ pub fn visible_definitions_impl(
         // from this file. Otherwise we'll duplicate errors.
         // TODO: Still issue an error if the file name is not found
         let Some(import_file_id) = get_file_id(&import.crate_name, &import.module_path, db) else {
-            continue
+            continue;
         };
         let exported = ExportedDefinitions(import_file_id).get(db);
 
@@ -41,17 +42,13 @@ pub fn visible_definitions_impl(
                 let first_location = existing.location(db);
                 let second_location = import.location.clone();
                 let name = exported_name.clone();
-                visible
-                    .diagnostics
-                    .push(Diagnostic::ImportedNameAlreadyInScope {
-                        name,
-                        first_location,
-                        second_location,
-                    });
+                visible.diagnostics.push(Diagnostic::ImportedNameAlreadyInScope {
+                    name,
+                    first_location,
+                    second_location,
+                });
             } else {
-                visible
-                    .definitions
-                    .insert(exported_name.clone(), *exported_id);
+                visible.definitions.insert(exported_name.clone(), *exported_id);
             }
         }
     }
@@ -86,7 +83,7 @@ pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions
         // Ignore errors from imported files. We want to only collect errors
         // from this file. Otherwise we'll duplicate errors.
         let Some(import_file_id) = get_file_id(&import.crate_name, &import.module_path, db) else {
-            continue
+            continue;
         };
         let (exports, _errors) = ExportedTypes(import_file_id).get(db);
 
@@ -97,11 +94,7 @@ pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions
                 let first_location = existing.location(db);
                 let second_location = import.location.clone();
                 let name = exported_name;
-                errors.push(Diagnostic::ImportedNameAlreadyInScope {
-                    name,
-                    first_location,
-                    second_location,
-                });
+                errors.push(Diagnostic::ImportedNameAlreadyInScope { name, first_location, second_location });
             } else {
                 definitions.insert(exported_name, exported_id);
             }
@@ -115,10 +108,7 @@ pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions
 /// Collect only the exported types within a file.
 pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> (Definitions, Errors) {
     incremental::enter_query();
-    incremental::println(format!(
-        "Collecting exported definitions in {:?}",
-        context.0
-    ));
+    incremental::println(format!("Collecting exported definitions in {:?}", context.0));
 
     let result = Parse(context.0).get(db);
     let mut definitions = Definitions::default();
@@ -133,11 +123,7 @@ pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> (Definitio
                 let first_location = existing.location(db);
                 let second_location = item.id.location(db);
                 let name = name.clone();
-                errors.push(Diagnostic::NameAlreadyInScope {
-                    name,
-                    first_location,
-                    second_location,
-                });
+                errors.push(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
             } else {
                 definitions.insert(name.clone(), item.id.clone());
             }
@@ -149,15 +135,9 @@ pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> (Definitio
 }
 
 /// Collect only the exported definitions within a file.
-pub fn exported_definitions_impl(
-    context: &ExportedDefinitions,
-    db: &DbHandle,
-) -> Arc<VisibleDefinitionsResult> {
+pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -> Arc<VisibleDefinitionsResult> {
     incremental::enter_query();
-    incremental::println(format!(
-        "Collecting exported definitions in {:?}",
-        context.0
-    ));
+    incremental::println(format!("Collecting exported definitions in {:?}", context.0));
 
     let result = Parse(context.0).get(db);
     let mut definitions = Definitions::default();
@@ -170,64 +150,34 @@ pub fn exported_definitions_impl(
             ItemName::Single(name) => {
                 let name = &result.top_level_data[&item.id].names[name];
                 resolve_single(name, item, &mut definitions, &mut diagnostics, db);
-            }
-            ItemName::Method {
-                type_name,
-                item_name,
-            } => {
-                resolve_method(
-                    type_name,
-                    item_name,
-                    item,
-                    &definitions,
-                    &mut methods,
-                    &result,
-                    &mut diagnostics,
-                    db,
-                );
-            }
+            },
+            ItemName::Method { type_name, item_name } => {
+                resolve_method(type_name, item_name, item, &definitions, &mut methods, &result, &mut diagnostics, db);
+            },
             ItemName::None => (),
         }
     }
 
     incremental::exit_query();
-    Arc::new(VisibleDefinitionsResult {
-        definitions,
-        methods,
-        diagnostics,
-    })
+    Arc::new(VisibleDefinitionsResult { definitions, methods, diagnostics })
 }
 
 fn resolve_single(
-    name: &Name,
-    item: &TopLevelItem,
-    definitions: &mut Definitions,
-    errors: &mut Vec<Diagnostic>,
-    db: &DbHandle,
+    name: &Name, item: &TopLevelItem, definitions: &mut Definitions, errors: &mut Vec<Diagnostic>, db: &DbHandle,
 ) {
     if let Some(existing) = definitions.get(name) {
         let first_location = existing.location(db);
         let second_location = item.id.location(db);
         let name = name.clone();
-        errors.push(Diagnostic::NameAlreadyInScope {
-            name,
-            first_location,
-            second_location,
-        });
+        errors.push(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
     } else {
         definitions.insert(name.clone(), item.id.clone());
     }
 }
 
 fn resolve_method(
-    type_name: NameId,
-    item_name: NameId,
-    item: &TopLevelItem,
-    definitions: &Definitions,
-    methods: &mut Methods,
-    parse: &ParseResult,
-    errors: &mut Vec<Diagnostic>,
-    db: &DbHandle,
+    type_name: NameId, item_name: NameId, item: &TopLevelItem, definitions: &Definitions, methods: &mut Methods,
+    parse: &ParseResult, errors: &mut Vec<Diagnostic>, db: &DbHandle,
 ) {
     let context = &parse.top_level_data[&item.id];
     let type_name = &context.names[type_name];

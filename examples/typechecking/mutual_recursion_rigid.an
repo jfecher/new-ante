@@ -30,6 +30,12 @@ ex2c (a: v) b =
 
 // args: --check --show-types
 // expected stderr:
+// examples/typechecking/mutual_recursion_rigid.an:17:0	error: Expected a top-level item but found `trait`
+// trait T1 a with trait1: a -> Unit
+// 
+// examples/typechecking/mutual_recursion_rigid.an:18:0	error: Expected a top-level item but found `trait`
+// trait T2 a with trait2: a -> Unit
+// 
 // examples/typechecking/mutual_recursion_rigid.an:22:4	error: `trait1` is not defined, was it a typo?
 //     trait1 a
 // 

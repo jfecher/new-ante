@@ -11,3 +11,19 @@ puts2 "test"
 exit2 0
 
 // args: --check --show-types
+// expected stderr:
+// examples/typechecking/extern.an:2:0	error: Expected a top-level item but found `extern`
+// extern foo: a -> b
+// 
+// examples/typechecking/extern.an:4:0	error: Expected a top-level item but found `extern`
+// extern
+// 
+// examples/typechecking/extern.an:9:4	error: Expected `=` to begin the function body but found `1`
+// foo 1
+// 
+// examples/typechecking/extern.an:10:6	error: Expected `=` to begin the function body but found `"test"`
+// puts2 "test"
+// 
+// examples/typechecking/extern.an:11:6	error: Expected `=` to begin the function body but found `0`
+// exit2 0
+

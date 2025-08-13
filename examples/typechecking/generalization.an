@@ -6,6 +6,9 @@ foo x =
 
 // args: --check --show-types
 // expected stderr:
+// examples/typechecking/generalization.an:2:8	error: Expected an expression but found `fn`
+//     y = fn _ -> x
+// 
 // examples/typechecking/generalization.an:3:4	error: `y` is not defined, was it a typo?
 //     y
 

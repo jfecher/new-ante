@@ -12,6 +12,12 @@ z = y * 2.0
 
 // args: --check
 // expected stderr:
+// examples/nameresolution/named_constructor.an:7:7	error: Expected a newline after the top level item but found `with`
+// t1 = T with x = 3, z = 5
+// 
+// examples/nameresolution/named_constructor.an:8:7	error: Expected a newline after the top level item but found `with`
+// t2 = T with y = 3.2, x
+// 
 // examples/nameresolution/named_constructor.an:11:6	error: `*` is not defined, was it a typo?
 // z = y * 2.0
 // 

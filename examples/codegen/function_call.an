@@ -4,6 +4,9 @@ show "foo"
 
 // args: --delete-binary
 // expected stderr:
+// examples/codegen/function_call.an:3:5	error: Expected `=` to begin the function body but found `"foo"`
+// show "foo"
+// 
 // examples/codegen/function_call.an:1:10	error: `puts` is not defined, was it a typo?
 // show x = puts x.c_string
 

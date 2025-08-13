@@ -2,3 +2,10 @@
 print (true and true or false and false)
 
 // args: --delete-binary
+// expected stderr:
+// examples/codegen/logical.an:2:7	error: Expected a parameter but found `true`
+// print (true and true or false and false)
+// 
+// examples/codegen/logical.an:4:0	error: Expected `=` to begin the function body but found `a newline`
+// // args: --delete-binary
+

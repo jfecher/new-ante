@@ -13,10 +13,7 @@ pub struct VecMap<K, V> {
 
 impl<K, V> Default for VecMap<K, V> {
     fn default() -> Self {
-        Self {
-            items: Vec::new(),
-            id: PhantomData,
-        }
+        Self { items: Vec::new(), id: PhantomData }
     }
 }
 
@@ -72,9 +69,6 @@ where
         D: serde::Deserializer<'de>,
     {
         let items = Deserialize::deserialize(deserializer)?;
-        Ok(VecMap {
-            items,
-            id: PhantomData,
-        })
+        Ok(VecMap { items, id: PhantomData })
     }
 }

@@ -8,4 +8,7 @@ baz x = bar x
 baz "hi"
 
 // args: --delete-binary
-// expected stdout:
+// expected stderr:
+// examples/codegen/monomorphise_all.an:8:4	error: Expected `=` to begin the function body but found `"hi"`
+// baz "hi"
+

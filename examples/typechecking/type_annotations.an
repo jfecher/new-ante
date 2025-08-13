@@ -17,6 +17,24 @@ puts2
 
 // args: --check --show-types
 // expected stderr:
+// examples/typechecking/type_annotations.an:2:34	error: Expected an expression but found `'a`
+// foo (_: I32) (_: String) : Char = 'a'
+// 
+// examples/typechecking/type_annotations.an:7:15	error: Expected a type but found `Ptr`
+// baz (a: Usz) : Ptr a =
+// 
+// examples/typechecking/type_annotations.an:11:8	error: Expected a type but found `Ptr`
+// puts2: (Ptr Char) -> I32 = puts
+// 
+// examples/typechecking/type_annotations.an:11:18	error: Expected `=` to begin the function body but found `->`
+// puts2: (Ptr Char) -> I32 = puts
+// 
+// examples/typechecking/type_annotations.an:13:6	error: Expected `=` to begin the function body but found `"test"`
+// exit2 "test"
+// 
+// examples/typechecking/type_annotations.an:16:0	error: Expected `=` to begin the function body but found `a newline`
+// // TODO: This first error is duplicated
+// 
 // examples/typechecking/type_annotations.an:8:4	error: `transmute` is not defined, was it a typo?
 //     transmute a
 // 

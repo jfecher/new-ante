@@ -7,3 +7,7 @@ hello_foo y = Foo with x = "Hello World", y
 foo = hello_foo 42
 
 // args: --check --show-types
+// expected stderr:
+// examples/typechecking/named_constructor.an:5:18	error: Expected a newline after the top level item but found `with`
+// hello_foo y = Foo with x = "Hello World", y
+

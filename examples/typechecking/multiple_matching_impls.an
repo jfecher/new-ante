@@ -34,3 +34,34 @@ impl Foo Thing with
     foo _ = ()
 
 // args: --check
+// expected stderr:
+// examples/typechecking/multiple_matching_impls.an:4:0	error: Expected a top-level item but found `trait`
+// trait Foo a with
+// 
+// examples/typechecking/multiple_matching_impls.an:7:0	error: Expected a top-level item but found `trait`
+// trait Bar a with
+// 
+// examples/typechecking/multiple_matching_impls.an:10:0	error: Expected a top-level item but found `trait`
+// trait Baz a with
+// 
+// examples/typechecking/multiple_matching_impls.an:14:5	error: Expected a parameter but found `Thing`
+// foo (Thing ())
+// 
+// examples/typechecking/multiple_matching_impls.an:16:0	error: Expected `=` to begin the function body but found `a newline`
+// // Candidate 1
+// 
+// examples/typechecking/multiple_matching_impls.an:17:0	error: Expected a top-level item but found `impl`
+// impl Foo a given Bar a with
+// 
+// examples/typechecking/multiple_matching_impls.an:20:0	error: Expected a top-level item but found `impl`
+// impl Bar a given Baz a with
+// 
+// examples/typechecking/multiple_matching_impls.an:23:0	error: Expected a top-level item but found `impl`
+// impl Baz Thing with
+// 
+// examples/typechecking/multiple_matching_impls.an:28:0	error: Expected a top-level item but found `impl`
+// impl Foo a given Print a with
+// 
+// examples/typechecking/multiple_matching_impls.an:33:0	error: Expected a top-level item but found `impl`
+// impl Foo Thing with
+

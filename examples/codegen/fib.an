@@ -6,6 +6,12 @@ print (fib 10)
 
 // args: --delete-binary
 // expected stderr:
+// examples/codegen/fib.an:3:4	error: Expected an unindent but found `else`
+//     else fib (n - 2) + fib (n - 1)
+// 
+// examples/codegen/fib.an:5:11	error: Expected `=` to begin the function body but found `10`
+// print (fib 10)
+// 
 // examples/codegen/fib.an:2:9	error: `<` is not defined, was it a typo?
 //     if n < 2 then n
 

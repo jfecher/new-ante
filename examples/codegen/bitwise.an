@@ -8,3 +8,16 @@ print (bxor x y)
 print (bnot x)
 
 // args: --delete-binary
+// expected stderr:
+// examples/codegen/bitwise.an:5:12	error: Expected `=` to begin the function body but found `x`
+// print (band x y)
+// 
+// examples/codegen/bitwise.an:6:11	error: Expected `=` to begin the function body but found `x`
+// print (bor x y)
+// 
+// examples/codegen/bitwise.an:7:12	error: Expected `=` to begin the function body but found `x`
+// print (bxor x y)
+// 
+// examples/codegen/bitwise.an:8:12	error: Expected `=` to begin the function body but found `x`
+// print (bnot x)
+

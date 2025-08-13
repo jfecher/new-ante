@@ -62,10 +62,7 @@ fn make_compiler(source_files: &[PathBuf], incremental: bool) -> (Db, Option<Pat
 
         if incremental {
             if let Ok(text) = read_file(&metadata_file) {
-                return (
-                    ron::from_str(&text).unwrap_or_default(),
-                    Some(metadata_file),
-                );
+                return (ron::from_str(&text).unwrap_or_default(), Some(metadata_file));
             }
         }
     }
@@ -127,6 +124,7 @@ fn display_name_resolution(compiler: &Db) -> Vec<Diagnostic> {
 
     for (_, file) in &local_crate.source_files {
         let parse = Parse(*file).get(compiler);
+        diagnostics.extend(parse.diagnostics.clone());
 
         for item in &parse.cst.top_level_items {
             let resolve = Resolve(item.id).get(compiler);
@@ -138,10 +136,7 @@ fn display_name_resolution(compiler: &Db) -> Vec<Diagnostic> {
 
 pub fn path_to_id(crate_id: CrateId, path: &Path) -> SourceFileId {
     let local_module_id = LocalModuleId(parser::ids::hash(path) as u32);
-    SourceFileId {
-        crate_id,
-        local_module_id,
-    }
+    SourceFileId { crate_id, local_module_id }
 }
 
 /// Compile all the files in the set to python files. In a real compiler we may want
@@ -163,34 +158,26 @@ fn write_file(file_name: &Path, text: &str) -> Result<(), String> {
         .map_err(|error| format!("Failed to create file `{}`:\n{error}", file_name.display()))?;
 
     let text = text.as_bytes();
-    metadata_file.write_all(text).map_err(|error| {
-        format!(
-            "Failed to write to file `{}`:\n{error}",
-            file_name.display()
-        )
-    })
+    metadata_file
+        .write_all(text)
+        .map_err(|error| format!("Failed to write to file `{}`:\n{error}", file_name.display()))
 }
 
 /// This could be changed so that we only write if the metadata actually
 /// changed but to simplify things we just always write.
 fn write_metadata(compiler: Db, metadata_file: &Path) -> Result<(), String> {
     // Using `to_writer` here would avoid the intermediate step of creating the string
-    let serialized = ron::to_string(&compiler)
-        .map_err(|error| format!("Failed to serialize database:\n{error}"))?;
+    let serialized = ron::to_string(&compiler).map_err(|error| format!("Failed to serialize database:\n{error}"))?;
     write_file(metadata_file, &serialized)
 }
 
 fn read_file(file_name: &std::path::Path) -> Result<String, String> {
-    let mut file = File::open(file_name)
-        .map_err(|error| format!("Failed to open `{}`:\n{error}", file_name.display()))?;
+    let mut file =
+        File::open(file_name).map_err(|error| format!("Failed to open `{}`:\n{error}", file_name.display()))?;
 
     let mut text = String::new();
-    file.read_to_string(&mut text).map_err(|error| {
-        format!(
-            "Failed to read from file `{}`:\n{error}",
-            file_name.display()
-        )
-    })?;
+    file.read_to_string(&mut text)
+        .map_err(|error| format!("Failed to read from file `{}`:\n{error}", file_name.display()))?;
 
     Ok(text)
 }

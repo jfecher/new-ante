@@ -5,3 +5,10 @@ library_int = 1
 library_fn _ = 3
 
 // args: --check examples/nameresolution/Library.an
+// expected stderr:
+// examples/nameresolution/conflictingimport.an:1:8	error: Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported
+// import Library
+// 
+// examples/nameresolution/conflictingimport.an:3:0	error: Expected a top-level item but found `a newline`
+// library_int = 1
+

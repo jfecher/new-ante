@@ -16,6 +16,15 @@ is_even 4
 
 // args: --check --show-types
 // expected stderr:
+// examples/typechecking/mutual_recursion.an:6:8	error: Expected an unindent but found `not`
+//         not is_odd (n - 1)
+// 
+// examples/typechecking/mutual_recursion.an:9:14	error: Expected an unindent but found `not`
+//     n == 1 or not is_even (n - 1)
+// 
+// examples/typechecking/mutual_recursion.an:11:8	error: Expected `=` to begin the function body but found `4`
+// is_even 4
+// 
 // examples/typechecking/mutual_recursion.an:4:9	error: `==` is not defined, was it a typo?
 //     if n == 0 then true else
 // 

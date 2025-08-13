@@ -6,3 +6,16 @@ Vec.push !v 4
 print v
 
 // args: --delete-binary
+// expected stderr:
+// examples/codegen/implicit_import.an:1:1	error: Expected a top-level item but found `mut`
+// mut v = Vec.empty ()
+// 
+// examples/codegen/implicit_import.an:3:9	error: Expected `=` to begin the function body but found `!`
+// Vec.push !v 3i32
+// 
+// examples/codegen/implicit_import.an:4:9	error: Expected `=` to begin the function body but found `!`
+// Vec.push !v 4
+// 
+// examples/codegen/implicit_import.an:8:0	error: Expected `=` to begin the function body but found `a newline`
+// // args: --delete-binary
+

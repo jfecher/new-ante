@@ -28,3 +28,58 @@ match (1, 2, 3, 4)
 // TODO: First error can be improved. Should be "Missing case Some _"
 
 // args: --check
+// expected stderr:
+// examples/typechecking/completeness_checking.an:2:0	error: Expected a top-level item but found `match`
+// match None
+// 
+// examples/typechecking/completeness_checking.an:3:0	error: Expected a top-level item but found `|`
+// | None -> 1
+// 
+// examples/typechecking/completeness_checking.an:5:0	error: Expected a top-level item but found `match`
+// match (2, None)
+// 
+// examples/typechecking/completeness_checking.an:6:0	error: Expected a top-level item but found `|`
+// | (0, None) -> ()
+// 
+// examples/typechecking/completeness_checking.an:7:0	error: Expected a top-level item but found `|`
+// | (_, Some _) -> ()
+// 
+// examples/typechecking/completeness_checking.an:10:0	error: Expected a top-level item but found `match`
+// match None
+// 
+// examples/typechecking/completeness_checking.an:11:0	error: Expected a top-level item but found `|`
+// | Some (Some _) -> 0
+// 
+// examples/typechecking/completeness_checking.an:12:0	error: Expected a top-level item but found `|`
+// | Some _ -> 1
+// 
+// examples/typechecking/completeness_checking.an:13:0	error: Expected a top-level item but found `|`
+// | None -> 2
+// 
+// examples/typechecking/completeness_checking.an:16:0	error: Expected a top-level item but found `match`
+// match (1, 2)
+// 
+// examples/typechecking/completeness_checking.an:17:0	error: Expected a top-level item but found `|`
+// | (1, _) -> 0
+// 
+// examples/typechecking/completeness_checking.an:18:0	error: Expected a top-level item but found `|`
+// | (1, 2) -> 1
+// 
+// examples/typechecking/completeness_checking.an:20:0	error: Expected a top-level item but found `match`
+// match (true, true)
+// 
+// examples/typechecking/completeness_checking.an:21:0	error: Expected a top-level item but found `|`
+// | (false, true) -> 0
+// 
+// examples/typechecking/completeness_checking.an:22:0	error: Expected a top-level item but found `|`
+// | (true, false) -> 1
+// 
+// examples/typechecking/completeness_checking.an:24:0	error: Expected a top-level item but found `match`
+// match (1, 2, 3, 4)
+// 
+// examples/typechecking/completeness_checking.an:25:0	error: Expected a top-level item but found `|`
+// | (1, 2) -> 1
+// 
+// examples/typechecking/completeness_checking.an:26:0	error: Expected a top-level item but found `|`
+// | (_, _, _, _) -> 3
+

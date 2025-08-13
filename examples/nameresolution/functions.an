@@ -13,6 +13,9 @@ map l f =
 
 // args: --check
 // expected stderr:
+// examples/nameresolution/functions.an:11:4	error: Expected an unindent but found `|`
+//     | Nil -> Nil
+// 
 // examples/nameresolution/functions.an:3:9	error: `>` is not defined, was it a typo?
 //     if n > 0 then
 // 

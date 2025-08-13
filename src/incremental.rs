@@ -1,14 +1,22 @@
 use std::{cell::Cell, collections::BTreeMap, path::PathBuf, sync::Arc};
 
-use inc_complete::{define_input, define_intermediate, impl_storage, storage::{HashMapStorage, SingletonStorage}};
+use inc_complete::{
+    define_input, define_intermediate, impl_storage,
+    storage::{HashMapStorage, SingletonStorage},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend, definition_collection, diagnostics::{Errors, Location}, find_files::CrateGraph, name_resolution::{
+    backend, definition_collection,
+    diagnostics::{Errors, Location},
+    find_files::CrateGraph,
+    name_resolution::{
         self,
         namespace::{CrateId, SourceFileId},
         ResolutionResult,
-    }, parser::{self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext}, type_inference::{self, types::GeneralizedType, TypeCheckResult}
+    },
+    parser::{self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext},
+    type_inference::{self, types::GeneralizedType, TypeCheckResult},
 };
 
 /// A wrapper over inc-complete's database with our specific storage type to hold
@@ -100,11 +108,7 @@ pub struct SourceFile {
 
 impl SourceFile {
     pub fn new(path: Arc<PathBuf>, contents: String) -> SourceFile {
-        SourceFile {
-            path,
-            contents,
-            submodules: BTreeMap::new(),
-        }
+        SourceFile { path, contents, submodules: BTreeMap::new() }
     }
 }
 

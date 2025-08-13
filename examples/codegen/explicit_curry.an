@@ -12,6 +12,15 @@ print <| plus2 38 2
 
 // args: --delete-binary
 // expected stderr:
+// examples/codegen/explicit_curry.an:8:6	error: Expected `=` to begin the function body but found `<|`
+// print <| plus4 2
+// 
+// examples/codegen/explicit_curry.an:9:6	error: Expected `=` to begin the function body but found `<|`
+// print <| plus2 38 2
+// 
+// examples/codegen/explicit_curry.an:11:0	error: Expected a top-level item but found `4`
+// 4 |> (_ + 2) |> print
+// 
 // examples/codegen/explicit_curry.an:3:10	error: `+` is not defined, was it a typo?
 //     a + b + c
 // 

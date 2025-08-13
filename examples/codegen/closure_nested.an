@@ -10,6 +10,9 @@ print (foo ())
 
 // args: --delete-binary
 // expected stderr:
+// examples/codegen/closure_nested.an:9:11	error: Expected `=` to begin the function body but found `()`
+// print (foo ())
+// 
 // examples/codegen/closure_nested.an:7:4	error: `bar` is not defined, was it a typo?
 //     bar ()
 

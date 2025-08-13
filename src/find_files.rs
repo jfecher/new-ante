@@ -22,10 +22,7 @@ pub fn populate_crates_and_files(compiler: &mut Db, starting_files: &[PathBuf]) 
     // before setting them in the Db at the end. If we set them before finding their source
     // files we'd need to needlessly clone them and update the Db twice instead of once.
     let mut crates = CrateGraph::default();
-    crates.insert(
-        STDLIB_CRATE,
-        Crate::new("Std".to_string(), PathBuf::from(STDLIB_PATH)),
-    );
+    crates.insert(STDLIB_CRATE, Crate::new("Std".to_string(), PathBuf::from(STDLIB_PATH)));
 
     populate_local_crate_with_starting_files(compiler, &mut crates, starting_files);
 
@@ -50,11 +47,7 @@ pub fn populate_crates_and_files(compiler: &mut Db, starting_files: &[PathBuf]) 
 }
 
 /// Create the local crate's Crate entry in the graph and populate it with the given starting files.
-fn populate_local_crate_with_starting_files(
-    compiler: &mut Db,
-    crates: &mut CrateGraph,
-    starting_files: &[PathBuf],
-) {
+fn populate_local_crate_with_starting_files(compiler: &mut Db, crates: &mut CrateGraph, starting_files: &[PathBuf]) {
     let mut source_files = BTreeMap::new();
 
     for path in starting_files {
@@ -68,12 +61,7 @@ fn populate_local_crate_with_starting_files(
     // TODO: track name for local crate. Currently we only compile single source files
     // but have the infrastructure here to collect source files of crates and their dependencies.
     // We're only missing CLI options.
-    let crate_ = Crate {
-        name: "Local".to_string(),
-        path: PathBuf::from("."),
-        dependencies: Vec::new(),
-        source_files
-    };
+    let crate_ = Crate { name: "Local".to_string(), path: PathBuf::from("."), dependencies: Vec::new(), source_files };
     crates.insert(LOCAL_CRATE, crate_);
 }
 
@@ -121,11 +109,7 @@ fn add_source_files_of_crate(compiler: &mut Db, crates: &mut CrateGraph, crate_i
 
     // `extend` instead of setting it in case this is LOCAL_CRATE and `populate_local_crate_with_starting_files`
     // populated it with an initial set of files manually specified by the user.
-    crates
-        .get_mut(&crate_id)
-        .unwrap()
-        .source_files
-        .extend(source_files);
+    crates.get_mut(&crate_id).unwrap().source_files.extend(source_files);
 }
 
 fn read_file_data(file: PathBuf) -> SourceFile {
@@ -136,7 +120,7 @@ fn read_file_data(file: PathBuf) -> SourceFile {
             // A proper Diagnostic here would be better but there is no source location to use.
             eprintln!("warning: failed to read file {}", file.display());
             String::new()
-        }
+        },
     };
     SourceFile::new(file, text)
 }

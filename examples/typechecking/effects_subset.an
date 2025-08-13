@@ -25,3 +25,28 @@ iota 10
     with for print
 
 // args: --check --show-types
+// expected stderr:
+// examples/typechecking/effects_subset.an:2:0	error: Expected a top-level item but found `effect`
+// effect Emit a with
+// 
+// examples/typechecking/effects_subset.an:5:16	error: Expected an expression but found `loop`
+// iota (n: U32) = loop (i = 0) ->
+// 
+// examples/typechecking/effects_subset.an:11:4	error: Expected an unindent but found `handle`
+//     handle stream ()
+// 
+// examples/typechecking/effects_subset.an:17:0	error: Expected `=` to begin the function body but found `an unindent`
+// for stream f =
+// 
+// examples/typechecking/effects_subset.an:17:0	error: Expected a top-level item but found `an unindent`
+// for stream f =
+// 
+// examples/typechecking/effects_subset.an:18:4	error: Expected an unindent but found `handle`
+//     handle stream ()
+// 
+// examples/typechecking/effects_subset.an:23:0	error: Expected a top-level item but found `an unindent`
+// iota 10
+// 
+// examples/typechecking/effects_subset.an:23:5	error: Expected `=` to begin the function body but found `10`
+// iota 10
+

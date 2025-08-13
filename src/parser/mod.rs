@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use cst::{
-    BorrowMode, Comptime, DefinitionName, EffectType, Index, Lambda, MemberAccess, Name,
-    OwnershipMode, Pattern, SharedMode,
+    BorrowMode, Comptime, DefinitionName, EffectType, Index, Lambda, MemberAccess, Name, OwnershipMode, Pattern,
+    SharedMode,
 };
 use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
@@ -17,8 +17,8 @@ use crate::{
 };
 
 use self::cst::{
-    Call, Cst, Definition, Expr, Import, Literal, Path, SequenceItem, TopLevelItem,
-    TopLevelItemKind, Type, TypeDefinition, TypeDefinitionBody,
+    Call, Cst, Definition, Expr, Import, Literal, Path, SequenceItem, TopLevelItem, TopLevelItemKind, Type,
+    TypeDefinition, TypeDefinitionBody,
 };
 
 pub mod cst;
@@ -102,20 +102,16 @@ impl<'tokens> Parser<'tokens> {
         let imports = self.parse_imports();
         let top_level_items = self.parse_top_level_items();
         let ending_comments = self.parse_comments();
-        let cst = Cst {
-            imports,
-            top_level_items,
-            ending_comments,
-        };
-        ParseResult {
-            cst,
-            diagnostics: self.diagnostics,
-            top_level_data: self.top_level_data,
-        }
+        let cst = Cst { imports, top_level_items, ending_comments };
+        ParseResult { cst, diagnostics: self.diagnostics, top_level_data: self.top_level_data }
     }
 
     fn current_token(&self) -> &'tokens Token {
         &self.tokens[self.token_index].0
+    }
+
+    fn peek_next_token(&self) -> &'tokens Token {
+        &self.tokens[self.token_index + 1].0
     }
 
     fn current_token_span(&self) -> Span {
@@ -178,11 +174,7 @@ impl<'tokens> Parser<'tokens> {
         let message = message.into();
         let actual = self.current_token().clone();
         let location = self.current_token_location();
-        Err(Diagnostic::ParserExpected {
-            message,
-            actual,
-            location,
-        })
+        Err(Diagnostic::ParserExpected { message, actual, location })
     }
 
     /// Reserve a space for an expression.
@@ -190,10 +182,7 @@ impl<'tokens> Parser<'tokens> {
     /// before their children.
     fn reserve_expr(&mut self) -> ExprId {
         let id = self.current_context.exprs.push(Expr::Error);
-        let id2 = self
-            .current_context
-            .expr_locations
-            .push(self.current_token_location());
+        let id2 = self.current_context.expr_locations.push(self.current_token_location());
         assert_eq!(id, id2);
         id
     }
@@ -212,10 +201,7 @@ impl<'tokens> Parser<'tokens> {
 
     fn reserve_pattern(&mut self) -> PatternId {
         let id = self.current_context.patterns.push(Pattern::Error);
-        let id2 = self
-            .current_context
-            .pattern_locations
-            .push(self.current_token_location());
+        let id2 = self.current_context.pattern_locations.push(self.current_token_location());
         assert_eq!(id, id2);
         id
     }
@@ -266,8 +252,7 @@ impl<'tokens> Parser<'tokens> {
         let id = TopLevelId::new(self.file_id, hash);
         let empty_context = TopLevelContext::new(self.file_id);
         let old_context = std::mem::replace(&mut self.current_context, empty_context);
-        self.top_level_data
-            .insert(id.clone(), Arc::new(old_context));
+        self.top_level_data.insert(id.clone(), Arc::new(old_context));
         id
     }
 
@@ -288,7 +273,7 @@ impl<'tokens> Parser<'tokens> {
                     if indents == 0 {
                         break;
                     }
-                }
+                },
                 Token::Indent => indents += 1,
                 Token::Unindent => {
                     // Since we could recover from anywhere in the program, its possible
@@ -299,7 +284,7 @@ impl<'tokens> Parser<'tokens> {
                     } else {
                         indents -= 1;
                     }
-                }
+                },
                 Token::EndOfInput => return,
                 _ => (),
             }
@@ -336,17 +321,14 @@ impl<'tokens> Parser<'tokens> {
     /// Note that this will also attempt to match indents to unindents.
     /// So any newlines within indented blocks will be skipped until an
     /// unbalanced unindent or newline on the same indentation level is found.
-    fn try_parse_or_recover_to_newline<T>(
-        &mut self,
-        parser: impl FnOnce(&mut Self) -> Result<T>,
-    ) -> Option<T> {
+    fn try_parse_or_recover_to_newline<T>(&mut self, parser: impl FnOnce(&mut Self) -> Result<T>) -> Option<T> {
         match parser(self) {
             Ok(item) => Some(item),
             Err(error) => {
                 self.diagnostics.push(error);
                 self.recover_to_next_newline();
                 None
-            }
+            },
         }
     }
 
@@ -356,10 +338,7 @@ impl<'tokens> Parser<'tokens> {
     /// the `too_far` tokens (or EOF) are found first. On a successful recovery,
     /// return the given default error value. Otherwise return the original error.
     fn parse_with_recovery<T>(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<T>,
-        recover_to: Token,
-        too_far: &[Token],
+        &mut self, f: impl FnOnce(&mut Self) -> Result<T>, recover_to: Token, too_far: &[Token],
     ) -> Result<T>
     where
         T: ErrorDefault,
@@ -373,17 +352,14 @@ impl<'tokens> Parser<'tokens> {
                 } else {
                     Err(error)
                 }
-            }
+            },
         }
     }
 
     /// Same as `parse_with_expr` but recovers with `Expr::Error` with an approximated location
     /// since `ExprId` does not implement `ErrorDefault`.
     fn parse_expr_with_recovery(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<ExprId>,
-        recover_to: Token,
-        too_far: &[Token],
+        &mut self, f: impl FnOnce(&mut Self) -> Result<ExprId>, recover_to: Token, too_far: &[Token],
     ) -> Result<ExprId> {
         match f(self) {
             Ok(typ) => Ok(typ),
@@ -398,7 +374,7 @@ impl<'tokens> Parser<'tokens> {
                 } else {
                     Err(error)
                 }
-            }
+            },
         }
     }
 
@@ -418,9 +394,7 @@ impl<'tokens> Parser<'tokens> {
             }
 
             let start = self.current_token_span();
-            if let Some(mut path) =
-                self.try_parse_or_recover_to_newline(Self::parse_type_or_value_path)
-            {
+            if let Some(mut path) = self.try_parse_or_recover_to_newline(Self::parse_value_path) {
                 // `import Crate.Module`
                 // with just a single path component, nothing actually gets imported
                 if path.components.len() < 2 {
@@ -450,13 +424,7 @@ impl<'tokens> Parser<'tokens> {
                 let end = self.previous_token_span();
                 let location = start.to(&end).in_file(self.file_id);
                 let path = path.into_file_path();
-                imports.push(Import {
-                    comments,
-                    crate_name,
-                    module_path: path,
-                    items,
-                    location,
-                });
+                imports.push(Import { comments, crate_name, module_path: path, items, location });
             }
 
             self.expect_newline_with_recovery("a newline after the import");
@@ -467,31 +435,13 @@ impl<'tokens> Parser<'tokens> {
 
     fn expect_newline_with_recovery(&mut self, error_message: &'static str) {
         let expect_newline = |this: &mut Self| this.expect(Token::Newline, error_message);
-        if self
-            .try_parse_or_recover_to_newline(expect_newline)
-            .is_none()
-        {
+        if self.try_parse_or_recover_to_newline(expect_newline).is_none() {
             // We should have recovered to a newline by this point, so we need to parse it again.
             // Don't error here, the only errors possible are if we recover to an Unindent or
             // the end of
             // the file.
             expect_newline(self).ok();
         }
-    }
-
-    // value_path: (typename '.')* ident
-    fn parse_value_path(&mut self) -> Result<Path> {
-        let mut components = Vec::new();
-
-        while let Ok(typename) = self.parse_type_name() {
-            let location = self.previous_token_location();
-            components.push((typename, location));
-            self.expect(Token::MemberAccess, "`.` after module name")?;
-        }
-
-        let location = self.current_token_location();
-        components.push((self.parse_ident()?, location));
-        Ok(Path { components })
     }
 
     // type_path: (typename '.')* typename
@@ -507,8 +457,8 @@ impl<'tokens> Parser<'tokens> {
         Ok(Path { components })
     }
 
-    // type_or_value_path: (typename '.')* (ident | typename)
-    fn parse_type_or_value_path(&mut self) -> Result<Path> {
+    /// value_path: (typename '.')* (ident | typename)
+    fn parse_value_path(&mut self) -> Result<Path> {
         let mut components = Vec::new();
 
         while let Ok(typename) = self.parse_type_name() {
@@ -540,9 +490,7 @@ impl<'tokens> Parser<'tokens> {
                 return items;
             }
 
-            if let Some(item) =
-                self.try_parse_or_recover_to_newline(|this| this.parse_top_level_item(comments))
-            {
+            if let Some(item) = self.try_parse_or_recover_to_newline(|this| this.parse_top_level_item(comments)) {
                 items.push(Arc::new(item));
             }
 
@@ -570,19 +518,19 @@ impl<'tokens> Parser<'tokens> {
                 let name = self.current_context.names[definition.name.item_name()].clone();
                 id = self.new_top_level_id(name);
                 TopLevelItemKind::Definition(definition)
-            }
+            },
             Token::Type => {
                 let definition = self.parse_type_definition()?;
                 id = self.new_top_level_id(&definition.name);
                 TopLevelItemKind::TypeDefinition(definition)
-            }
+            },
             Token::Octothorpe => {
                 let comptime = self.parse_comptime()?;
                 // Hashing the whole comptime object here contains ExprIds which means this
                 // top level id will not be stable if any of its contents change
                 id = self.new_top_level_id(&comptime);
                 TopLevelItemKind::Comptime(comptime)
-            }
+            },
             _ => return self.expected("a top-level item"),
         };
 
@@ -615,13 +563,7 @@ impl<'tokens> Parser<'tokens> {
         let mut typ = None;
         let mut effects = None;
         if self.accept(Token::Colon) {
-            typ = self
-                .parse_with_recovery(
-                    Self::parse_type,
-                    Token::Equal,
-                    &[Token::Newline, Token::Indent],
-                )
-                .ok();
+            typ = self.parse_with_recovery(Self::parse_type, Token::Equal, &[Token::Newline, Token::Indent]).ok();
             effects = self.parse_effects_clause();
         }
         self.expect(Token::Equal, "`=` to begin the function body")?;
@@ -631,26 +573,11 @@ impl<'tokens> Parser<'tokens> {
             .unwrap_or_else(|| self.push_expr(Expr::Error, self.current_token_location()));
 
         if let Some(id) = lambda {
-            let lambda = Expr::Lambda(Lambda {
-                parameters,
-                return_type: typ,
-                effects,
-                body: rhs,
-            });
+            let lambda = Expr::Lambda(Lambda { parameters, return_type: typ, effects, body: rhs });
             self.insert_expr(id, lambda, start_location);
-            Ok(Definition {
-                mutable,
-                name,
-                typ: None,
-                rhs: id,
-            })
+            Ok(Definition { mutable, name, typ: None, rhs: id })
         } else {
-            Ok(Definition {
-                mutable,
-                name,
-                typ,
-                rhs,
-            })
+            Ok(Definition { mutable, name, typ, rhs })
         }
     }
 
@@ -658,20 +585,14 @@ impl<'tokens> Parser<'tokens> {
         match self.current_token() {
             Token::TypeName(_) => {
                 let type_name = self.parse_type_name_id()?;
-                self.expect(
-                    Token::MemberAccess,
-                    "a `.` to separate this method's object type from its name",
-                )?;
+                self.expect(Token::MemberAccess, "a `.` to separate this method's object type from its name")?;
                 let item_name = self.parse_ident_id()?;
-                Ok(DefinitionName::Method {
-                    type_name,
-                    item_name,
-                })
-            }
+                Ok(DefinitionName::Method { type_name, item_name })
+            },
             Token::Identifier(_) => {
                 let name = self.parse_ident_id()?;
                 Ok(DefinitionName::Single(name))
-            }
+            },
             _ => self.expected("a definition name"),
         }
     }
@@ -682,11 +603,7 @@ impl<'tokens> Parser<'tokens> {
         let generics = self.many0(|this| this.parse_ident_id());
         self.expect(Token::Equal, "`=` to begin the type definition")?;
         let body = self.parse_type_body()?;
-        Ok(TypeDefinition {
-            name,
-            generics,
-            body,
-        })
+        Ok(TypeDefinition { name, generics, body })
     }
 
     fn parse_type_body(&mut self) -> Result<TypeDefinitionBody> {
@@ -698,15 +615,12 @@ impl<'tokens> Parser<'tokens> {
 
     fn parse_indented_type_body(&mut self) -> Result<TypeDefinitionBody> {
         match self.current_token() {
-            // struct
-            Token::Identifier(_) => {
+            // struct - trailing commas are optional when we have newlines separating fields
+            Token::Identifier(_) if *self.peek_next_token() == Token::Colon => {
                 let fields = self.delimited(
                     |this| {
                         let field_name = this.parse_ident()?;
-                        this.expect(
-                            Token::Colon,
-                            "a colon separating the field name from its type",
-                        )?;
+                        this.expect(Token::Colon, "a colon separating the field name from its type")?;
                         let field_type = this.parse_type()?;
                         this.accept(Token::Comma);
                         Ok((field_name, field_type))
@@ -715,7 +629,7 @@ impl<'tokens> Parser<'tokens> {
                     false,
                 );
                 Ok(TypeDefinitionBody::Struct(fields))
-            }
+            },
             // enum
             Token::Pipe => {
                 let variants = self.delimited(
@@ -729,22 +643,22 @@ impl<'tokens> Parser<'tokens> {
                     false,
                 );
                 Ok(TypeDefinitionBody::Enum(variants))
-            }
-            _ => self.expected("a field name or `|` to start this type body"),
+            },
+            _ => match self.parse_type() {
+                Ok(typ) => Ok(TypeDefinitionBody::Alias(typ)),
+                Err(_) => self.expected("a field name or `|` to start this type body"),
+            },
         }
     }
 
     fn parse_non_indented_type_body(&mut self) -> Result<TypeDefinitionBody> {
         match self.current_token() {
             // struct
-            Token::Identifier(_) => {
+            Token::Identifier(_) if *self.peek_next_token() == Token::Colon => {
                 let fields = self.delimited(
                     |this| {
                         let field_name = this.parse_ident()?;
-                        this.expect(
-                            Token::Colon,
-                            "a colon separating the field name from its type",
-                        )?;
+                        this.expect(Token::Colon, "a colon separating the field name from its type")?;
                         let field_type = this.parse_type()?;
                         Ok((field_name, field_type))
                     },
@@ -752,7 +666,7 @@ impl<'tokens> Parser<'tokens> {
                     true,
                 );
                 Ok(TypeDefinitionBody::Struct(fields))
-            }
+            },
             // enum
             Token::Pipe => {
                 let variants = self.many0(|this| {
@@ -762,8 +676,11 @@ impl<'tokens> Parser<'tokens> {
                     Ok((variant_name, parameters))
                 });
                 Ok(TypeDefinitionBody::Enum(variants))
-            }
-            _ => self.expected("a field name or `|` to start this type body"),
+            },
+            _ => match self.parse_type() {
+                Ok(typ) => Ok(TypeDefinitionBody::Alias(typ)),
+                Err(_) => self.expected("a field name or `|` to start this type body"),
+            },
         }
     }
 
@@ -806,18 +723,11 @@ impl<'tokens> Parser<'tokens> {
             parameters.push(Type::Unit);
         }
 
-        self.expect(
-            Token::RightArrow,
-            "`->` to separate this function type's parameters from its return type",
-        )?;
+        self.expect(Token::RightArrow, "`->` to separate this function type's parameters from its return type")?;
         let return_type = Box::new(self.parse_type()?);
         let effects = self.parse_effects_clause();
 
-        Ok(Type::Function(cst::FunctionType {
-            parameters,
-            return_type,
-            effects,
-        }))
+        Ok(Type::Function(cst::FunctionType { parameters, return_type, effects }))
     }
 
     /// The effect clause on a function or function type.
@@ -830,11 +740,11 @@ impl<'tokens> Parser<'tokens> {
             Token::Can => {
                 self.advance();
                 Some(self.delimited(Self::parse_effect_type, Token::Comma, false))
-            }
+            },
             Token::Pure => {
                 self.advance();
                 Some(Vec::new())
-            }
+            },
             _ => None,
         }
     }
@@ -845,11 +755,11 @@ impl<'tokens> Parser<'tokens> {
                 let path = self.parse_type_path_id()?;
                 let args = self.many0(Self::parse_type_arg);
                 Ok(EffectType::Known(path, args))
-            }
+            },
             Token::Identifier(_) => {
                 let name = self.parse_ident_id()?;
                 Ok(EffectType::Variable(name))
-            }
+            },
             _ => self.expected("an effect name"),
         }
     }
@@ -873,38 +783,38 @@ impl<'tokens> Parser<'tokens> {
             Token::UnitType => {
                 self.advance();
                 Ok(Type::Unit)
-            }
+            },
             Token::IntegerType(kind) => {
                 self.advance();
                 Ok(Type::Integer(*kind))
-            }
+            },
             Token::FloatType(kind) => {
                 self.advance();
                 Ok(Type::Float(*kind))
-            }
+            },
             Token::StringType => {
                 self.advance();
                 Ok(Type::String)
-            }
+            },
+            Token::CharType => {
+                self.advance();
+                Ok(Type::Char)
+            },
             Token::TypeName(_) => {
                 let path = self.parse_type_path_id()?;
                 Ok(Type::Named(path))
-            }
+            },
             Token::Identifier(_) => {
                 let name = self.parse_ident_id()?;
                 Ok(Type::Variable(name))
-            }
+            },
             Token::ParenthesisLeft => {
                 self.advance();
                 let too_far = &[Token::Newline, Token::Indent, Token::Unindent];
-                let typ =
-                    self.parse_with_recovery(Self::parse_type, Token::ParenthesisRight, too_far)?;
-                self.expect(
-                    Token::ParenthesisRight,
-                    "a `)` to close the opening `(` from the parameter",
-                )?;
+                let typ = self.parse_with_recovery(Self::parse_type, Token::ParenthesisRight, too_far)?;
+                self.expect(Token::ParenthesisRight, "a `)` to close the opening `(` from the parameter")?;
                 Ok(typ)
-            }
+            },
             _ => self.expected("a type"),
         }
     }
@@ -914,7 +824,7 @@ impl<'tokens> Parser<'tokens> {
             Token::TypeName(name) => {
                 self.advance();
                 Ok(name.clone())
-            }
+            },
             _ => self.expected("a capitalized type name"),
         }
     }
@@ -924,7 +834,7 @@ impl<'tokens> Parser<'tokens> {
             Token::Identifier(name) => {
                 self.advance();
                 Ok(name.clone())
-            }
+            },
             _ => self.expected("an identifier"),
         }
     }
@@ -948,10 +858,7 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn delimited<T>(
-        &mut self,
-        mut parser: impl FnMut(&mut Self) -> Result<T>,
-        delimiter: Token,
-        allow_trailing: bool,
+        &mut self, mut parser: impl FnMut(&mut Self) -> Result<T>, delimiter: Token, allow_trailing: bool,
     ) -> Vec<T> {
         let mut items = Vec::new();
 
@@ -967,7 +874,7 @@ impl<'tokens> Parser<'tokens> {
                 Err(error) => {
                     self.diagnostics.push(error);
                     break;
-                }
+                },
             }
         }
 
@@ -987,7 +894,7 @@ impl<'tokens> Parser<'tokens> {
             Token::UnitLiteral => {
                 self.advance();
                 Ok(Pattern::Literal(Literal::Unit))
-            }
+            },
             Token::ParenthesisLeft => {
                 self.advance();
                 let pattern = self.parse_with_recovery(
@@ -995,16 +902,13 @@ impl<'tokens> Parser<'tokens> {
                     Token::ParenthesisRight,
                     &[Token::Newline, Token::Equal],
                 )?;
-                self.expect(
-                    Token::ParenthesisRight,
-                    "a `)` to close the opening `(` from the parameter",
-                )?;
+                self.expect(Token::ParenthesisRight, "a `)` to close the opening `(` from the parameter")?;
                 Ok(pattern)
-            }
+            },
             Token::Identifier(_) => {
                 let name = self.parse_ident_id()?;
                 Ok(Pattern::Variable(name))
-            }
+            },
             _ => self.expected("a parameter"),
         }
     }
@@ -1017,11 +921,8 @@ impl<'tokens> Parser<'tokens> {
         if self.accept(Token::Colon) {
             let location = start.to(&end).in_file(self.file_id);
             let pattern = self.push_pattern(pattern, location);
-            let typ = self.parse_with_recovery(
-                Self::parse_type,
-                Token::ParenthesisRight,
-                &[Token::Newline, Token::Equal],
-            )?;
+            let typ =
+                self.parse_with_recovery(Self::parse_type, Token::ParenthesisRight, &[Token::Newline, Token::Equal])?;
             Ok(Pattern::TypeAnnotation(pattern, typ))
         } else {
             Ok(pattern)
@@ -1065,11 +966,7 @@ impl<'tokens> Parser<'tokens> {
         l_prec > r_prec || (l_prec == r_prec && !r_is_right_assoc)
     }
 
-    fn pop_operator<'c>(
-        &mut self,
-        operator_stack: &mut Vec<&(Token, Span)>,
-        results: &mut Vec<ExprId>,
-    ) {
+    fn pop_operator<'c>(&mut self, operator_stack: &mut Vec<&(Token, Span)>, results: &mut Vec<ExprId>) {
         let rhs = results.pop().unwrap();
         let lhs = results.pop().unwrap();
         let location = self.expr_location(lhs).to(&self.expr_location(rhs));
@@ -1084,10 +981,7 @@ impl<'tokens> Parser<'tokens> {
         let path_id = self.push_path(Path { components }, function_location.clone());
         self.insert_expr(function, Expr::Variable(path_id), function_location);
 
-        let call_expr = Expr::Call(Call {
-            function,
-            arguments: vec![lhs, rhs],
-        });
+        let call_expr = Expr::Call(Call { function, arguments: vec![lhs, rhs] });
         self.insert_expr(call, call_expr, location);
         results.push(call);
     }
@@ -1110,11 +1004,7 @@ impl<'tokens> Parser<'tokens> {
         // loop while the next token is an operator
         while let Some((prec, right_associative)) = Self::precedence(self.current_token()) {
             while !operator_stack.is_empty()
-                && Self::should_continue(
-                    &operator_stack[operator_stack.len() - 1].0,
-                    prec,
-                    right_associative,
-                )
+                && Self::should_continue(&operator_stack[operator_stack.len() - 1].0, prec, right_associative)
             {
                 self.pop_operator(&mut operator_stack, &mut results);
             }
@@ -1157,17 +1047,14 @@ impl<'tokens> Parser<'tokens> {
         match self.current_token() {
             // definition, variable, function call
             Token::Identifier(_) | Token::TypeName(_) => self.parse_function_call_or_atom(),
-            Token::Subtract | Token::Ampersand | Token::ExclamationMark | Token::At => {
-                self.parse_left_unary()
-            }
+            Token::Subtract | Token::Ampersand | Token::ExclamationMark | Token::At => self.parse_left_unary(),
             _ => self.parse_atom(),
         }
     }
 
     fn parse_left_unary(&mut self) -> Result<ExprId> {
         match self.current_token() {
-            operator
-            @ (Token::Subtract | Token::ExclamationMark | Token::Ampersand | Token::At) => {
+            operator @ (Token::Subtract | Token::ExclamationMark | Token::Ampersand | Token::At) => {
                 let call_id = self.reserve_expr();
                 let function_id = self.reserve_expr();
 
@@ -1180,13 +1067,10 @@ impl<'tokens> Parser<'tokens> {
                 let path_id = self.push_path(Path { components }, operator_location.clone());
                 self.insert_expr(function_id, Expr::Variable(path_id), operator_location);
 
-                let call = Expr::Call(Call {
-                    function: function_id,
-                    arguments: vec![rhs],
-                });
+                let call = Expr::Call(Call { function: function_id, arguments: vec![rhs] });
                 self.insert_expr(call_id, call, location);
                 Ok(call_id)
-            }
+            },
             _ => self.parse_atom(),
         }
     }
@@ -1202,10 +1086,7 @@ impl<'tokens> Parser<'tokens> {
                 let components = vec![(Token::At.to_string(), operator_location.clone())];
                 let path_id = this.push_path(Path { components }, operator_location.clone());
                 let function = this.push_expr(Expr::Variable(path_id), operator_location);
-                Ok(Expr::Call(Call {
-                    function,
-                    arguments: vec![rhs],
-                }))
+                Ok(Expr::Call(Call { function, arguments: vec![rhs] }))
             }),
             operator @ (Token::ExclamationMark | Token::Ampersand) => {
                 let mode = match operator {
@@ -1219,7 +1100,7 @@ impl<'tokens> Parser<'tokens> {
                     let rhs = this.parse_left_unary()?;
                     Ok(Expr::Reference(cst::Reference { mode, rhs }))
                 })
-            }
+            },
             _ => self.parse_atom(),
         }
     }
@@ -1237,29 +1118,18 @@ impl<'tokens> Parser<'tokens> {
                         this.advance();
                         let ownership = OwnershipMode::from_token(token).unwrap();
                         let member = this.parse_ident()?;
-                        Ok(Expr::MemberAccess(MemberAccess {
-                            object: result,
-                            member,
-                            ownership,
-                        }))
+                        Ok(Expr::MemberAccess(MemberAccess { object: result, member, ownership }))
                     })?;
-                }
+                },
                 Token::Index | Token::IndexRef | Token::IndexMut => {
                     result = self.with_expr_id_and_location(|this| {
                         this.advance();
                         let ownership = OwnershipMode::from_token(token).unwrap();
                         let index = this.parse_expression()?;
-                        this.expect(
-                            Token::BracketRight,
-                            "a `]` to terminate the index expression",
-                        )?;
-                        Ok(Expr::Index(Index {
-                            object: result,
-                            index,
-                            ownership,
-                        }))
+                        this.expect(Token::BracketRight, "a `]` to terminate the index expression")?;
+                        Ok(Expr::Index(Index { object: result, index, ownership }))
                     })?;
-                }
+                },
                 _ => break Ok(result),
             }
         }
@@ -1274,21 +1144,22 @@ impl<'tokens> Parser<'tokens> {
                 self.advance();
                 let expr = Expr::Literal(Literal::Integer(value, kind));
                 Ok(self.push_expr(expr, location))
-            }
+            },
             Token::StringLiteral(s) => self.parse_string(s.clone()),
+            Token::CharLiteral(c) => self.parse_char(*c),
             Token::BooleanLiteral(value) => {
                 let location = self.current_token_location();
                 self.advance();
                 let expr = Expr::Literal(Literal::Bool(*value));
                 Ok(self.push_expr(expr, location))
-            }
+            },
             Token::FloatLiteral(value, kind) => {
                 let (value, kind) = (*value, *kind);
                 let location = self.current_token_location();
                 self.advance();
                 let expr = Expr::Literal(Literal::Float(value, kind));
                 Ok(self.push_expr(expr, location))
-            }
+            },
             Token::Identifier(_) | Token::TypeName(_) => self.parse_variable(),
             Token::ParenthesisLeft => {
                 self.advance();
@@ -1297,22 +1168,15 @@ impl<'tokens> Parser<'tokens> {
                 // `]`, `)` or unindent is found we halt the recovery. `recover_to_next_newline` is
                 // almost this.
                 let too_far = &[Token::Newline, Token::Indent, Token::Unindent];
-                let expr = self.parse_expr_with_recovery(
-                    Self::parse_expression,
-                    Token::ParenthesisRight,
-                    too_far,
-                )?;
-                self.expect(
-                    Token::ParenthesisRight,
-                    "a `)` to close the opening `(` from the parameter",
-                )?;
+                let expr = self.parse_expr_with_recovery(Self::parse_expression, Token::ParenthesisRight, too_far)?;
+                self.expect(Token::ParenthesisRight, "a `)` to close the opening `(` from the parameter")?;
                 Ok(expr)
-            }
+            },
             Token::UnitLiteral => {
                 let location = self.current_token_location();
                 self.advance();
                 Ok(self.push_expr(Expr::Literal(Literal::Unit), location))
-            }
+            },
             _ => self.expected("an expression"),
         }
     }
@@ -1338,60 +1202,37 @@ impl<'tokens> Parser<'tokens> {
         self.parse_expression()
     }
 
-    fn with_expr_id(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<(Expr, Location)>,
-    ) -> Result<ExprId> {
+    fn with_expr_id(&mut self, f: impl FnOnce(&mut Self) -> Result<(Expr, Location)>) -> Result<ExprId> {
         let id = self.reserve_expr();
         let (expr, location) = f(self)?;
         self.insert_expr(id, expr, location);
         Ok(id)
     }
 
-    fn with_expr_id_and_location(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<Expr>,
-    ) -> Result<ExprId> {
+    fn with_expr_id_and_location(&mut self, f: impl FnOnce(&mut Self) -> Result<Expr>) -> Result<ExprId> {
         self.with_expr_id(|this| this.with_location(f))
     }
 
-    fn with_pattern_id_and_location(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<Pattern>,
-    ) -> Result<PatternId> {
+    fn with_pattern_id_and_location(&mut self, f: impl FnOnce(&mut Self) -> Result<Pattern>) -> Result<PatternId> {
         let id = self.reserve_pattern();
         let (pattern, location) = self.with_location(f)?;
         self.insert_pattern(id, pattern, location);
         Ok(id)
     }
 
-    fn parse_if(
-        &mut self,
-        mut body: impl Copy + FnMut(&mut Self) -> Result<ExprId>,
-    ) -> Result<ExprId> {
+    fn parse_if(&mut self, mut body: impl Copy + FnMut(&mut Self) -> Result<ExprId>) -> Result<ExprId> {
         self.with_expr_id_and_location(|this| {
             this.expect(Token::If, "a `if` to begin an if expression")?;
 
-            let condition = this.parse_expr_with_recovery(
-                Self::parse_block_or_expression,
-                Token::Then,
-                &[Token::Newline],
-            )?;
+            let condition =
+                this.parse_expr_with_recovery(Self::parse_block_or_expression, Token::Then, &[Token::Newline])?;
 
             this.expect(Token::Then, "a `then` to end this if condition")?;
 
             let then = this.parse_expr_with_recovery(body, Token::Else, &[Token::Newline])?;
 
-            let else_ = if this.accept(Token::Else) {
-                Some(body(this)?)
-            } else {
-                None
-            };
-            Ok(Expr::If(cst::If {
-                condition,
-                then,
-                else_,
-            }))
+            let else_ = if this.accept(Token::Else) { Some(body(this)?) } else { None };
+            Ok(Expr::If(cst::If { condition, then, else_ }))
         })
     }
 
@@ -1414,10 +1255,7 @@ impl<'tokens> Parser<'tokens> {
             let cases = this.many0(|this| {
                 this.expect(Token::Pipe, "a `|` to start a new pattern")?;
                 let pattern = this.parse_function_parameter_pattern()?;
-                this.expect(
-                    Token::RightArrow,
-                    "a `->` to separate the match pattern from the match branch",
-                )?;
+                this.expect(Token::RightArrow, "a `->` to separate the match pattern from the match branch")?;
                 let branch = this.parse_block_or_expression()?;
                 Ok((pattern, branch))
             });
@@ -1439,13 +1277,13 @@ impl<'tokens> Parser<'tokens> {
                     Token::Indent => {
                         indent_count += 1;
                         tokens.push(Token::Indent);
-                    }
+                    },
                     Token::Unindent => {
                         if indent_count == 0 {
                             break;
                         }
                         indent_count -= 1;
-                    }
+                    },
                     // This should be unreachable since the lexer should guarantee indents are
                     // always matched.
                     Token::EndOfInput => break,
@@ -1475,10 +1313,7 @@ impl<'tokens> Parser<'tokens> {
 
     /// Create a location from the current token before running the given parse function to the
     /// current token (end exclusive) after running the given parse function.
-    fn with_location<T>(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> Result<T>,
-    ) -> Result<(T, Location)> {
+    fn with_location<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<(T, Location)> {
         let start = self.current_token_span();
         let ret = f(self)?;
         let end = self.previous_token_span();
@@ -1497,14 +1332,17 @@ impl<'tokens> Parser<'tokens> {
         if let Ok(arguments) = self.many1(Self::parse_function_arg) {
             let last_arg_location = self.expr_location(*arguments.last().unwrap());
             let location = self.expr_location(function).to(&last_arg_location);
-            let call = Expr::Call(Call {
-                function,
-                arguments,
-            });
+            let call = Expr::Call(Call { function, arguments });
             Ok(self.push_expr(call, location))
         } else {
             Ok(function)
         }
+    }
+
+    fn parse_char(&mut self, char: char) -> Result<ExprId> {
+        let location = self.current_token_location();
+        self.advance();
+        Ok(self.push_expr(Expr::Literal(Literal::Char(char)), location))
     }
 
     fn parse_string(&mut self, contents: String) -> Result<ExprId> {
@@ -1521,26 +1359,22 @@ impl<'tokens> Parser<'tokens> {
             Token::If => {
                 let if_ = self.parse_comptime_if()?;
                 Ok(Comptime::Expr(if_))
-            }
+            },
             Token::Identifier(_) | Token::TypeName(_) => {
-                let call = self.parse_expr_with_recovery(
-                    Self::parse_function_call_or_atom,
-                    Token::Newline,
-                    &[],
-                )?;
+                let call = self.parse_expr_with_recovery(Self::parse_function_call_or_atom, Token::Newline, &[])?;
                 Ok(Comptime::Expr(call))
-            }
+            },
             _ => self.expected("a compile-time item"),
         }
     }
 
-    fn parse_value_path_id(&mut self) -> Result<PathId> {
-        let (path, location) = self.with_location(Self::parse_value_path)?;
+    fn parse_type_path_id(&mut self) -> Result<PathId> {
+        let (path, location) = self.with_location(Self::parse_type_path)?;
         Ok(self.push_path(path, location))
     }
 
-    fn parse_type_path_id(&mut self) -> Result<PathId> {
-        let (path, location) = self.with_location(Self::parse_type_path)?;
+    fn parse_value_path_id(&mut self) -> Result<PathId> {
+        let (path, location) = self.with_location(Self::parse_value_path)?;
         Ok(self.push_path(path, location))
     }
 

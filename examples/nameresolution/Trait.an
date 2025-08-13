@@ -11,3 +11,16 @@ foo 3
 bar : Unit
 
 // args: --check
+// expected stderr:
+// examples/nameresolution/Trait.an:1:1	error: Expected a top-level item but found `trait`
+// trait Foo a b with
+// 
+// examples/nameresolution/Trait.an:5:0	error: Expected a top-level item but found `impl`
+// impl Foo I32 String with
+// 
+// examples/nameresolution/Trait.an:10:4	error: Expected `=` to begin the function body but found `3`
+// foo 3
+// 
+// examples/nameresolution/Trait.an:13:0	error: Expected `=` to begin the function body but found `a newline`
+// // args: --check
+

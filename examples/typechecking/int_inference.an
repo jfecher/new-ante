@@ -11,4 +11,7 @@ print 2
 // them before other trait constraints.
 
 // args: --check
-// expected stdout:
+// expected stderr:
+// examples/typechecking/int_inference.an:1:7	error: Expected `=` to begin the function body but found `2`
+// print 2
+

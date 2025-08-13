@@ -4,3 +4,7 @@ if true then
     g ()
 
 // args: --delete-binary
+// expected stderr:
+// examples/regressions/119_top_level_subscopes.an:1:1	error: Expected a top-level item but found `if`
+// if true then
+

@@ -9,6 +9,12 @@ str = foo 0i32
 
 // args: --check --show-types
 // expected stderr:
+// examples/typechecking/trait_fundep_result.an:2:0	error: Expected a top-level item but found `trait`
+// trait Foo a -> b with
+// 
+// examples/typechecking/trait_fundep_result.an:5:0	error: Expected a top-level item but found `impl`
+// impl Foo I32 String with
+// 
 // examples/typechecking/trait_fundep_result.an:8:6	error: `foo` is not defined, was it a typo?
 // str = foo 0i32
 

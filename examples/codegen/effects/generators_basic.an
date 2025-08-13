@@ -15,3 +15,22 @@ for stream f =
 for (fn () -> iota 10) print
 
 // args: --delete-binary
+// expected stderr:
+// examples/codegen/effects/generators_basic.an:1:1	error: Expected a top-level item but found `effect`
+// effect Emit a with
+// 
+// examples/codegen/effects/generators_basic.an:4:16	error: Expected an expression but found `loop`
+// iota (n: U32) = loop (i = 0) ->
+// 
+// examples/codegen/effects/generators_basic.an:10:4	error: Expected an unindent but found `handle`
+//     handle stream ()
+// 
+// examples/codegen/effects/generators_basic.an:15:0	error: Expected a top-level item but found `an unindent`
+// for (fn () -> iota 10) print
+// 
+// examples/codegen/effects/generators_basic.an:15:5	error: Expected a parameter but found `fn`
+// for (fn () -> iota 10) print
+// 
+// examples/codegen/effects/generators_basic.an:17:0	error: Expected `=` to begin the function body but found `a newline`
+// // args: --delete-binary
+

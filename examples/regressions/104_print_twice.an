@@ -10,3 +10,25 @@ print map
 print map
 
 // args: --delete-binary
+// expected stderr:
+// examples/regressions/104_print_twice.an:1:8	error: Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported
+// import HashMap
+// 
+// examples/regressions/104_print_twice.an:3:0	error: Expected a top-level item but found `a newline`
+// impl Hash U8 with
+// 
+// examples/regressions/104_print_twice.an:3:0	error: Expected a top-level item but found `impl`
+// impl Hash U8 with
+// 
+// examples/regressions/104_print_twice.an:6:0	error: Expected a top-level item but found `mut`
+// mut map = empty ()
+// 
+// examples/regressions/104_print_twice.an:7:7	error: Expected `=` to begin the function body but found `!`
+// insert !map 1u8 3u16
+// 
+// examples/regressions/104_print_twice.an:10:0	error: Expected `=` to begin the function body but found `a newline`
+// print map
+// 
+// examples/regressions/104_print_twice.an:12:0	error: Expected `=` to begin the function body but found `a newline`
+// // args: --delete-binary
+

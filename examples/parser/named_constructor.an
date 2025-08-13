@@ -38,9 +38,9 @@ main () =
         bar = "bar"
 
 // args: --parse
-// expected stdout: main () =
-
-
+// expected stdout:
+// main () =
+//     T
 
 // expected stderr:
 // examples/parser/named_constructor.an:3:6	error: Expected an unindent but found `with`

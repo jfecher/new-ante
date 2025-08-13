@@ -38,10 +38,7 @@ impl TopLevelId {
     /// only the `len` portion, and we rely on `collision` to disambiguate any similar definitions
     /// in the same file such as `VecIter.len v = ...`.
     pub fn new(source_file: SourceFileId, content_hash: u64) -> TopLevelId {
-        TopLevelId {
-            source_file,
-            content_hash,
-        }
+        TopLevelId { source_file, content_hash }
     }
 
     pub(crate) fn location(&self, db: &DbHandle) -> Location {

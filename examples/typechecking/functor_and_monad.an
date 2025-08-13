@@ -22,3 +22,16 @@ impl Monad Maybe with
         | None -> None
 
 // args: --check --show-types
+// expected stderr:
+// examples/typechecking/functor_and_monad.an:2:0	error: Expected a top-level item but found `trait`
+// trait Functor f with
+// 
+// examples/typechecking/functor_and_monad.an:5:0	error: Expected a top-level item but found `trait`
+// trait Monad m with
+// 
+// examples/typechecking/functor_and_monad.an:10:0	error: Expected a top-level item but found `impl`
+// impl Functor Maybe with
+// 
+// examples/typechecking/functor_and_monad.an:16:0	error: Expected a top-level item but found `impl`
+// impl Monad Maybe with
+

@@ -21,26 +21,13 @@ impl LocationData {
     /// Merge two locations
     pub fn to(&self, end: &LocationData) -> Location {
         assert_eq!(self.file_id, end.file_id);
-        Arc::new(LocationData {
-            file_id: self.file_id.clone(),
-            span: self.span.to(&end.span),
-        })
+        Arc::new(LocationData { file_id: self.file_id.clone(), span: self.span.to(&end.span) })
     }
 
     /// An invalid location used only as a temporary placeholder
     pub fn placeholder(file_id: SourceFileId) -> Location {
-        let position = Position {
-            byte_index: 0,
-            line_number: 0,
-            column_number: 0,
-        };
-        Arc::new(LocationData {
-            file_id,
-            span: Span {
-                start: position,
-                end: position,
-            },
-        })
+        let position = Position { byte_index: 0, line_number: 0, column_number: 0 };
+        Arc::new(LocationData { file_id, span: Span { start: position, end: position } })
     }
 }
 
@@ -54,18 +41,12 @@ impl Span {
     /// Merge two spans
     pub fn to(&self, end: &Span) -> Span {
         assert!(self.start.byte_index <= end.end.byte_index);
-        Span {
-            start: self.start,
-            end: end.end,
-        }
+        Span { start: self.start, end: end.end }
     }
 
     /// Construct a Location from this Span
     pub fn in_file(self, file_id: SourceFileId) -> Location {
-        Arc::new(LocationData {
-            file_id,
-            span: self,
-        })
+        Arc::new(LocationData { file_id, span: self })
     }
 }
 
@@ -78,10 +59,6 @@ pub struct Position {
 
 impl Position {
     pub fn start() -> Position {
-        Position {
-            byte_index: 0,
-            line_number: 1,
-            column_number: 1,
-        }
+        Position { byte_index: 0, line_number: 1, column_number: 1 }
     }
 }

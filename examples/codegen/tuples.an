@@ -8,3 +8,16 @@ foo ("test", 2, 'c')
 foo ("hi", 7, 2.0, 3, 4, 5)
 
 // args: --delete-binary
+// expected stderr:
+// examples/codegen/tuples.an:2:6	error: Expected `=` to begin the function body but found `,`
+// foo (a, b, _) =
+// 
+// examples/codegen/tuples.an:8:0	error: Expected `=` to begin the function body but found `a newline`
+// foo ("hi", 7, 2.0, 3, 4, 5)
+// 
+// examples/codegen/tuples.an:8:5	error: Expected a parameter but found `"hi"`
+// foo ("hi", 7, 2.0, 3, 4, 5)
+// 
+// examples/codegen/tuples.an:10:0	error: Expected `=` to begin the function body but found `a newline`
+// // args: --delete-binary
+

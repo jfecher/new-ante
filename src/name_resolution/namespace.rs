@@ -20,10 +20,7 @@ pub(super) enum Namespace {
 
 impl Namespace {
     pub(super) fn crate_(crate_id: CrateId) -> Self {
-        Namespace::Module(SourceFileId {
-            crate_id,
-            local_module_id: CRATE_ROOT_MODULE,
-        })
+        Namespace::Module(SourceFileId { crate_id, local_module_id: CRATE_ROOT_MODULE })
     }
 }
 
@@ -37,10 +34,7 @@ pub struct SourceFileId {
 impl SourceFileId {
     pub fn new(crate_id: CrateId, path: &std::path::Path) -> SourceFileId {
         let local_module_id = LocalModuleId(crate::parser::ids::hash(path) as u32);
-        SourceFileId {
-            crate_id,
-            local_module_id,
-        }
+        SourceFileId { crate_id, local_module_id }
     }
 }
 

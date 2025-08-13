@@ -28,7 +28,7 @@ pub enum LexerError {
     InvalidIntegerSuffx,
     InvalidFloatSuffx,
     IndentChangeTooSmall, // All indentation changes must be >= 2 spaces in size difference relative to the previous level
-    UnindentToNewLevel, // Unindented to a new indent level rather than returning to a previous one
+    UnindentToNewLevel,   // Unindented to a new indent level rather than returning to a previous one
     Expected(char),
     UnknownChar(char),
     MismatchedBracketInQuote { expected: ClosingBracket },
@@ -443,7 +443,7 @@ impl Display for Token {
                     write!(f, "{token}")?;
                 }
                 Ok(())
-            }
+            },
         }
     }
 }

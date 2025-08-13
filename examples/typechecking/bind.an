@@ -11,3 +11,16 @@ add_one x =
     bind x (fn x -> ret (x + 1i32))
 
 // args: --check --show-types
+// expected stderr:
+// examples/typechecking/bind.an:3:4	error: Expected an unindent but found `|`
+//     | Some x -> f x
+// 
+// examples/typechecking/bind.an:11:12	error: Expected a parameter but found `fn`
+//     bind x (fn x -> ret (x + 1i32))
+// 
+// examples/typechecking/bind.an:11:12	error: Expected an expression but found `fn`
+//     bind x (fn x -> ret (x + 1i32))
+// 
+// examples/typechecking/bind.an:11:34	error: Expected an unindent but found `)`
+//     bind x (fn x -> ret (x + 1i32))
+

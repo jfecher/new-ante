@@ -67,6 +67,7 @@ pub enum PrimitiveType {
     Float(FloatKind),
     /// TODO: This should be a struct type
     String,
+    Char,
 }
 
 /// Maps type variables to their bindings
@@ -97,6 +98,7 @@ impl Type {
             crate::parser::cst::Type::Integer(kind) => Type::Primitive(PrimitiveType::Int(*kind)),
             crate::parser::cst::Type::Float(kind) => Type::Primitive(PrimitiveType::Float(*kind)),
             crate::parser::cst::Type::String => Type::Primitive(PrimitiveType::String),
+            crate::parser::cst::Type::Char => Type::Primitive(PrimitiveType::Char),
             crate::parser::cst::Type::Named(_path) => todo!("Resolve named types"),
             crate::parser::cst::Type::Variable(_name) => todo!("Resolve named types"),
             crate::parser::cst::Type::Function(function) => {
@@ -107,19 +109,15 @@ impl Type {
                     Some(effects) => todo!(), //Rc::new(Self::from_ast_type(effects)),
                     None => todo!(),
                 };
-                Type::Function(FunctionType {
-                    parameters,
-                    return_type,
-                    effects,
-                })
-            }
+                Type::Function(FunctionType { parameters, return_type, effects })
+            },
             crate::parser::cst::Type::Error => Type::Primitive(PrimitiveType::Error),
             crate::parser::cst::Type::Unit => Type::Primitive(PrimitiveType::Unit),
             crate::parser::cst::Type::TypeApplication(f, args) => {
                 let f = Rc::new(Self::from_ast_type(f));
                 let args = Rc::new(vecmap(args, Type::from_ast_type));
                 Type::TypeApplication(f, args)
-            }
+            },
         }
     }
 
@@ -129,10 +127,7 @@ impl Type {
     }
 
     pub fn display<'a, 'b>(&'a self, bindings: &'b TypeBindings) -> TypePrinter<'a, 'b> {
-        TypePrinter {
-            typ: self,
-            bindings,
-        }
+        TypePrinter { typ: self, bindings }
     }
 
     pub fn find_all_generics(&self) -> Vec<Arc<String>> {
@@ -176,10 +171,10 @@ impl TypePrinter<'_, '_> {
                 } else {
                     write!(f, "{id}")
                 }
-            }
+            },
             Type::Function(_function) => {
                 todo!("format function type")
-            }
+            },
             Type::TypeApplication(_, _) => todo!("format type application"),
         }
     }
@@ -195,6 +190,7 @@ impl std::fmt::Display for PrimitiveType {
             PrimitiveType::Int(kind) => write!(f, "{kind}"),
             PrimitiveType::Float(kind) => write!(f, "{kind}"),
             PrimitiveType::String => write!(f, "String"),
+            PrimitiveType::Char => write!(f, "Char"),
         }
     }
 }
@@ -233,10 +229,7 @@ impl GeneralizedType {
     }
 
     pub fn display<'a, 'b>(&'a self, bindings: &'b TypeBindings) -> TopLevelTypePrinter<'a, 'b> {
-        TopLevelTypePrinter {
-            typ: self,
-            bindings,
-        }
+        TopLevelTypePrinter { typ: self, bindings }
     }
 
     #[allow(unused)]

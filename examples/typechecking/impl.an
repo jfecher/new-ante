@@ -15,6 +15,15 @@ c = foo "one" "two"
 
 // args: --check --show-types
 // expected stderr:
+// examples/typechecking/impl.an:2:0	error: Expected a top-level item but found `trait`
+// trait Foo a with
+// 
+// examples/typechecking/impl.an:5:0	error: Expected a top-level item but found `impl`
+// impl Foo I32 with
+// 
+// examples/typechecking/impl.an:8:0	error: Expected a top-level item but found `impl`
+// impl Foo F64 with
+// 
 // examples/typechecking/impl.an:12:4	error: `foo` is not defined, was it a typo?
 // a = foo 1 2i32
 // 
