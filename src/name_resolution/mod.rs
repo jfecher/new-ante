@@ -1,13 +1,13 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use namespace::{Namespace, LOCAL_CRATE};
+use namespace::{Namespace, SourceFileId, LOCAL_CRATE};
 use serde::{Deserialize, Serialize};
 
 pub mod namespace;
 
 use crate::{
     diagnostics::{Diagnostic, Errors, Location},
-    incremental::{self, DbHandle, GetCrateGraph, GetItem, Resolve, VisibleDefinitions},
+    incremental::{self, DbHandle, ExportedTypes, GetCrateGraph, GetItem, Resolve, VisibleDefinitions},
     parser::{
         cst::{
             Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern,
@@ -124,13 +124,34 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     /// Retrieve each visible namespace in the given namespace, restricting the namespace
     /// to only items visible from `self.namespace()`
     fn get_child_namespace(&self, name: &String, namespace: Namespace) -> Option<Namespace> {
-        let file_data = match namespace {
-            Namespace::Local => self.item.source_file.get(self.compiler),
-            Namespace::Module(id) => id.get(self.compiler),
-            Namespace::Type(_) => return None,
-        };
+        match namespace {
+            Namespace::Local => {
+                if let Some(submodule) = self.get_item_in_submodule(self.item.source_file, name) {
+                    return Some(submodule);
+                }
 
-        file_data.submodules.get(name).copied().map(Namespace::Module)
+                let type_id = self.names_in_global_scope.get(name)?;
+                let (item, _) = GetItem(*type_id).get(self.compiler);
+                if matches!(&item.kind, TopLevelItemKind::TypeDefinition(_)) {
+                    Some(Namespace::Type(*type_id))
+                } else {
+                    None
+                }
+            },
+            Namespace::Type(_) => return None,
+            Namespace::Module(id) => {
+                if let Some(submodule) = self.get_item_in_submodule(id, name) {
+                    return Some(submodule);
+                }
+
+                let exported = ExportedTypes(id).get(self.compiler).0;
+                exported.get(name).copied().map(Namespace::Type)
+            },
+        }
+    }
+
+    fn get_item_in_submodule(&self, parent_module: SourceFileId, name: &str) -> Option<Namespace> {
+        parent_module.get(self.compiler).submodules.get(name).copied().map(Namespace::Module)
     }
 
     /// Retrieve each visible item in the given namespace, restricting the namespace

@@ -23,7 +23,4 @@ type MyRef a = &a
 // expected stderr:
 // examples/nameresolution/type_decl.an:20:15	error: Expected a field name or `|` to start this type body but found `&`
 // type MyRef a = &a
-// 
-// examples/nameresolution/type_decl.an:18:4	error: Namespace `Option` not found in path
-// t = Option.Just 1
 
