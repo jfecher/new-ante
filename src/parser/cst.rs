@@ -121,6 +121,7 @@ pub enum EffectType {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TypeDefinition {
+    pub shared: bool,
     pub name: NameId,
     pub generics: Generics,
     pub body: TypeDefinitionBody,
@@ -350,7 +351,7 @@ pub enum Pattern {
     Error,
     Variable(NameId),
     Literal(Literal),
-    Constructor(PatternId, Vec<PatternId>),
+    Constructor(PathId, Vec<PatternId>),
     TypeAnnotation(PatternId, Type),
 }
 

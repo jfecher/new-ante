@@ -519,7 +519,7 @@ impl<'tokens> Parser<'tokens> {
                 id = self.new_top_level_id(name);
                 TopLevelItemKind::Definition(definition)
             },
-            Token::Type => {
+            Token::Shared | Token::Type => {
                 let definition = self.parse_type_definition()?;
                 id = self.new_top_level_id(&definition.name);
                 TopLevelItemKind::TypeDefinition(definition)
@@ -598,12 +598,13 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn parse_type_definition(&mut self) -> Result<TypeDefinition> {
+        let shared = self.accept(Token::Shared);
         self.expect(Token::Type, "`type`")?;
         let name = self.parse_type_name_id()?;
         let generics = self.many0(|this| this.parse_ident_id());
         self.expect(Token::Equal, "`=` to begin the type definition")?;
         let body = self.parse_type_body()?;
-        Ok(TypeDefinition { name, generics, body })
+        Ok(TypeDefinition { shared, name, generics, body })
     }
 
     fn parse_type_body(&mut self) -> Result<TypeDefinitionBody> {
@@ -885,6 +886,15 @@ impl<'tokens> Parser<'tokens> {
         self.many0(Self::parse_function_parameter_pattern)
     }
 
+    fn parse_pattern(&mut self) -> Result<PatternId> {
+        self.with_pattern_id_and_location(Self::parse_pattern_inner)
+    }
+
+    /// An alias for `parse_tuple_pattern` to avoid remembering which pattern has least precedence
+    fn parse_pattern_inner(&mut self) -> Result<Pattern> {
+        self.parse_tuple_pattern()
+    }
+
     fn parse_function_parameter_pattern(&mut self) -> Result<PatternId> {
         self.with_pattern_id_and_location(Self::parse_function_parameter_pattern_inner)
     }
@@ -894,6 +904,14 @@ impl<'tokens> Parser<'tokens> {
             Token::UnitLiteral => {
                 self.advance();
                 Ok(Pattern::Literal(Literal::Unit))
+            },
+            Token::IntegerLiteral(value, kind) => {
+                self.advance();
+                Ok(Pattern::Literal(Literal::Integer(*value, *kind)))
+            },
+            Token::CharLiteral(value) => {
+                self.advance();
+                Ok(Pattern::Literal(Literal::Char(*value)))
             },
             Token::ParenthesisLeft => {
                 self.advance();
@@ -909,13 +927,40 @@ impl<'tokens> Parser<'tokens> {
                 let name = self.parse_ident_id()?;
                 Ok(Pattern::Variable(name))
             },
+            Token::TypeName(_) => {
+                let path = self.parse_type_path_id()?;
+                Ok(Pattern::Constructor(path, Vec::new()))
+            },
             _ => self.expected("a parameter"),
         }
     }
 
-    fn parse_pattern_inner(&mut self) -> Result<Pattern> {
+    /// tuple_pattern: type_annotation_pattern (',' type_annotation_pattern)*
+    fn parse_tuple_pattern(&mut self) -> Result<Pattern> {
         let start = self.current_token_span();
-        let pattern = self.parse_function_parameter_pattern_inner()?;
+        let mut pattern = self.parse_type_annotation_pattern()?;
+        let pattern_end = self.previous_token_span();
+
+        while self.accept(Token::Comma) {
+            let comma_location = self.previous_token_location();
+            let location = start.to(&pattern_end).in_file(self.file_id);
+
+            let lhs = self.push_pattern(pattern, location);
+
+            let rhs = self.with_pattern_id_and_location(Self::parse_type_annotation_pattern)?;
+
+            let components = vec![(",".to_string(), comma_location.clone())];
+            let comma_path = self.push_path(Path { components }, comma_location);
+            pattern = Pattern::Constructor(comma_path, vec![lhs, rhs]);
+        }
+
+        Ok(pattern)
+    }
+
+    /// type_annotation_pattern: constructor_pattern (':' type)?
+    fn parse_type_annotation_pattern(&mut self) -> Result<Pattern> {
+        let start = self.current_token_span();
+        let pattern = self.parse_constructor_pattern_inner()?;
         let end = self.previous_token_span();
 
         if self.accept(Token::Colon) {
@@ -926,6 +971,19 @@ impl<'tokens> Parser<'tokens> {
             Ok(Pattern::TypeAnnotation(pattern, typ))
         } else {
             Ok(pattern)
+        }
+    }
+
+    /// constructor_pattern: type_path function_parameter_pattern*
+    ///                    | function_parameter_pattern
+    fn parse_constructor_pattern_inner(&mut self) -> Result<Pattern> {
+        match self.current_token() {
+            Token::TypeName(_) => {
+                let path = self.parse_type_path_id()?;
+                let args = self.many0(Self::parse_function_parameter_pattern);
+                Ok(Pattern::Constructor(path, args))
+            },
+            _ => self.parse_function_parameter_pattern_inner(),
         }
     }
 
@@ -1253,8 +1311,12 @@ impl<'tokens> Parser<'tokens> {
             let expression = this.parse_expression()?;
 
             let cases = this.many0(|this| {
+                if *this.peek_next_token() == Token::Pipe {
+                    this.accept(Token::Newline);
+                }
+
                 this.expect(Token::Pipe, "a `|` to start a new pattern")?;
-                let pattern = this.parse_function_parameter_pattern()?;
+                let pattern = this.parse_pattern()?;
                 this.expect(Token::RightArrow, "a `->` to separate the match pattern from the match branch")?;
                 let branch = this.parse_block_or_expression()?;
                 Ok((pattern, branch))

@@ -7,8 +7,9 @@ impl Foo I32 String with
     baz = 2  // error: baz not in foo
     // error: missing definition of foo
 
-foo 3
-bar : Unit
+main () =
+    foo 3
+    bar : Unit
 
 // args: --check
 // expected stderr:
@@ -18,9 +19,9 @@ bar : Unit
 // examples/nameresolution/Trait.an:5:0	error: Expected a top-level item but found `impl`
 // impl Foo I32 String with
 // 
-// examples/nameresolution/Trait.an:10:4	error: Expected `=` to begin the function body but found `3`
-// foo 3
+// examples/nameresolution/Trait.an:11:4	error: `foo` is not defined, was it a typo?
+//     foo 3
 // 
-// examples/nameresolution/Trait.an:13:0	error: Expected `=` to begin the function body but found `a newline`
-// // args: --check
+// examples/nameresolution/Trait.an:12:4	error: `bar` is not defined, was it a typo?
+//     bar : Unit
 

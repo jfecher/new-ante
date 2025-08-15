@@ -1,9 +1,10 @@
 not_an_error = 1
 
+main () =
+    // Not a name resolution error at least. This isn't testing the type checker
+    not_an_error is_an_error
 
-not_an_error is_an_error
-
-fn a b -> a + c + b
+    fn a b -> a + c + b
 
 foo a b =
     bar c d =
@@ -16,12 +17,12 @@ a = 3 // already declared
 
 // args: --check
 // expected stderr:
-// examples/nameresolution/errors.an:6:0	error: Expected `=` to begin the function body but found `a newline`
-// fn a b -> a + c + b
+// examples/nameresolution/errors.an:7:4	error: Expected an unindent but found `fn`
+//     fn a b -> a + c + b
 // 
-// examples/nameresolution/errors.an:6:0	error: Expected a top-level item but found `fn`
-// fn a b -> a + c + b
-// 
-// examples/nameresolution/errors.an:15:6	error: Expected a newline after the top level item but found `//// already declared`
+// examples/nameresolution/errors.an:16:6	error: Expected a newline after the top level item but found `//// already declared`
 // a = 3 // already declared
+// 
+// examples/nameresolution/errors.an:5:17	error: `is_an_error` is not defined, was it a typo?
+//     not_an_error is_an_error
 

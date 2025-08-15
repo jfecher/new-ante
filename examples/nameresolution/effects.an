@@ -9,18 +9,18 @@ effect State a with
     put: fn a -> Unit
 
 
-handle ()
-| one () -> ()
-| one () -> ()
+main () =
+    handle ()
+    | one () -> ()
+    | one () -> ()
 
+    handle ()
+    | get () -> resume ()
+    | put () -> ()
 
-handle ()
-| get () -> resume ()
-| put () -> ()
-
-handle ()
-| put () -> ()
-| three 0 1 -> ()
+    handle ()
+    | put () -> ()
+    | three 0 1 -> ()
 
 // args: --check
 // expected stderr:
@@ -30,30 +30,6 @@ handle ()
 // examples/nameresolution/effects.an:7:0	error: Expected a top-level item but found `effect`
 // effect State a with
 // 
-// examples/nameresolution/effects.an:12:0	error: Expected a top-level item but found `handle`
-// handle ()
-// 
-// examples/nameresolution/effects.an:13:0	error: Expected a top-level item but found `|`
-// | one () -> ()
-// 
-// examples/nameresolution/effects.an:14:0	error: Expected a top-level item but found `|`
-// | one () -> ()
-// 
-// examples/nameresolution/effects.an:17:0	error: Expected a top-level item but found `handle`
-// handle ()
-// 
-// examples/nameresolution/effects.an:18:0	error: Expected a top-level item but found `|`
-// | get () -> resume ()
-// 
-// examples/nameresolution/effects.an:19:0	error: Expected a top-level item but found `|`
-// | put () -> ()
-// 
-// examples/nameresolution/effects.an:21:0	error: Expected a top-level item but found `handle`
-// handle ()
-// 
-// examples/nameresolution/effects.an:22:0	error: Expected a top-level item but found `|`
-// | put () -> ()
-// 
-// examples/nameresolution/effects.an:23:0	error: Expected a top-level item but found `|`
-// | three 0 1 -> ()
+// examples/nameresolution/effects.an:13:4	error: Expected an unindent but found `handle`
+//     handle ()
 

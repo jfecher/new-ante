@@ -244,6 +244,10 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_type_definition(&mut self, type_definition: &TypeDefinition, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if type_definition.shared {
+            write!(f, "shared ")?;
+        }
+
         write!(f, "type {} =", self.context().names[type_definition.name])?;
 
         match &type_definition.body {
@@ -520,7 +524,7 @@ impl<'a> CstDisplay<'a> {
             Pattern::Variable(name) => write!(f, "{}", self.context().names[*name]),
             Pattern::Literal(literal) => self.fmt_literal(literal, f),
             Pattern::Constructor(path, args) => {
-                self.fmt_pattern(*path, f)?;
+                write!(f, "{}", self.context().paths[*path])?;
                 for arg in args {
                     if !matches!(&self.context().patterns[*arg], Pattern::Constructor(..)) {
                         write!(f, " ")?;
