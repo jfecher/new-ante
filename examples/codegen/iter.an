@@ -25,14 +25,8 @@ my_iter 10 print
 // examples/codegen/iter.an:6:0	error: Expected a top-level item but found `impl`
 // impl MyIterable I32 I32 with
 // 
-// examples/codegen/iter.an:13:4	error: Expected an unindent but found `|`
-//     | None -> ()
-// 
-// examples/codegen/iter.an:18:0	error: Expected a top-level item but found `an unindent`
-// my_iter 10 print
-// 
-// examples/codegen/iter.an:18:8	error: Expected `=` to begin the function body but found `10`
-// my_iter 10 print
+// examples/codegen/iter.an:20:0	error: Expected `=` to begin the function body but found `a newline`
+// // args: --delete-binary
 // 
 // examples/codegen/iter.an:12:10	error: `mynext` is not defined, was it a typo?
 //     match mynext iterable

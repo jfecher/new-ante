@@ -18,12 +18,12 @@ exit2 0
 // examples/typechecking/extern.an:4:0	error: Expected a top-level item but found `extern`
 // extern
 // 
-// examples/typechecking/extern.an:9:4	error: Expected `=` to begin the function body but found `1`
-// foo 1
+// examples/typechecking/extern.an:10:0	error: Expected `=` to begin the function body but found `a newline`
+// puts2 "test"
 // 
 // examples/typechecking/extern.an:10:6	error: Expected `=` to begin the function body but found `"test"`
 // puts2 "test"
 // 
-// examples/typechecking/extern.an:11:6	error: Expected `=` to begin the function body but found `0`
-// exit2 0
+// examples/typechecking/extern.an:13:0	error: Expected `=` to begin the function body but found `a newline`
+// // args: --check --show-types
 

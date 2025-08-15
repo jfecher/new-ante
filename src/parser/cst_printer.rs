@@ -170,7 +170,13 @@ impl<'a> CstDisplay<'a> {
     fn fmt_lambda_inner(&mut self, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
         for pattern in &lambda.parameters {
             write!(f, " ")?;
-            self.fmt_pattern(*pattern, f)?;
+            if self.is_pattern_atom(*pattern) {
+                self.fmt_pattern(*pattern, f)?;
+            } else {
+                write!(f, "(")?;
+                self.fmt_pattern(*pattern, f)?;
+                write!(f, ")")?;
+            }
         }
 
         if let Some(typ) = &lambda.return_type {
@@ -526,7 +532,7 @@ impl<'a> CstDisplay<'a> {
             Pattern::Constructor(path, args) => {
                 write!(f, "{}", self.context().paths[*path])?;
                 for arg in args {
-                    if !matches!(&self.context().patterns[*arg], Pattern::Constructor(..)) {
+                    if self.is_pattern_atom(*arg) {
                         write!(f, " ")?;
                         self.fmt_pattern(*arg, f)?;
                     } else {
@@ -539,11 +545,9 @@ impl<'a> CstDisplay<'a> {
             },
             Pattern::Error => write!(f, "(error)"),
             Pattern::TypeAnnotation(pattern, typ) => {
-                write!(f, "(")?;
                 self.fmt_pattern(*pattern, f)?;
                 write!(f, ": ")?;
-                self.fmt_type(typ, f)?;
-                write!(f, ")")
+                self.fmt_type(typ, f)
             },
         }
     }
@@ -590,6 +594,17 @@ impl<'a> CstDisplay<'a> {
             write!(f, " {token}")?;
         }
         Ok(())
+    }
+
+    /// True if this pattern never requires parenthesis
+    fn is_pattern_atom(&self, pattern: PatternId) -> bool {
+        match &self.context().patterns[pattern] {
+            Pattern::Error => true,
+            Pattern::Variable(_) => true,
+            Pattern::Literal(_) => true,
+            Pattern::Constructor(_, args) => args.is_empty(),
+            Pattern::TypeAnnotation(_, _) => false,
+        }
     }
 }
 

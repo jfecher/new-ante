@@ -47,6 +47,6 @@ iota 10
 // examples/typechecking/effects_subset.an:23:0	error: Expected a top-level item but found `an unindent`
 // iota 10
 // 
-// examples/typechecking/effects_subset.an:23:5	error: Expected `=` to begin the function body but found `10`
-// iota 10
+// examples/typechecking/effects_subset.an:24:4	error: Expected `=` to begin the function body but found `with`
+//     with filter (fn x -> x % 2 == 0)
 

@@ -16,9 +16,9 @@ foo 5 (library_fn ())
 // examples/nameresolution/import.an:3:6	error: Expected an expression but found `fn`
 // foo = fn _ b -> b
 // 
-// examples/nameresolution/import.an:5:4	error: Expected `=` to begin the function body but found `4`
-// foo 4 library_int
+// examples/nameresolution/import.an:6:0	error: Expected `=` to begin the function body but found `a newline`
+// foo 5 (library_fn ())
 // 
-// examples/nameresolution/import.an:6:4	error: Expected `=` to begin the function body but found `5`
+// examples/nameresolution/import.an:6:18	error: Expected `=` to begin the function body but found `()`
 // foo 5 (library_fn ())
 

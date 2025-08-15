@@ -73,8 +73,8 @@ iota 10
 // examples/codegen/effects/generators_complex.an:40:15	error: Expected an unindent but found `x1`
 //     x = @first x1
 // 
-// examples/codegen/effects/generators_complex.an:44:5	error: Expected `=` to begin the function body but found `10`
-// iota 10
+// examples/codegen/effects/generators_complex.an:45:4	error: Expected `=` to begin the function body but found `with`
+//     with filter even
 // 
 // examples/codegen/effects/generators_complex.an:37:15	error: `==` is not defined, was it a typo?
 // even x = x % 2 == 0

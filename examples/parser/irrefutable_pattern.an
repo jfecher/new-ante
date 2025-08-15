@@ -6,12 +6,10 @@ bar (a, b, c) = (a, b, c)
 baz (a, b) c = ()
 
 // args: --parse
-// expected stdout: foo () = ()
-
-// expected stderr:
-// examples/parser/irrefutable_pattern.an:4:6	error: Expected `=` to begin the function body but found `,`
-// bar (a, b, c) = (a, b, c)
+// expected stdout:
+// foo () = ()
 // 
-// examples/parser/irrefutable_pattern.an:6:6	error: Expected `=` to begin the function body but found `,`
-// baz (a, b) c = ()
+// bar (, (, a b) c) = , a (, b c)
+// 
+// baz (, a b) c = ()
 

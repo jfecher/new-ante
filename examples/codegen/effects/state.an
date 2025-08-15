@@ -42,10 +42,10 @@ use_state 20_u64 with state 2
 // examples/codegen/effects/state.an:12:15	error: Expected `=` to begin the function body but found `->`
 // state (f: Unit -> a can Use s) (initial: s): a =
 // 
-// examples/codegen/effects/state.an:22:10	error: Expected `=` to begin the function body but found `10_I32`
+// examples/codegen/effects/state.an:22:17	error: Expected `=` to begin the function body but found `with`
 // use_state 10_i32 with state 1
 // 
-// examples/codegen/effects/state.an:23:10	error: Expected `=` to begin the function body but found `20_U64`
+// examples/codegen/effects/state.an:23:17	error: Expected `=` to begin the function body but found `with`
 // use_state 20_u64 with state 2
 // 
 // examples/codegen/effects/state.an:7:4	error: `set` is not defined, was it a typo?

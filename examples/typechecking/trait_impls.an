@@ -41,8 +41,8 @@ bar "four" "five"
 // examples/typechecking/trait_impls.an:17:0	error: Expected a top-level item but found `impl`
 // impl Bar I32 F64 with
 // 
-// examples/typechecking/trait_impls.an:23:4	error: Expected `=` to begin the function body but found `3`
-// bar 3 2
+// examples/typechecking/trait_impls.an:25:0	error: Expected `=` to begin the function body but found `a newline`
+// bar "four" "five"
 // 
 // examples/typechecking/trait_impls.an:25:4	error: Expected `=` to begin the function body but found `"four"`
 // bar "four" "five"
