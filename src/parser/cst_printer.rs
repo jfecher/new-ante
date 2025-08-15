@@ -254,7 +254,7 @@ impl<'a> CstDisplay<'a> {
                 self.indent_level += 1;
                 for (name, typ) in fields {
                     self.newline(f)?;
-                    write!(f, "{name}: ")?;
+                    write!(f, "{}: ", self.context().names[*name])?;
                     self.fmt_type(typ, f)?;
                 }
                 self.indent_level -= 1;
@@ -263,7 +263,7 @@ impl<'a> CstDisplay<'a> {
                 self.indent_level += 1;
                 for (name, params) in variants {
                     self.newline(f)?;
-                    write!(f, "| {name}")?;
+                    write!(f, "| {}", self.context().names[*name])?;
                     for param in params {
                         write!(f, " ")?;
                         self.fmt_type(param, f)?;

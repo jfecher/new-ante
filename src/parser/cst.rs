@@ -129,8 +129,8 @@ pub struct TypeDefinition {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TypeDefinitionBody {
     Error,
-    Struct(Vec<(String, Type)>),
-    Enum(Vec<(String, Vec<Type>)>),
+    Struct(Vec<(NameId, Type)>),
+    Enum(Vec<(NameId, Vec<Type>)>),
     Alias(Type),
 }
 

@@ -619,7 +619,7 @@ impl<'tokens> Parser<'tokens> {
             Token::Identifier(_) if *self.peek_next_token() == Token::Colon => {
                 let fields = self.delimited(
                     |this| {
-                        let field_name = this.parse_ident()?;
+                        let field_name = this.parse_ident_id()?;
                         this.expect(Token::Colon, "a colon separating the field name from its type")?;
                         let field_type = this.parse_type()?;
                         this.accept(Token::Comma);
@@ -635,7 +635,7 @@ impl<'tokens> Parser<'tokens> {
                 let variants = self.delimited(
                     |this| {
                         this.expect(Token::Pipe, "`|`")?;
-                        let variant_name = this.parse_type_name()?;
+                        let variant_name = this.parse_type_name_id()?;
                         let parameters = this.many0(Self::parse_type); // TODO: arg type
                         Ok((variant_name, parameters))
                     },
@@ -657,7 +657,7 @@ impl<'tokens> Parser<'tokens> {
             Token::Identifier(_) if *self.peek_next_token() == Token::Colon => {
                 let fields = self.delimited(
                     |this| {
-                        let field_name = this.parse_ident()?;
+                        let field_name = this.parse_ident_id()?;
                         this.expect(Token::Colon, "a colon separating the field name from its type")?;
                         let field_type = this.parse_type()?;
                         Ok((field_name, field_type))
@@ -671,7 +671,7 @@ impl<'tokens> Parser<'tokens> {
             Token::Pipe => {
                 let variants = self.many0(|this| {
                     this.expect(Token::Pipe, "`|`")?;
-                    let variant_name = this.parse_type_name()?;
+                    let variant_name = this.parse_type_name_id()?;
                     let parameters = this.many0(Self::parse_type); // TODO: arg type
                     Ok((variant_name, parameters))
                 });

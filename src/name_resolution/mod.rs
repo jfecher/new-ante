@@ -173,7 +173,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     /// Lookup the given path in the given namespace
-    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace) -> Option<Origin>
+    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace) -> Result<Origin, Diagnostic>
     where
         Iter: ExactSizeIterator<Item = &'a (String, Location)>,
     {
@@ -185,8 +185,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             } else {
                 let name = item_name.clone();
                 let location = item_location.clone();
-                self.errors.push(Diagnostic::NamespaceNotFound { name, location });
-                return None;
+                return Err(Diagnostic::NamespaceNotFound { name, location });
             }
         }
 
@@ -195,24 +194,23 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
 
         if matches!(namespace, Namespace::Local) {
             if let Some(origin) = self.lookup_local_name(name) {
-                return Some(origin);
+                return Ok(origin);
             }
         }
 
         if let Some(origin) = self.get_item_in_namespace(name, namespace) {
-            return Some(origin);
+            return Ok(origin);
         }
 
         // No known origin.
         // If the name is capitalized we delay until type inference to auto-import variants
         let first_char = name.chars().next().unwrap();
-        if first_char.is_ascii_uppercase() {
-            Some(Origin::TypeResolution)
+        if first_char.is_ascii_uppercase() && namespace == Namespace::Local {
+            Ok(Origin::TypeResolution)
         } else {
             let location = location.clone();
             let name = Arc::new(name.clone());
-            self.errors.push(Diagnostic::NameNotInScope { name, location });
-            None
+            Err(Diagnostic::NameNotInScope { name, location })
         }
     }
 
@@ -230,7 +228,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         None
     }
 
-    fn lookup(&mut self, path: &Path) -> Option<Origin> {
+    fn lookup(&mut self, path: &Path) -> Result<Origin, Diagnostic> {
         let mut components = path.components.iter().peekable();
 
         if components.len() > 1 {
@@ -257,8 +255,11 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
 
     /// Links a path to its definition or errors if it does not exist
     fn link(&mut self, path: PathId) {
-        if let Some(origin) = self.lookup(&self.context.paths[path]) {
-            self.path_links.insert(path, origin);
+        match self.lookup(&self.context.paths[path]) {
+            Ok(origin) => {
+                self.path_links.insert(path, origin);
+            },
+            Err(diagnostic) => self.errors.push(diagnostic),
         }
     }
 

@@ -8,7 +8,7 @@ use crate::{
     },
     name_resolution::namespace::SourceFileId,
     parser::{
-        cst::{ItemName, Name, TopLevelItem, TopLevelItemKind},
+        cst::{ItemName, Name, TopLevelItem, TopLevelItemKind, TypeDefinitionBody},
         ids::NameId,
         ParseResult,
     },
@@ -149,12 +149,30 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
         match item.kind.name() {
             ItemName::Single(name) => {
                 let name = &result.top_level_data[&item.id].names[name];
-                resolve_single(name, item, &mut definitions, &mut diagnostics, db);
+                declare_single(name, item, &mut definitions, &mut diagnostics, db);
             },
             ItemName::Method { type_name, item_name } => {
-                resolve_method(type_name, item_name, item, &definitions, &mut methods, &result, &mut diagnostics, db);
+                declare_method(type_name, item_name, item, &definitions, &mut methods, &result, &mut diagnostics, db);
             },
             ItemName::None => (),
+        }
+
+        // Declare each enum constructor
+        if let TopLevelItemKind::TypeDefinition(type_definition) = &item.kind {
+            if let TypeDefinitionBody::Enum(variants) = &type_definition.body {
+                for (name, _) in variants {
+                    declare_method(
+                        type_definition.name,
+                        *name,
+                        item,
+                        &definitions,
+                        &mut methods,
+                        &result,
+                        &mut diagnostics,
+                        db,
+                    );
+                }
+            }
         }
     }
 
@@ -162,7 +180,7 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
     Arc::new(VisibleDefinitionsResult { definitions, methods, diagnostics })
 }
 
-fn resolve_single(
+fn declare_single(
     name: &Name, item: &TopLevelItem, definitions: &mut Definitions, errors: &mut Vec<Diagnostic>, db: &DbHandle,
 ) {
     if let Some(existing) = definitions.get(name) {
@@ -175,7 +193,7 @@ fn resolve_single(
     }
 }
 
-fn resolve_method(
+fn declare_method(
     type_name: NameId, item_name: NameId, item: &TopLevelItem, definitions: &Definitions, methods: &mut Methods,
     parse: &ParseResult, errors: &mut Vec<Diagnostic>, db: &DbHandle,
 ) {
@@ -187,7 +205,7 @@ fn resolve_method(
     // for the type.
     if let Some(object_type) = definitions.get(type_name) {
         let object_methods = methods.entry(*object_type).or_default();
-        resolve_single(item_name, item, object_methods, errors, db);
+        declare_single(item_name, item, object_methods, errors, db);
     } else {
         todo!("error: method defined for unknown or external type")
     }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::parser::ids::TopLevelId;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub(super) enum Namespace {
     /// A local namespace within an expression with possibly both
     /// locals and globals visible. The actual module will should
