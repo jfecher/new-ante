@@ -16,6 +16,6 @@ print v
 // examples/codegen/implicit_import.an:4:9	error: Expected `=` to begin the function body but found `!`
 // Vec.push !v 4
 // 
-// examples/codegen/implicit_import.an:8:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/codegen/implicit_import.an:8:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
 

@@ -32,8 +32,8 @@ for filtered print
 
 // args: --delete-binary
 // expected stderr:
-// examples/regressions/217_filter.an:1:1	error: Expected a top-level item but found `effect`
-// effect Emit a with
+// examples/regressions/217_filter.an:2:12	error: Expected an unindent but found `->`
+//     emit: a -> Unit
 // 
 // examples/regressions/217_filter.an:4:16	error: Expected an expression but found `loop`
 // iota (n: U32) = loop (i = 0) ->
@@ -50,7 +50,7 @@ for filtered print
 // examples/regressions/217_filter.an:29:25	error: Expected an expression but found `fn`
 //     filter zero_to_nine (fn x -> x % 2 == 0)
 // 
-// examples/regressions/217_filter.an:33:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/regressions/217_filter.an:33:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
 // 
 // examples/regressions/217_filter.an:29:4	error: `filter` is not defined, was it a typo?

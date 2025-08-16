@@ -27,8 +27,8 @@ sum_all () |> print
 
 // args: --delete-binary
 // expected stderr:
-// examples/codegen/effects/add_effect.an:1:1	error: Expected a top-level item but found `effect`
-// effect Add with
+// examples/codegen/effects/add_effect.an:2:13	error: Expected an unindent but found `->`
+//     add: U32 -> Unit
 // 
 // examples/codegen/effects/add_effect.an:4:7	error: Expected `=` to begin the function body but found `can`
 // foo () can Add =
@@ -39,7 +39,7 @@ sum_all () |> print
 // examples/codegen/effects/add_effect.an:19:4	error: Expected a top-level item but found `|`
 //     | add y ->
 // 
-// examples/codegen/effects/add_effect.an:25:0	error: Expected a top-level item but found `an unindent`
+// examples/codegen/effects/add_effect.an:25:0	error: Expected a top-level item but found an unindent
 // // 10
 // 
 // examples/codegen/effects/add_effect.an:26:11	error: Expected `=` to begin the function body but found `|>`

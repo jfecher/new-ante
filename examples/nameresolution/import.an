@@ -10,13 +10,13 @@ foo 5 (library_fn ())
 // examples/nameresolution/import.an:1:8	error: Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported
 // import Library
 // 
-// examples/nameresolution/import.an:3:0	error: Expected a top-level item but found `a newline`
+// examples/nameresolution/import.an:3:0	error: Expected a top-level item but found a newline
 // foo = fn _ b -> b
 // 
 // examples/nameresolution/import.an:3:6	error: Expected an expression but found `fn`
 // foo = fn _ b -> b
 // 
-// examples/nameresolution/import.an:6:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/nameresolution/import.an:6:0	error: Expected `=` to begin the function body but found a newline
 // foo 5 (library_fn ())
 // 
 // examples/nameresolution/import.an:6:18	error: Expected `=` to begin the function body but found `()`

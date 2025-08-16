@@ -21,6 +21,6 @@ print v
 // examples/codegen/vec_basic.an:6:5	error: Expected `=` to begin the function body but found `!`
 // push !v 4
 // 
-// examples/codegen/vec_basic.an:10:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/codegen/vec_basic.an:10:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
 

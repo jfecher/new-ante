@@ -17,13 +17,13 @@ id x = x
 // examples/typechecking/instantiation.an:2:10	error: Expected an expression but found `fn`
 // add m n = fn f -> fn x -> m f (n f x)  // (a -> b -> c) -> (a -> d -> b) -> a -> d -> c
 // 
-// examples/typechecking/instantiation.an:4:15	error: Expected a newline after the top level item but found `//// (a -> b) -> a -> b`
+// examples/typechecking/instantiation.an:4:15	error: Expected a newline after the top level item but found //// (a -> b) -> a -> b
 // one f x = f x  // (a -> b) -> a -> b
 // 
-// examples/typechecking/instantiation.an:5:19	error: Expected a newline after the top level item but found `//// (a -> a) -> a -> a`
+// examples/typechecking/instantiation.an:5:19	error: Expected a newline after the top level item but found //// (a -> a) -> a -> a
 // two1 f x = f (f x) // (a -> a) -> a -> a
 // 
-// examples/typechecking/instantiation.an:11:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/typechecking/instantiation.an:11:0	error: Expected `=` to begin the function body but found a newline
 // id "four"
 // 
 // examples/typechecking/instantiation.an:11:3	error: Expected `=` to begin the function body but found `"four"`

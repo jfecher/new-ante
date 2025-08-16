@@ -1,14 +1,14 @@
 
 foo (_: I32) (_: String) : Char = 'a'
 
-bar: a - a -> I32 =
+bar: fn a - a -> I32 =
     fn _ b -> b
 
-baz (a: Usz) : Ptr a =
+baz (a: Usz): Ptr a =
     transmute a
 
 exit2 = exit
-puts2: (Ptr Char) -> I32 = puts
+puts2: fn (Ptr Char) -> I32 = puts
 
 exit2 "test"
 puts2
@@ -20,19 +20,16 @@ puts2
 // examples/typechecking/type_annotations.an:2:34	error: Expected an expression but found `'a`
 // foo (_: I32) (_: String) : Char = 'a'
 // 
-// examples/typechecking/type_annotations.an:7:15	error: Expected a type but found `Ptr`
-// baz (a: Usz) : Ptr a =
+// examples/typechecking/type_annotations.an:7:14	error: Expected a type but found `Ptr`
+// baz (a: Usz): Ptr a =
 // 
-// examples/typechecking/type_annotations.an:11:8	error: Expected a type but found `Ptr`
-// puts2: (Ptr Char) -> I32 = puts
-// 
-// examples/typechecking/type_annotations.an:11:18	error: Expected `=` to begin the function body but found `->`
-// puts2: (Ptr Char) -> I32 = puts
+// examples/typechecking/type_annotations.an:11:11	error: Expected a type but found `Ptr`
+// puts2: fn (Ptr Char) -> I32 = puts
 // 
 // examples/typechecking/type_annotations.an:13:6	error: Expected `=` to begin the function body but found `"test"`
 // exit2 "test"
 // 
-// examples/typechecking/type_annotations.an:16:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/typechecking/type_annotations.an:16:0	error: Expected `=` to begin the function body but found a newline
 // // TODO: This first error is duplicated
 // 
 // examples/typechecking/type_annotations.an:8:4	error: `transmute` is not defined, was it a typo?
@@ -40,4 +37,7 @@ puts2
 // 
 // examples/typechecking/type_annotations.an:10:8	error: `exit` is not defined, was it a typo?
 // exit2 = exit
+// 
+// examples/typechecking/type_annotations.an:11:30	error: `puts` is not defined, was it a typo?
+// puts2: fn (Ptr Char) -> I32 = puts
 

@@ -26,7 +26,7 @@ loop (s: I32) (t: I32 = 0) ->
 // examples/codegen/loop.an:2:10	error: Expected an expression but found `loop`
 // seq_sum = loop start (sum = 0) ->
 // 
-// examples/codegen/loop.an:8:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/codegen/loop.an:8:0	error: Expected `=` to begin the function body but found a newline
 // loop (collatz = 7) ->
 // 
 // examples/codegen/loop.an:8:0	error: Expected a top-level item but found `loop`

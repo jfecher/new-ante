@@ -25,10 +25,10 @@ main ()
 // examples/regressions/85_type_defaulting_rules.an:14:17	error: Expected an unindent but found `fn`
 //     count_down 3 fn x ->
 // 
-// examples/regressions/85_type_defaulting_rules.an:21:0	error: Expected `=` to begin the function body but found `an unindent`
+// examples/regressions/85_type_defaulting_rules.an:21:0	error: Expected `=` to begin the function body but found an unindent
 // main ()
 // 
-// examples/regressions/85_type_defaulting_rules.an:23:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/regressions/85_type_defaulting_rules.an:23:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
 // 
 // examples/regressions/85_type_defaulting_rules.an:7:9	error: `>` is not defined, was it a typo?

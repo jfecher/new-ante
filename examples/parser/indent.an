@@ -45,9 +45,9 @@ when5 condition expr =
 // examples/parser/indent.an:3:4	error: Expected an unindent but found `fn`
 //     fn c d ->
 // 
-// examples/parser/indent.an:6:0	error: Expected a top-level item but found `an unindent`
+// examples/parser/indent.an:6:0	error: Expected a top-level item but found an unindent
 // // These should all result in the same parse tree
 // 
-// examples/parser/indent.an:19:0	error: Expected an unindent but found `a newline`
+// examples/parser/indent.an:19:0	error: Expected an unindent but found a newline
 //     then expr
 

@@ -8,7 +8,7 @@ trait Cast a b -> c with
 // A collection c of elements of type e
 // The element type is uniquely determined by the collection's type c
 trait Collection c -> e with
-    push: fn c - e -> c
+    push: fn c e -> c
     pop: fn c -> Maybe e
     empty: c
 
@@ -19,28 +19,34 @@ impl Show String with
 impl Cast String String String given Show String with
     cast s = show s
 
-impl Collection (a -> a) unit with
+impl Collection (fn a -> a) Unit with
     push c e = c
     pop c = ()
     empty = fn a -> a
 
 // args: --parse
-// expected stderr:
-// examples/parser/trait_decl.an:2:0	error: Expected a top-level item but found `trait`
+// expected stdout:
 // trait Show a with
+//     show: fn a -> String
 // 
-// examples/parser/trait_decl.an:5:0	error: Expected a top-level item but found `trait`
 // trait Cast a b -> c with
+//     cast: fn a -> b
 // 
-// examples/parser/trait_decl.an:10:0	error: Expected a top-level item but found `trait`
 // trait Collection c -> e with
+//     push: fn c e -> c
+//     pop: fn c -> Maybe e
+//     empty: c
 // 
-// examples/parser/trait_decl.an:16:0	error: Expected a top-level item but found `impl`
 // impl Show String with
+//     show s = s
 // 
-// examples/parser/trait_decl.an:19:0	error: Expected a top-level item but found `impl`
+// impl Collection fn a -> a Unit with
+//     push c e = c
+
+// expected stderr:
+// examples/parser/trait_decl.an:19:31	error: Expected `with` to separate this trait impl's signature from its body but found `given`
 // impl Cast String String String given Show String with
 // 
-// examples/parser/trait_decl.an:22:0	error: Expected a top-level item but found `impl`
-// impl Collection (a -> a) unit with
+// examples/parser/trait_decl.an:24:0	error: Expected an unindent but found a newline
+//     pop c = ()
 

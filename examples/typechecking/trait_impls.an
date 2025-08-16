@@ -1,6 +1,6 @@
 
 trait Bar a -> b with
-    bar : a a -> b
+    bar: fn a a -> b
 
 
 impl Bar I32 String with
@@ -26,22 +26,10 @@ bar "four" "five"
 
 // args: --check --show-types
 // expected stderr:
-// examples/typechecking/trait_impls.an:2:0	error: Expected a top-level item but found `trait`
-// trait Bar a -> b with
+// examples/typechecking/trait_impls.an:18:19	error: Expected an unindent but found //// Should be an error, we already have a Bar I32
+//     bar _ _ = 23.2 // Should be an error, we already have a Bar I32
 // 
-// examples/typechecking/trait_impls.an:6:0	error: Expected a top-level item but found `impl`
-// impl Bar I32 String with
-// 
-// examples/typechecking/trait_impls.an:9:0	error: Expected a top-level item but found `impl`
-// impl Bar I32 I32 with
-// 
-// examples/typechecking/trait_impls.an:12:0	error: Expected a top-level item but found `impl`
-// impl Bar I32 Char String F64 Unit with
-// 
-// examples/typechecking/trait_impls.an:17:0	error: Expected a top-level item but found `impl`
-// impl Bar I32 F64 with
-// 
-// examples/typechecking/trait_impls.an:25:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/typechecking/trait_impls.an:25:0	error: Expected `=` to begin the function body but found a newline
 // bar "four" "five"
 // 
 // examples/typechecking/trait_impls.an:25:4	error: Expected `=` to begin the function body but found `"four"`

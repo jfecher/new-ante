@@ -24,11 +24,8 @@ main () =
 
 // args: --check
 // expected stderr:
-// examples/nameresolution/effects.an:2:0	error: Expected a top-level item but found `effect`
-// effect Three with
-// 
-// examples/nameresolution/effects.an:7:0	error: Expected a top-level item but found `effect`
-// effect State a with
+// examples/nameresolution/effects.an:5:18	error: Expected an unindent but found `-`
+//     three: fn I32 - I32 -> I32
 // 
 // examples/nameresolution/effects.an:13:4	error: Expected an unindent but found `handle`
 //     handle ()

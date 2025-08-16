@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use cst::{
-    BorrowMode, Comptime, DefinitionName, EffectType, Index, Lambda, MemberAccess, Name, OwnershipMode, Pattern,
-    SharedMode,
+    BorrowMode, Comptime, Declaration, DefinitionName, EffectType, Index, Lambda, MemberAccess, Name, OwnershipMode,
+    Pattern, SharedMode,
 };
 use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
@@ -233,10 +233,10 @@ impl<'tokens> Parser<'tokens> {
     }
 
     /// Return a hash of the given data guaranteed to be unique within the current module.
-    fn hash_top_level_data(&mut self, data: &impl std::hash::Hash) -> u64 {
+    fn hash_top_level_data(top_level_item_hashes: &mut FxHashSet<u64>, data: &impl std::hash::Hash) -> u64 {
         for collisions in 0.. {
             let hash = ids::hash((data, collisions));
-            if self.top_level_item_hashes.insert(hash) {
+            if top_level_item_hashes.insert(hash) {
                 return hash;
             }
         }
@@ -246,9 +246,27 @@ impl<'tokens> Parser<'tokens> {
     /// Create a new TopLevelId from the name of a given top level item.
     /// In the case of definitions, this name will be only the last element in their path.
     fn new_top_level_id(&mut self, data: impl std::hash::Hash) -> TopLevelId {
-        // Check for previous name collisions to disambiguate the resulting hash
-        let hash = self.hash_top_level_data(&data);
+        let hash = Self::hash_top_level_data(&mut self.top_level_item_hashes, &data);
+        self.new_top_level_id_helper(hash)
+    }
 
+    /// Create a new TopLevelId from the name of a given top level item.
+    /// This is a specialized version to avoid cloning the string given by the given NameId.
+    fn new_top_level_id_from_name_id(&mut self, name: NameId) -> TopLevelId {
+        let data = &self.current_context.names[name];
+        let hash = Self::hash_top_level_data(&mut self.top_level_item_hashes, data);
+        self.new_top_level_id_helper(hash)
+    }
+
+    /// Create a new TopLevelId from the path of a given top level item.
+    /// This is a specialized version to avoid cloning the string given by the given PathId.
+    fn new_top_level_id_from_path_id(&mut self, path: PathId) -> TopLevelId {
+        let data = &self.current_context.paths[path];
+        let hash = Self::hash_top_level_data(&mut self.top_level_item_hashes, data);
+        self.new_top_level_id_helper(hash)
+    }
+
+    fn new_top_level_id_helper(&mut self, hash: u64) -> TopLevelId {
         let id = TopLevelId::new(self.file_id, hash);
         let empty_context = TopLevelContext::new(self.file_id);
         let old_context = std::mem::replace(&mut self.current_context, empty_context);
@@ -490,8 +508,12 @@ impl<'tokens> Parser<'tokens> {
                 return items;
             }
 
-            if let Some(item) = self.try_parse_or_recover_to_newline(|this| this.parse_top_level_item(comments)) {
-                items.push(Arc::new(item));
+            if *self.current_token() == Token::Extern {
+                self.try_parse_or_recover_to_newline(|this| this.parse_extern(comments, &mut items));
+            } else {
+                if let Some(item) = self.try_parse_or_recover_to_newline(|this| this.parse_top_level_item(comments)) {
+                    items.push(Arc::new(item));
+                }
             }
 
             // In case there is no newline at the end of the file
@@ -515,14 +537,28 @@ impl<'tokens> Parser<'tokens> {
                     self.token_index -= 1;
                 }
 
-                let name = self.current_context.names[definition.name.item_name()].clone();
-                id = self.new_top_level_id(name);
+                id = self.new_top_level_id_from_name_id(definition.name.item_name());
                 TopLevelItemKind::Definition(definition)
             },
             Token::Shared | Token::Type => {
                 let definition = self.parse_type_definition()?;
-                id = self.new_top_level_id(&definition.name);
+                id = self.new_top_level_id_from_name_id(definition.name);
                 TopLevelItemKind::TypeDefinition(definition)
+            },
+            Token::Trait => {
+                let trait_ = self.parse_trait_definition()?;
+                id = self.new_top_level_id_from_name_id(trait_.name);
+                TopLevelItemKind::TraitDefinition(trait_)
+            },
+            Token::Impl => {
+                let impl_ = self.parse_trait_impl()?;
+                id = self.new_top_level_id_from_path_id(impl_.trait_path);
+                TopLevelItemKind::TraitImpl(impl_)
+            },
+            Token::Effect => {
+                let effect = self.parse_effect_definition()?;
+                id = self.new_top_level_id_from_name_id(effect.name);
+                TopLevelItemKind::EffectDefinition(effect)
             },
             Token::Octothorpe => {
                 let comptime = self.parse_comptime()?;
@@ -601,10 +637,15 @@ impl<'tokens> Parser<'tokens> {
         let shared = self.accept(Token::Shared);
         self.expect(Token::Type, "`type`")?;
         let name = self.parse_type_name_id()?;
-        let generics = self.many0(|this| this.parse_ident_id());
+        let generics = self.parse_generics();
         self.expect(Token::Equal, "`=` to begin the type definition")?;
         let body = self.parse_type_body()?;
         Ok(TypeDefinition { shared, name, generics, body })
+    }
+
+    /// generics: ident*
+    fn parse_generics(&mut self) -> Vec<NameId> {
+        self.many0(Self::parse_ident_id)
     }
 
     fn parse_type_body(&mut self) -> Result<TypeDefinitionBody> {
@@ -1450,5 +1491,81 @@ impl<'tokens> Parser<'tokens> {
         let name = Arc::new(self.parse_type_name()?);
         let location = self.previous_token_location();
         Ok(self.push_name(name, location))
+    }
+
+    fn parse_declaration(&mut self) -> Result<Declaration> {
+        let name = self.parse_ident_id()?;
+        self.expect(Token::Colon, "a `:` to separate this declaration's name from its type")?;
+        let typ = self.parse_type()?;
+        Ok(Declaration { name, typ })
+    }
+
+    fn parse_extern(&mut self, mut comments: Vec<String>, items: &mut Vec<Arc<TopLevelItem>>) -> Result<()> {
+        self.expect(Token::Extern, "`extern` to begin external declarations")?;
+
+        let declarations = if *self.current_token() == Token::Indent {
+            self.parse_indented(|this| {
+                let declaration = |this: &mut Self| {
+                    comments.extend(this.parse_comments());
+                    let declaration = this.parse_declaration()?;
+                    Ok((std::mem::take(&mut comments), declaration))
+                };
+                Ok(this.delimited(declaration, Token::Newline, true))
+            })?
+        } else {
+            vec![(comments, self.parse_declaration()?)]
+        };
+
+        for (comments, declaration) in declarations {
+            let id = self.new_top_level_id_from_name_id(declaration.name);
+            let kind = TopLevelItemKind::Extern(cst::Extern { declaration });
+            items.push(Arc::new(TopLevelItem { id, comments, kind }));
+        }
+
+        Ok(())
+    }
+
+    fn parse_declaration_block(&mut self) -> Result<Vec<Declaration>> {
+        if *self.current_token() == Token::Indent {
+            self.parse_indented(|this| Ok(this.delimited(Self::parse_declaration, Token::Newline, true)))
+        } else {
+            Ok(vec![self.parse_declaration()?])
+        }
+    }
+
+    fn parse_trait_definition(&mut self) -> Result<cst::TraitDefinition> {
+        self.expect(Token::Trait, "`trait` to start this trait definition")?;
+        let name = self.parse_type_name_id()?;
+        let generics = self.parse_generics();
+
+        let functional_dependencies = if self.accept(Token::RightArrow) { self.parse_generics() } else { Vec::new() };
+
+        self.expect(Token::With, "`with` to separate this trait's signature from its body")?;
+        let body = self.parse_declaration_block()?;
+
+        Ok(cst::TraitDefinition { name, generics, functional_dependencies, body })
+    }
+
+    fn parse_trait_impl(&mut self) -> Result<cst::TraitImpl> {
+        self.expect(Token::Impl, "`impl` to start this trait implementation")?;
+
+        let trait_path = self.parse_type_path_id()?;
+        let arguments = self.many0(Self::parse_type_arg);
+        self.expect(Token::With, "`with` to separate this trait impl's signature from its body")?;
+
+        let body = self.parse_indented(|this| Ok(this.many0(Self::parse_definition)))?;
+
+        Ok(cst::TraitImpl { trait_path, arguments, body })
+    }
+
+    fn parse_effect_definition(&mut self) -> Result<cst::EffectDefinition> {
+        self.expect(Token::Effect, "`effect` to start this effect definition")?;
+        let name = self.parse_type_name_id()?;
+        let generics = self.parse_generics();
+
+        self.expect(Token::With, "`with` to separate this effect's signature from its body")?;
+        let body = self.parse_declaration_block()?;
+
+        Ok(cst::EffectDefinition { name, generics, body })
     }
 }

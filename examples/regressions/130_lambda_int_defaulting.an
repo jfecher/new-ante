@@ -22,16 +22,19 @@ iter i print
 
 // args: --delete-binary
 // expected stderr:
-// examples/regressions/130_lambda_int_defaulting.an:1:1	error: Expected a top-level item but found `impl`
-// impl Iterator U64 U64 with
+// examples/regressions/130_lambda_int_defaulting.an:4:0	error: Expected an unindent but found a newline
+//         then None
+// 
+// examples/regressions/130_lambda_int_defaulting.an:7:0	error: Expected an unindent but found a newline
+// type TakeWhile i a =
 // 
 // examples/regressions/130_lambda_int_defaulting.an:9:12	error: Expected an unindent but found `->`
 //     pred: a -> Bool pure
 // 
-// examples/regressions/130_lambda_int_defaulting.an:11:0	error: Expected a top-level item but found `impl`
+// examples/regressions/130_lambda_int_defaulting.an:11:32	error: Expected `with` to separate this trait impl's signature from its body but found `given`
 // impl Iterator (TakeWhile i a) a given Iterator i a with
 // 
-// examples/regressions/130_lambda_int_defaulting.an:23:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/regressions/130_lambda_int_defaulting.an:23:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
 // 
 // examples/regressions/130_lambda_int_defaulting.an:20:22	error: `>=` is not defined, was it a typo?

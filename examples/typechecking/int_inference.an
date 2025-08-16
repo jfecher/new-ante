@@ -12,6 +12,6 @@ print 2
 
 // args: --check
 // expected stderr:
-// examples/typechecking/int_inference.an:3:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/typechecking/int_inference.an:3:0	error: Expected `=` to begin the function body but found a newline
 // // This example is actually more problematic than it initially appears.
 

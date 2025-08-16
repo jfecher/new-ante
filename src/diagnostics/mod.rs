@@ -39,7 +39,11 @@ impl Diagnostic {
     pub fn message(&self) -> String {
         match self {
             Diagnostic::ParserExpected { message, actual, location: _ } => {
-                format!("Expected {message} but found `{actual}`")
+                if actual.to_string().contains(" ") {
+                    format!("Expected {message} but found {actual}")
+                } else {
+                    format!("Expected {message} but found `{actual}`")
+                }
             },
             Diagnostic::ExpectedPathForImport { .. } => {
                 "Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported"

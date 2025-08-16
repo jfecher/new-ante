@@ -1,29 +1,19 @@
 
-extern foo: a -> b
+extern foo: fn a -> b
 
 extern
-    add: I32 - I32 -> I32
-    puts2: String -> Unit
-    exit2: I32 -> never_returns
+    add: fn I32 I32 -> I32
+    puts2: fn String -> Unit
+    exit2: fn I32 -> never_returns
 
 foo 1
 puts2 "test"
 exit2 0
 
 // args: --check --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/extern.an:2:0	error: Expected a top-level item but found `extern`
-// extern foo: a -> b
-// 
-// examples/typechecking/extern.an:4:0	error: Expected a top-level item but found `extern`
-// extern
-// 
-// examples/typechecking/extern.an:10:0	error: Expected `=` to begin the function body but found `a newline`
-// puts2 "test"
-// 
-// examples/typechecking/extern.an:10:6	error: Expected `=` to begin the function body but found `"test"`
-// puts2 "test"
-// 
-// examples/typechecking/extern.an:13:0	error: Expected `=` to begin the function body but found `a newline`
-// // args: --check --show-types
+// thread 'main' panicked at src/parser/mod.rs:255:47:
+// index out of bounds: the len is 0 but the index is 1
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

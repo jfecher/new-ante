@@ -35,6 +35,13 @@ map4 (l: List a) (f: fn a -> b) : List b can Log = ()
 
 // args: --parse
 // expected stdout:
+// effect Log with
+//     log: fn String -> Unit
+// 
+// effect Use a with
+//     get: fn Unit -> a
+//     set: fn a I32 -> Unit
+// 
 // main () =
 // 
 // map1 (l: List a) (f: fn a -> b can Log) : List b = ()
@@ -46,12 +53,6 @@ map4 (l: List a) (f: fn a -> b) : List b can Log = ()
 // map4 (l: List a) (f: fn a -> b) : List b can Log = ()
 
 // expected stderr:
-// examples/parser/effects.an:2:0	error: Expected a top-level item but found `effect`
-// effect Log with log: fn String -> Unit
-// 
-// examples/parser/effects.an:4:0	error: Expected a top-level item but found `effect`
-// effect Use a with
-// 
 // examples/parser/effects.an:9:4	error: Expected an unindent but found `handle`
 //     handle log "test1"
 // 

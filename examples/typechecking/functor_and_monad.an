@@ -1,10 +1,10 @@
 
 trait Functor f with
-    map: f a - (a -> b) -> f b
+    map: fn (f a) (fn a -> b) -> f b
 
 trait Monad m with
-    wrap: a -> m a
-    bind: m a - (a -> m b) -> m b
+    wrap: fn a -> m a
+    bind: fn (m a) (fn a -> m b) -> m b
 
 
 impl Functor Maybe with
@@ -23,15 +23,12 @@ impl Monad Maybe with
 
 // args: --check --show-types
 // expected stderr:
-// examples/typechecking/functor_and_monad.an:2:0	error: Expected a top-level item but found `trait`
-// trait Functor f with
-// 
-// examples/typechecking/functor_and_monad.an:5:0	error: Expected a top-level item but found `trait`
-// trait Monad m with
-// 
-// examples/typechecking/functor_and_monad.an:10:0	error: Expected a top-level item but found `impl`
-// impl Functor Maybe with
-// 
-// examples/typechecking/functor_and_monad.an:16:0	error: Expected a top-level item but found `impl`
+// examples/typechecking/functor_and_monad.an:16:0	error: Expected an unindent but found a newline
 // impl Monad Maybe with
+// 
+// examples/typechecking/functor_and_monad.an:19:0	error: Expected an unindent but found a newline
+//     bind m f =
+// 
+// examples/typechecking/functor_and_monad.an:24:0	error: Expected a top-level item but found an unindent
+// // args: --check --show-types
 

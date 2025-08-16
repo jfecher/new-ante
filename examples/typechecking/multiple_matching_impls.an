@@ -2,13 +2,13 @@
 type Thing = nothing: Unit
 
 trait Foo a with
-    foo: a -> Unit
+    foo: fn a -> Unit
 
 trait Bar a with
-    bar: a -> Unit
+    bar: fn a -> Unit
 
 trait Baz a with
-    baz: a -> Unit
+    baz: fn a -> Unit
 
 // The call from which the `Foo a` constraint arises
 foo (Thing ())
@@ -35,30 +35,15 @@ impl Foo Thing with
 
 // args: --check
 // expected stderr:
-// examples/typechecking/multiple_matching_impls.an:4:0	error: Expected a top-level item but found `trait`
-// trait Foo a with
-// 
-// examples/typechecking/multiple_matching_impls.an:7:0	error: Expected a top-level item but found `trait`
-// trait Bar a with
-// 
-// examples/typechecking/multiple_matching_impls.an:10:0	error: Expected a top-level item but found `trait`
-// trait Baz a with
-// 
-// examples/typechecking/multiple_matching_impls.an:16:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/typechecking/multiple_matching_impls.an:16:0	error: Expected `=` to begin the function body but found a newline
 // // Candidate 1
 // 
-// examples/typechecking/multiple_matching_impls.an:17:0	error: Expected a top-level item but found `impl`
+// examples/typechecking/multiple_matching_impls.an:17:11	error: Expected `with` to separate this trait impl's signature from its body but found `given`
 // impl Foo a given Bar a with
 // 
-// examples/typechecking/multiple_matching_impls.an:20:0	error: Expected a top-level item but found `impl`
+// examples/typechecking/multiple_matching_impls.an:20:11	error: Expected `with` to separate this trait impl's signature from its body but found `given`
 // impl Bar a given Baz a with
 // 
-// examples/typechecking/multiple_matching_impls.an:23:0	error: Expected a top-level item but found `impl`
-// impl Baz Thing with
-// 
-// examples/typechecking/multiple_matching_impls.an:28:0	error: Expected a top-level item but found `impl`
+// examples/typechecking/multiple_matching_impls.an:28:11	error: Expected `with` to separate this trait impl's signature from its body but found `given`
 // impl Foo a given Print a with
-// 
-// examples/typechecking/multiple_matching_impls.an:33:0	error: Expected a top-level item but found `impl`
-// impl Foo Thing with
 

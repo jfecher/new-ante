@@ -1,9 +1,9 @@
 effect Log with
-    log: String -> Unit
+    log: fn String -> Unit
 
 effect Use a with
-    get: Unit -> a
-    set: a -> Unit
+    get: fn Unit -> a
+    set: fn a -> Unit
 
 // Expect `can Use Unit` and not `can Log`
 handle_basic () = 
@@ -23,12 +23,6 @@ does_use x =
 
 // args: --check --show-types
 // expected stderr:
-// examples/typechecking/effects.an:1:1	error: Expected a top-level item but found `effect`
-// effect Log with
-// 
-// examples/typechecking/effects.an:4:0	error: Expected a top-level item but found `effect`
-// effect Use a with
-// 
 // examples/typechecking/effects.an:10:4	error: Expected an unindent but found `handle`
 //     handle log "test1"
 // 

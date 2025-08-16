@@ -24,8 +24,8 @@ use_state 20_u64 with state 2
 
 // args: --delete-binary
 // expected stderr:
-// examples/codegen/effects/state.an:1:1	error: Expected a top-level item but found `effect`
-// effect Use a with
+// examples/codegen/effects/state.an:2:14	error: Expected an unindent but found `->`
+//     get: Unit -> a
 // 
 // examples/codegen/effects/state.an:5:14	error: Expected a type but found `Int`
 // use_state (y: Int a) =

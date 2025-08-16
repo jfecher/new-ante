@@ -9,6 +9,12 @@ pub trait ErrorDefault {
     fn error_default() -> Self;
 }
 
+impl<T> ErrorDefault for Vec<T> {
+    fn error_default() -> Self {
+        Vec::new()
+    }
+}
+
 pub type Location = Arc<LocationData>;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]

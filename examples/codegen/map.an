@@ -23,10 +23,7 @@ print map
 // examples/codegen/map.an:1:8	error: Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported
 // import HashMap
 // 
-// examples/codegen/map.an:3:0	error: Expected a top-level item but found `a newline`
-// impl Hash U8 with
-// 
-// examples/codegen/map.an:3:0	error: Expected a top-level item but found `impl`
+// examples/codegen/map.an:3:0	error: Expected a top-level item but found a newline
 // impl Hash U8 with
 // 
 // examples/codegen/map.an:6:0	error: Expected a top-level item but found `mut`
@@ -53,6 +50,9 @@ print map
 // examples/codegen/map.an:17:7	error: Expected `=` to begin the function body but found `!`
 // insert !map 7 21
 // 
-// examples/codegen/map.an:21:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/codegen/map.an:21:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
+// 
+// examples/codegen/map.an:4:13	error: `cast` is not defined, was it a typo?
+//     hash x = cast x
 

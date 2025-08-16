@@ -7,7 +7,7 @@ main ()
 
 // args: --delete-binary
 // expected stderr:
-// examples/codegen/closure_basic.an:8:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/codegen/closure_basic.an:8:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
 // 
 // examples/codegen/closure_basic.an:4:4	error: `stuff` is not defined, was it a typo?

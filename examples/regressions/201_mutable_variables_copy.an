@@ -11,13 +11,13 @@ print y
 // examples/regressions/201_mutable_variables_copy.an:1:1	error: Expected a top-level item but found `mut`
 // mut x = 4
 // 
-// examples/regressions/201_mutable_variables_copy.an:4:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/regressions/201_mutable_variables_copy.an:4:0	error: Expected `=` to begin the function body but found a newline
 // x := 5
 // 
 // examples/regressions/201_mutable_variables_copy.an:4:2	error: Expected `=` to begin the function body but found `:=`
 // x := 5
 // 
-// examples/regressions/201_mutable_variables_copy.an:7:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/regressions/201_mutable_variables_copy.an:7:0	error: Expected `=` to begin the function body but found a newline
 // // This used to print 4, 5
 // 
 // examples/regressions/201_mutable_variables_copy.an:2:4	error: `x` is not defined, was it a typo?

@@ -22,7 +22,7 @@ is_even 4
 // examples/typechecking/mutual_recursion.an:9:14	error: Expected an unindent but found `not`
 //     n == 1 or not is_even (n - 1)
 // 
-// examples/typechecking/mutual_recursion.an:14:0	error: Expected `=` to begin the function body but found `a newline`
+// examples/typechecking/mutual_recursion.an:14:0	error: Expected `=` to begin the function body but found a newline
 // // Both of these definitions should have the `Print (int a)` constraint.
 // 
 // examples/typechecking/mutual_recursion.an:4:9	error: `==` is not defined, was it a typo?
