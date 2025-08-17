@@ -1508,16 +1508,18 @@ impl<'tokens> Parser<'tokens> {
                 let declaration = |this: &mut Self| {
                     comments.extend(this.parse_comments());
                     let declaration = this.parse_declaration()?;
-                    Ok((std::mem::take(&mut comments), declaration))
+                    let id = this.new_top_level_id_from_name_id(declaration.name);
+                    Ok((std::mem::take(&mut comments), id, declaration))
                 };
                 Ok(this.delimited(declaration, Token::Newline, true))
             })?
         } else {
-            vec![(comments, self.parse_declaration()?)]
+            let declaration = self.parse_declaration()?;
+            let id = self.new_top_level_id_from_name_id(declaration.name);
+            vec![(comments, id, declaration)]
         };
 
-        for (comments, declaration) in declarations {
-            let id = self.new_top_level_id_from_name_id(declaration.name);
+        for (comments, id, declaration) in declarations {
             let kind = TopLevelItemKind::Extern(cst::Extern { declaration });
             items.push(Arc::new(TopLevelItem { id, comments, kind }));
         }

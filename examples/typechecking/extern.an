@@ -6,14 +6,8 @@ extern
     puts2: fn String -> Unit
     exit2: fn I32 -> never_returns
 
-foo 1
-puts2 "test"
-exit2 0
+foo_result = foo 1
+puts2_result = puts2 "test"
+exit2_result = exit2 0
 
 // args: --check --show-types
-// expected exit status: 101
-// expected stderr:
-// thread 'main' panicked at src/parser/mod.rs:255:47:
-// index out of bounds: the len is 0 but the index is 1
-// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-
