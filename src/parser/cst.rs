@@ -86,14 +86,15 @@ impl ItemName {
 pub enum Type {
     Error,
     Unit,
+    Char,
+    String,
     Named(PathId),
     Variable(NameId),
     Integer(IntegerKind),
     Float(FloatKind),
     Function(FunctionType),
     TypeApplication(Box<Type>, Vec<Type>),
-    String,
-    Char,
+    Reference(Mutability, Sharedness),
 }
 
 impl ErrorDefault for Type {
@@ -317,31 +318,19 @@ pub struct Match {
 /// `&rhs`, `!rhs`
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Reference {
-    pub mode: BorrowMode,
+    pub mutability: Mutability,
+    pub sharedness: Sharedness,
     pub rhs: ExprId,
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum BorrowMode {
-    Immutable(SharedMode),
-    Mutable(SharedMode),
-}
-
-impl BorrowMode {
-    pub fn shared_mode(self) -> SharedMode {
-        match self {
-            BorrowMode::Immutable(shared_mode) => shared_mode,
-            BorrowMode::Mutable(shared_mode) => shared_mode,
-        }
-    }
-
-    pub fn is_shared(self) -> bool {
-        matches!(self.shared_mode(), SharedMode::Shared)
-    }
+pub enum Mutability {
+    Immutable,
+    Mutable,
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum SharedMode {
+pub enum Sharedness {
     Shared,
     Owned,
 }

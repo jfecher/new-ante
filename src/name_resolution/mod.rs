@@ -384,6 +384,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     self.resolve_type(arg, declare_type_vars);
                 }
             },
+            Type::Reference(..) => (),
         }
     }
 

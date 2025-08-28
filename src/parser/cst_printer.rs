@@ -6,10 +6,7 @@ use std::{
 
 use super::{
     cst::{
-        BorrowMode, Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr,
-        Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern,
-        Quoted, Reference, SequenceItem, SharedMode, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type,
-        TypeAnnotation, TypeDefinition, TypeDefinitionBody,
+        Mutability, Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody
     },
     ids::{ExprId, PatternId, TopLevelId},
     TopLevelContext,
@@ -274,10 +271,7 @@ impl<'a> CstDisplay<'a> {
                 for (name, params) in variants {
                     self.newline(f)?;
                     write!(f, "| {}", self.context().names[*name])?;
-                    for param in params {
-                        write!(f, " ")?;
-                        self.fmt_type(param, f)?;
-                    }
+                    self.fmt_type_args(params, f)?;
                 }
                 self.indent_level -= 1;
             },
@@ -301,7 +295,12 @@ impl<'a> CstDisplay<'a> {
             Type::TypeApplication(constructor, args) => self.fmt_type_application(constructor, args, f),
             Type::String => write!(f, "String"),
             Type::Char => write!(f, "Char"),
+            Type::Reference(mutable, shared) => self.fmt_reference_type(*mutable, *shared, f),
         }
+    }
+
+    fn fmt_reference_type(&self, mutable: Mutability, shared: Sharedness, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{mutable}{shared}")
     }
 
     fn fmt_type_application(&self, constructor: &Type, args: &[Type], f: &mut Formatter) -> std::fmt::Result {
@@ -553,8 +552,8 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_reference(&mut self, reference: &Reference, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", reference.mode)?;
-        if !reference.mode.is_shared() {
+        write!(f, "{}{}", reference.mutability, reference.sharedness)?;
+        if reference.sharedness != Sharedness::Shared {
             write!(f, " ")?;
         }
         self.fmt_expr(reference.rhs, f)
@@ -608,20 +607,20 @@ impl<'a> CstDisplay<'a> {
     }
 }
 
-impl Display for BorrowMode {
+impl Display for Mutability {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            BorrowMode::Immutable(shared_mode) => write!(f, "&{shared_mode}"),
-            BorrowMode::Mutable(shared_mode) => write!(f, "!{shared_mode}"),
+            Mutability::Immutable => write!(f, "&"),
+            Mutability::Mutable => write!(f, "!"),
         }
     }
 }
 
-impl Display for SharedMode {
+impl Display for Sharedness {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            SharedMode::Shared => Ok(()),
-            SharedMode::Owned => write!(f, "own"),
+            Sharedness::Shared => Ok(()),
+            Sharedness::Owned => write!(f, "own"),
         }
     }
 }

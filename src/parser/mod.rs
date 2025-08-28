@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use cst::{
-    BorrowMode, Comptime, Declaration, DefinitionName, EffectType, Index, Lambda, MemberAccess, Name, OwnershipMode,
-    Pattern, SharedMode,
+    Mutability, Comptime, Declaration, DefinitionName, EffectType, Index, Lambda, MemberAccess, Name, OwnershipMode,
+    Pattern, Sharedness,
 };
 use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
@@ -753,8 +753,26 @@ impl<'tokens> Parser<'tokens> {
     fn parse_type(&mut self) -> Result<Type> {
         match self.current_token() {
             Token::Fn => self.parse_function_type(),
+            Token::ExclamationMark => self.parse_mutable_reference_type(),
+            Token::Ampersand => self.parse_immutable_reference_type(),
             _ => self.parse_type_application(),
         }
+    }
+
+    // TODO: Parse lifetime & element type
+    fn parse_mutable_reference_type(&mut self) -> Result<Type> {
+        self.expect(Token::ExclamationMark, "`!` to start a mutable reference type")?;
+        let owned = self.accept(Token::Owned);
+        let shared = if owned { Sharedness::Owned } else { Sharedness::Shared };
+        Ok(Type::Reference(cst::Mutability::Mutable, shared))
+    }
+
+    // TODO: Parse lifetime & element type
+    fn parse_immutable_reference_type(&mut self) -> Result<Type> {
+        self.expect(Token::Ampersand, "`&` to start an immutable reference type")?;
+        let owned = self.accept(Token::Owned);
+        let shared = if owned { Sharedness::Owned } else { Sharedness::Shared };
+        Ok(Type::Reference(cst::Mutability::Immutable, shared))
     }
 
     fn parse_function_type(&mut self) -> Result<Type> {
@@ -1188,16 +1206,17 @@ impl<'tokens> Parser<'tokens> {
                 Ok(Expr::Call(Call { function, arguments: vec![rhs] }))
             }),
             operator @ (Token::ExclamationMark | Token::Ampersand) => {
-                let mode = match operator {
-                    Token::ExclamationMark => BorrowMode::Mutable(SharedMode::Shared),
-                    Token::Ampersand => BorrowMode::Immutable(SharedMode::Shared),
+                let mutability = match operator {
+                    Token::ExclamationMark => Mutability::Mutable,
+                    Token::Ampersand => Mutability::Immutable,
                     _ => unreachable!(),
                 };
 
                 self.with_expr_id_and_location(|this| {
                     this.advance();
                     let rhs = this.parse_left_unary()?;
-                    Ok(Expr::Reference(cst::Reference { mode, rhs }))
+                    let sharedness = Sharedness::Shared;
+                    Ok(Expr::Reference(cst::Reference { mutability, sharedness, rhs }))
                 })
             },
             _ => self.parse_atom(),

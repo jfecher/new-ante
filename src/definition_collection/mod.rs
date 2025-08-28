@@ -157,22 +157,33 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
             ItemName::None => (),
         }
 
-        // Declare each enum constructor
-        if let TopLevelItemKind::TypeDefinition(type_definition) = &item.kind {
-            if let TypeDefinitionBody::Enum(variants) = &type_definition.body {
-                for (name, _) in variants {
-                    declare_method(
-                        type_definition.name,
-                        *name,
-                        item,
-                        &definitions,
-                        &mut methods,
-                        &result,
-                        &mut diagnostics,
-                        db,
-                    );
+        let mut declare_method = |type_name, item_name| {
+            declare_method(type_name, item_name, item, &definitions, &mut methods, &result, &mut diagnostics, db);
+        };
+
+        // Declare internal items
+        // TODO: all internal items use the same TopLevelId from their parent TopLevelItemKind.
+        // E.g. enum variant's use the type's TopLevelId. We'll need a separate id for each to
+        // differentiate them.
+        match &item.kind {
+            TopLevelItemKind::TypeDefinition(type_definition) => {
+                if let TypeDefinitionBody::Enum(variants) = &type_definition.body {
+                    for (name, _) in variants {
+                        declare_method(type_definition.name, *name);
+                    }
                 }
-            }
+            },
+            TopLevelItemKind::TraitDefinition(trait_) => {
+                for declaration in &trait_.body {
+                    declare_method(trait_.name, declaration.name);
+                }
+            },
+            TopLevelItemKind::EffectDefinition(effect) => {
+                for declaration in &effect.body {
+                    declare_method(effect.name, declaration.name);
+                }
+            },
+            _ => (),
         }
     }
 

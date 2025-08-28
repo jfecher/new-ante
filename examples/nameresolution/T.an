@@ -1,4 +1,4 @@
-import U
+import U.u
 
 // Recursive module imports are allowed!
 t x = u x

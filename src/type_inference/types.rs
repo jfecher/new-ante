@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     iterator_extensions::vecmap,
     lexer::token::{FloatKind, IntegerKind},
-    parser::ids::ExprId,
+    parser::{cst::{Mutability, Sharedness}, ids::ExprId},
 };
 
 /// A top-level type is a type which may be in a top-level signature.
@@ -48,6 +48,7 @@ pub enum Type {
     TypeVariable(TypeVariableId),
     Function(FunctionType),
     TypeApplication(Rc<Type>, Rc<Vec<Type>>),
+    Reference(Mutability, Sharedness),
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -118,6 +119,9 @@ impl Type {
                 let args = Rc::new(vecmap(args, Type::from_ast_type));
                 Type::TypeApplication(f, args)
             },
+            crate::parser::cst::Type::Reference(mutability, sharedness) => {
+                Type::Reference(*mutability, *sharedness)
+            }
         }
     }
 
@@ -176,6 +180,7 @@ impl TypePrinter<'_, '_> {
                 todo!("format function type")
             },
             Type::TypeApplication(_, _) => todo!("format type application"),
+            Type::Reference(mutability, sharedness) => write!(f, "{mutability}{sharedness}"),
         }
     }
 }
