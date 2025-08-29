@@ -1349,6 +1349,8 @@ impl<'tokens> Parser<'tokens> {
 
             let then = this.parse_expr_with_recovery(body, Token::Else, &[Token::Newline])?;
 
+            this.accept(Token::Newline);
+    
             let else_ = if this.accept(Token::Else) { Some(body(this)?) } else { None };
             Ok(Expr::If(cst::If { condition, then, else_ }))
         })
