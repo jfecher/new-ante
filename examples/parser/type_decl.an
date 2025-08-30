@@ -39,14 +39,16 @@ t = 3 : I32
 // 
 // type List =
 //     | Nil
-//     | Cons a (error)
+//     | Cons a (List a)
+// 
+// type UniquePtr = &
 // 
 // t = 3: I32
 
 // expected stderr:
-// examples/parser/type_decl.an:14:30	error: Expected a type but found `&`
+// examples/parser/type_decl.an:14:37	error: Expected a newline after the top level item but found `)`
 // type List a = | Nil | Cons a (&List a)
 // 
-// examples/parser/type_decl.an:17:19	error: Expected a field name or `|` to start this type body but found `&`
+// examples/parser/type_decl.an:17:20	error: Expected a newline after the top level item but found `a`
 // type UniquePtr a = &a
 

@@ -67,11 +67,8 @@ iota 10
 // examples/codegen/effects/generators_complex.an:31:18	error: Expected `=` to begin the function body but found `->`
 // for (stream: Unit -> Unit can Emit a) (f: a -> Unit pure) =
 // 
-// examples/codegen/effects/generators_complex.an:39:14	error: Expected a type but found `!`
+// examples/codegen/effects/generators_complex.an:39:15	error: Expected `=` to begin the function body but found `U32`
 // my_print (x1: !U32, U32) =
-// 
-// examples/codegen/effects/generators_complex.an:40:15	error: Expected an unindent but found `x1`
-//     x = @first x1
 // 
 // examples/codegen/effects/generators_complex.an:45:4	error: Expected `=` to begin the function body but found `with`
 //     with filter even

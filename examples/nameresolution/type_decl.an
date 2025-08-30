@@ -21,6 +21,6 @@ type MyRef a = &a
 
 // args: --check
 // expected stderr:
-// examples/nameresolution/type_decl.an:20:15	error: Expected a field name or `|` to start this type body but found `&`
+// examples/nameresolution/type_decl.an:20:16	error: Expected a newline after the top level item but found `a`
 // type MyRef a = &a
 
