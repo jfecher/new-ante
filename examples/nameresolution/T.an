@@ -8,12 +8,6 @@ t x = u x
 // examples/nameresolution/T.an:4:6	error: `u` is not defined, was it a typo?
 // t x = u x
 // 
-// examples/nameresolution/U.an:1:8	error: Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported
-// import T
-// 
-// examples/nameresolution/U.an:3:0	error: Expected a top-level item but found a newline
-// // Module imports can form a cycle!
-// 
 // examples/nameresolution/U.an:4:6	error: `t` is not defined, was it a typo?
 // u x = t x
 

@@ -1,4 +1,4 @@
-impl Iterator U64 U64 with
+impl countdown: Iterator U64 U64 with
     next x =
         if x <= 0
         then None
@@ -8,7 +8,7 @@ type TakeWhile i a =
     iter: i
     pred: a -> Bool pure
 
-impl Iterator (TakeWhile i a) a given Iterator i a with
+impl iter_take_while {_: Iterator i a}: Iterator (TakeWhile i a) a with
     next tw =
         match next tw.iter
         | Some (iter, new) ->
@@ -31,11 +31,17 @@ iter i print
 // examples/regressions/130_lambda_int_defaulting.an:9:12	error: Expected an unindent but found `->`
 //     pred: a -> Bool pure
 // 
-// examples/regressions/130_lambda_int_defaulting.an:11:32	error: Expected `with` to separate this trait impl's signature from its body but found `given`
-// impl Iterator (TakeWhile i a) a given Iterator i a with
+// examples/regressions/130_lambda_int_defaulting.an:16:0	error: Expected an unindent but found a newline
+//             then Some (TakeWhile iter tw.pred, new)
+// 
+// examples/regressions/130_lambda_int_defaulting.an:20:0	error: Expected an unindent but found a newline
+// i = TakeWhile 8u64 (_ >= 5)
 // 
 // examples/regressions/130_lambda_int_defaulting.an:23:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
+// 
+// examples/regressions/130_lambda_int_defaulting.an:13:14	error: `next` is not defined, was it a typo?
+//         match next tw.iter
 // 
 // examples/regressions/130_lambda_int_defaulting.an:20:22	error: `>=` is not defined, was it a typo?
 // i = TakeWhile 8u64 (_ >= 5)

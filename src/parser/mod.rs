@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use cst::{
-    Mutability, Comptime, Declaration, DefinitionName, EffectType, Index, Lambda, MemberAccess, Name, OwnershipMode,
-    Pattern, Sharedness,
+    Comptime, Declaration, DefinitionName, EffectType, Index, Lambda, MemberAccess, Mutability, Name, OwnershipMode,
+    Parameter, Pattern, Sharedness,
 };
 use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
@@ -941,8 +941,26 @@ impl<'tokens> Parser<'tokens> {
         items
     }
 
-    fn parse_function_parameters(&mut self) -> Vec<PatternId> {
-        self.many0(Self::parse_function_parameter_pattern)
+    /// function_parameters: function_parameter*
+    fn parse_function_parameters(&mut self) -> Vec<Parameter> {
+        self.many0(Self::parse_function_parameter)
+    }
+
+    /// function_parameter: '{' pattern '}'
+    ///                   | function_parameter_pattern
+    fn parse_function_parameter(&mut self) -> Result<Parameter> {
+        let (implicit, pattern) = if *self.current_token() == Token::BraceLeft {
+            self.advance();
+            let pattern = self.with_pattern_id_and_location(|this| {
+                this.parse_with_recovery(Self::parse_pattern_inner, Token::BraceRight, &[Token::Newline, Token::Equal])
+            })?;
+            self.expect(Token::BraceRight, "a `}` to close the opening `{` from the implicit parameter")?;
+            (true, pattern)
+        } else {
+            (false, self.parse_function_parameter_pattern()?)
+        };
+
+        Ok(Parameter { implicit, pattern })
     }
 
     fn parse_pattern(&mut self) -> Result<PatternId> {
@@ -1570,13 +1588,17 @@ impl<'tokens> Parser<'tokens> {
     fn parse_trait_impl(&mut self) -> Result<cst::TraitImpl> {
         self.expect(Token::Impl, "`impl` to start this trait implementation")?;
 
+        let name = self.parse_ident_id()?;
+        let parameters = self.parse_function_parameters();
+        self.expect(Token::Colon, "a `:` to separate this impl's name from its type")?;
+
         let trait_path = self.parse_type_path_id()?;
-        let arguments = self.many0(Self::parse_type_arg);
+        let trait_arguments = self.many0(Self::parse_type_arg);
         self.expect(Token::With, "`with` to separate this trait impl's signature from its body")?;
 
         let body = self.parse_indented(|this| Ok(this.many0(Self::parse_definition)))?;
 
-        Ok(cst::TraitImpl { trait_path, arguments, body })
+        Ok(cst::TraitImpl { name, parameters, trait_path, trait_arguments, body })
     }
 
     fn parse_effect_definition(&mut self) -> Result<cst::EffectDefinition> {

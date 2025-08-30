@@ -295,7 +295,7 @@ impl OwnershipMode {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Lambda {
-    pub parameters: Vec<PatternId>,
+    pub parameters: Vec<Parameter>,
     pub return_type: Option<Type>,
     pub effects: Option<Vec<EffectType>>,
     pub body: ExprId,
@@ -333,6 +333,12 @@ pub enum Mutability {
 pub enum Sharedness {
     Shared,
     Owned,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Parameter {
+    pub implicit: bool,
+    pub pattern: PatternId,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -381,8 +387,10 @@ pub type Name = Arc<String>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TraitImpl {
+    pub name: NameId,
+    pub parameters: Vec<Parameter>,
     pub trait_path: PathId,
-    pub arguments: Vec<Type>,
+    pub trait_arguments: Vec<Type>,
     pub body: Vec<Definition>,
 }
 

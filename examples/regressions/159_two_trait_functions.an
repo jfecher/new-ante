@@ -14,8 +14,8 @@ one ()
 // examples/regressions/159_two_trait_functions.an:3:14	error: Expected an unindent but found `->`
 //     one: Unit -> Unit
 // 
-// examples/regressions/159_two_trait_functions.an:8:0	error: Expected an unindent but found a newline
-//     two _ = ()
+// examples/regressions/159_two_trait_functions.an:6:5	error: Expected an identifier but found `MultiTrait`
+// impl MultiTrait Unit with 
 // 
 // examples/regressions/159_two_trait_functions.an:12:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary

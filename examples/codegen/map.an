@@ -1,6 +1,6 @@
-import HashMap
+import Std.HashMap
 
-impl Hash U8 with
+impl hash_u8: Hash U8 with
     hash x = cast x
 
 mut map = empty ()
@@ -24,7 +24,7 @@ print map
 // import HashMap
 // 
 // examples/codegen/map.an:3:0	error: Expected a top-level item but found a newline
-// impl Hash U8 with
+// impl hash_u8: Hash U8 with
 // 
 // examples/codegen/map.an:6:0	error: Expected a top-level item but found `mut`
 // mut map = empty ()

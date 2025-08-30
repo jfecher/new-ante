@@ -6,7 +6,7 @@ use std::{
 
 use super::{
     cst::{
-        Mutability, Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, OwnershipMode, Path, Pattern, Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody
+        Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, Mutability, OwnershipMode, Parameter, Path, Pattern, Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody
     },
     ids::{ExprId, PatternId, TopLevelId},
     TopLevelContext,
@@ -165,16 +165,7 @@ impl<'a> CstDisplay<'a> {
 
     /// Format each part of a lambda except the leading `fn`
     fn fmt_lambda_inner(&mut self, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
-        for pattern in &lambda.parameters {
-            write!(f, " ")?;
-            if self.is_pattern_atom(*pattern) {
-                self.fmt_pattern(*pattern, f)?;
-            } else {
-                write!(f, "(")?;
-                self.fmt_pattern(*pattern, f)?;
-                write!(f, ")")?;
-            }
-        }
+        self.fmt_parameters(&lambda.parameters, f)?;
 
         if let Some(typ) = &lambda.return_type {
             write!(f, " : ")?;
@@ -450,12 +441,11 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_trait_impl(&mut self, trait_impl: &TraitImpl, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "impl {}", self.context().paths[trait_impl.trait_path])?;
+        write!(f, "impl {}", self.context().names[trait_impl.name])?;
+        self.fmt_parameters(&trait_impl.parameters, f)?;
 
-        for argument in &trait_impl.arguments {
-            write!(f, " ")?;
-            self.fmt_type(argument, f)?;
-        }
+        write!(f, ": {}", self.context().paths[trait_impl.trait_path])?;
+        self.fmt_type_args(&trait_impl.trait_arguments, f)?;
 
         write!(f, " with")?;
         self.indent_level += 1;
@@ -604,6 +594,24 @@ impl<'a> CstDisplay<'a> {
             Pattern::Constructor(_, args) => args.is_empty(),
             Pattern::TypeAnnotation(_, _) => false,
         }
+    }
+
+    fn fmt_parameters(&mut self, parameters: &[Parameter], f: &mut Formatter) -> std::fmt::Result {
+        for parameter in parameters {
+            write!(f, " ")?;
+            if parameter.implicit {
+                write!(f, "{{")?;
+                self.fmt_pattern(parameter.pattern, f)?;
+                write!(f, "}}")?;
+            } else if self.is_pattern_atom(parameter.pattern) {
+                self.fmt_pattern(parameter.pattern, f)?;
+            } else {
+                write!(f, "(")?;
+                self.fmt_pattern(parameter.pattern, f)?;
+                write!(f, ")")?;
+            }
+        }
+        Ok(())
     }
 }
 
