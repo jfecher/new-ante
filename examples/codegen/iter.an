@@ -25,9 +25,6 @@ my_iter 10 print
 // examples/codegen/iter.an:9:8	error: Expected an unindent but found `else`
 //         else Some (x, x - 1)
 // 
-// examples/codegen/iter.an:11:0	error: Expected an unindent but found a newline
-// my_iter iterable f =
-// 
 // examples/codegen/iter.an:20:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
 // 

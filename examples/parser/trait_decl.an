@@ -45,8 +45,13 @@ impl _: Collection (fn a -> a) Unit with
 // 
 // impl _: Collection (fn a -> a) Unit with
 //     push c e = c
+//     pop c = ()
+//     empty = (error)
 
 // expected stderr:
-// examples/parser/trait_decl.an:24:0	error: Expected an unindent but found a newline
-//     pop c = ()
+// examples/parser/trait_decl.an:25:12	error: Expected an expression but found `fn`
+//     empty = fn a -> a
+// 
+// examples/parser/trait_decl.an:27:0	error: Expected an unindent but found //// args: --parse
+// // args: --parse
 

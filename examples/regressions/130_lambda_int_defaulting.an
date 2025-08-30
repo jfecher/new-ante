@@ -25,17 +25,11 @@ iter i print
 // examples/regressions/130_lambda_int_defaulting.an:4:0	error: Expected an unindent but found a newline
 //         then None
 // 
-// examples/regressions/130_lambda_int_defaulting.an:7:0	error: Expected an unindent but found a newline
-// type TakeWhile i a =
-// 
 // examples/regressions/130_lambda_int_defaulting.an:9:12	error: Expected an unindent but found `->`
 //     pred: a -> Bool pure
 // 
 // examples/regressions/130_lambda_int_defaulting.an:16:0	error: Expected an unindent but found a newline
 //             then Some (TakeWhile iter tw.pred, new)
-// 
-// examples/regressions/130_lambda_int_defaulting.an:20:0	error: Expected an unindent but found a newline
-// i = TakeWhile 8u64 (_ >= 5)
 // 
 // examples/regressions/130_lambda_int_defaulting.an:23:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
