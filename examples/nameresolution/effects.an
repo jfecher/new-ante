@@ -1,4 +1,3 @@
-
 effect Three with
     one: fn Unit -> Unit
     two: fn I32 -> I32
@@ -7,7 +6,6 @@ effect Three with
 effect State a with
     get: fn Unit -> a
     put: fn a -> Unit
-
 
 main () =
     handle ()
@@ -24,6 +22,6 @@ main () =
 
 // args: --check
 // expected stderr:
-// examples/nameresolution/effects.an:13:4	error: Expected an unindent but found `handle`
+// examples/nameresolution/effects.an:11:4	error: Expected an unindent but found `handle`
 //     handle ()
 

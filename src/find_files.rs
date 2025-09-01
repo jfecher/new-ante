@@ -96,12 +96,10 @@ fn add_source_files_of_crate(compiler: &mut Db, crates: &mut CrateGraph, crate_i
                 if path.is_dir() {
                     remaining.push(path);
                 } else if path.extension() == Some(&OsStr::from("an")) {
-                    println!("Found file {}", path.display());
                     let id = SourceFileId::new(crate_id, &path);
                     let data = read_file_data(path.clone());
                     id.set(compiler, Arc::new(data));
                     let path = Arc::new(path);
-                    println!("Inserting `{}`", path.display());
                     source_files.insert(path, id);
                 }
             }

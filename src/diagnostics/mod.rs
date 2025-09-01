@@ -19,7 +19,7 @@ pub enum Diagnostic {
     ExpectedPathForImport { location: Arc<LocationData> },
     NameAlreadyInScope { name: Arc<String>, first_location: Location, second_location: Location },
     ImportedNameAlreadyInScope { name: Arc<String>, first_location: Location, second_location: Location },
-    UnknownImportFile { file_name: Arc<PathBuf>, location: Location },
+    UnknownImportFile { crate_name: String, module_name: Arc<PathBuf>, location: Location },
     NameNotInScope { name: Arc<String>, location: Location },
     ExpectedType { actual: String, expected: String, location: Location },
     RecursiveType { typ: String, location: Location },
@@ -55,8 +55,12 @@ impl Diagnostic {
             Diagnostic::ImportedNameAlreadyInScope { name, first_location: _, second_location: _ } => {
                 format!("This imports `{name}`, which has already been defined")
             },
-            Diagnostic::UnknownImportFile { file_name, location: _ } => {
-                format!("Cannot read source file `{}`, does it exist?", file_name.display())
+            Diagnostic::UnknownImportFile { crate_name, module_name, location: _ } => {
+                if module_name.display().to_string().is_empty() {
+                    format!("Could not find crate `{crate_name}`")
+                } else {
+                    format!("Could not find module `{}` in crate `{crate_name}`", module_name.display())
+                }
             },
             Diagnostic::NameNotInScope { name, location: _ } => {
                 format!("`{name}` is not defined, was it a typo?")

@@ -8,7 +8,7 @@ use crate::{
     },
     name_resolution::namespace::SourceFileId,
     parser::{
-        cst::{ItemName, Name, TopLevelItem, TopLevelItemKind, TypeDefinitionBody},
+        cst::{Import, ItemName, Name, TopLevelItem, TopLevelItemKind, TypeDefinitionBody},
         ids::NameId,
         ParseResult,
     },
@@ -31,6 +31,7 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
         // from this file. Otherwise we'll duplicate errors.
         // TODO: Still issue an error if the file name is not found
         let Some(import_file_id) = get_file_id(&import.crate_name, &import.module_path, db) else {
+            push_no_such_file_error(&import, &mut visible.diagnostics);
             continue;
         };
         let exported = ExportedDefinitions(import_file_id).get(db);
@@ -55,6 +56,13 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
 
     incremental::exit_query();
     Arc::new(visible)
+}
+
+fn push_no_such_file_error(import: &Import, diagnostics: &mut Vec<Diagnostic>) {
+    let location = import.location.clone();
+    let module_name = import.module_path.clone();
+    let crate_name = import.crate_name.clone();
+    diagnostics.push(Diagnostic::UnknownImportFile { crate_name, module_name, location })
 }
 
 fn get_file_id(target_crate_name: &String, module_path: &PathBuf, db: &DbHandle) -> Option<SourceFileId> {
@@ -142,7 +150,7 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
     let result = Parse(context.0).get(db);
     let mut definitions = Definitions::default();
     let mut methods = Methods::default();
-    let mut diagnostics = result.diagnostics.clone();
+    let mut diagnostics = Vec::new();
 
     // Collect each definition, issuing an error if there is a duplicate name (imports are not counted)
     for item in result.cst.top_level_items.iter() {

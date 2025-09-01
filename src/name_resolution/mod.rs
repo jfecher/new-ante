@@ -61,6 +61,7 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
     let names_in_scope = &visible.definitions;
 
     let mut resolver = Resolver::new(compiler, context, names_in_scope, &statement_ctx);
+    resolver.errors.extend(visible.diagnostics.clone());
 
     match &statement.kind {
         TopLevelItemKind::Definition(definition) => {
