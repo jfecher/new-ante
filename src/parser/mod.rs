@@ -772,7 +772,10 @@ impl<'tokens> Parser<'tokens> {
         self.expect(Token::Ampersand, "`&` to start an immutable reference type")?;
         let owned = self.accept(Token::Owned);
         let shared = if owned { Sharedness::Owned } else { Sharedness::Shared };
-        Ok(Type::Reference(cst::Mutability::Immutable, shared))
+        match self.parse_type_application() {
+            Ok(application) => Ok(Type::TypeApplication(Box::new(Type::Reference(cst::Mutability::Immutable, shared)), vec![application])),
+            Err(_) => Ok(Type::Reference(cst::Mutability::Immutable, shared))
+        }
     }
 
     fn parse_function_type(&mut self) -> Result<Type> {
