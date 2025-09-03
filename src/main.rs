@@ -86,10 +86,12 @@ fn compile(args: Cli) {
     // files that are no longer used are never cleared.
     populate_crates_and_files(&mut compiler, &args.files);
 
-    let errors = if args.parse {
+    let errors = if args.lex {
+        display_tokens(&compiler);
+        Vec::new()
+    } else if args.parse {
         display_parse_tree(&compiler)
     } else {
-        // Only name resolution is implemented currently
         display_name_resolution(&compiler)
     };
 
@@ -100,6 +102,19 @@ fn compile(args: Cli) {
     if let Some(metadata_file) = metadata_file {
         if let Err(error) = write_metadata(compiler, &metadata_file) {
             eprintln!("\n{error}");
+        }
+    }
+}
+
+fn display_tokens(compiler: &Db) {
+    let crates = GetCrateGraph.get(compiler);
+    let local_crate = &crates[&LOCAL_CRATE];
+
+    for (_, file_id) in &local_crate.source_files {
+        let file = file_id.get(compiler);
+        let tokens = lexer::Lexer::new(&file.contents).collect::<Vec<_>>();
+        for (token, _) in tokens {
+            println!("{token}");
         }
     }
 }

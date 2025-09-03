@@ -1,4 +1,4 @@
-import Library
+import Library.library_int, library_fn
 
 foo = fn _ b -> b
 
@@ -7,12 +7,6 @@ foo 5 (library_fn ())
 
 // args: --check
 // expected stderr:
-// examples/nameresolution/import.an:1:8	error: Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported
-// import Library
-// 
-// examples/nameresolution/import.an:3:0	error: Expected a top-level item but found a newline
-// foo = fn _ b -> b
-// 
 // examples/nameresolution/import.an:3:6	error: Expected an expression but found `fn`
 // foo = fn _ b -> b
 // 

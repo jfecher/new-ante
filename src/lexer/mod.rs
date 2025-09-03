@@ -340,12 +340,12 @@ impl<'contents> Lexer<'contents> {
             span.end = token_span.end;
 
             match token {
-                token @ (Token::Indent | Token::ParenthesisLeft | Token::BracketLeft) => {
+                token @ (Token::Indent | Token::ParenthesisLeft | Token::BracketLeft | Token::BraceLeft) => {
                     let bracket = ClosingBracket::from_token(&token).unwrap();
                     bracket_stack.push(bracket);
                     tokens.push(token)
                 },
-                token @ (Token::Unindent | Token::ParenthesisRight | Token::BracketRight) => {
+                token @ (Token::Unindent | Token::ParenthesisRight | Token::BracketRight | Token::BraceRight) => {
                     match bracket_stack.pop() {
                         Some(matching) if matching.token() == token => tokens.push(token),
                         Some(expected) => {
@@ -541,11 +541,11 @@ impl<'contents> Iterator for Lexer<'contents> {
             ('}', _) if matched_interpolation => {
                 self.current = '"';
                 self.pending_interpolations.pop();
-                Some((Token::InterpolateRight, self.locate()))
+                Some((Token::BraceRight, self.locate()))
             },
             ('$', '{') => {
                 self.pending_interpolations.push(self.open_braces.curly);
-                self.advance2_with(Token::InterpolateLeft)
+                self.advance2_with(Token::Interpolate)
             },
             ('\'', _) => self.lex_quoted(),
             ('/', '/') => self.lex_singleline_comment(),
@@ -614,6 +614,14 @@ impl<'contents> Iterator for Lexer<'contents> {
             (']', _) => {
                 self.open_braces.square = self.open_braces.square.saturating_sub(1);
                 self.advance_with(Token::BracketRight)
+            },
+            ('{', _) => {
+                self.open_braces.curly += 1;
+                self.advance_with(Token::BraceLeft)
+            },
+            ('}', _) => {
+                self.open_braces.curly = self.open_braces.curly.saturating_sub(1);
+                self.advance_with(Token::BraceRight)
             },
             ('|', _) => self.advance_with(Token::Pipe),
             (':', _) => self.advance_with(Token::Colon),

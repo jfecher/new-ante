@@ -14,23 +14,23 @@ trait Baz a with
 foo (Thing ())
 
 // Candidate 1
-impl Foo a given Bar a with
+impl candidate1 {_: Bar a}: Foo a with
     foo a = bar a
 
-impl Bar a given Baz a with
+impl bar {_: Baz a}: Bar a with
     bar a = baz a
 
-impl Baz Thing with
+impl baz: Baz Thing with
     baz _ = ()
 
 
 // Does not match
-impl Foo a given Print a with
+impl does_not_match {_: Print a}: Foo a with
     foo _ = ()
 
 
 // Candidate 2
-impl Foo Thing with
+impl candidate2: Foo Thing with
     foo _ = ()
 
 // args: --check
@@ -38,12 +38,9 @@ impl Foo Thing with
 // examples/typechecking/multiple_matching_impls.an:16:0	error: Expected `=` to begin the function body but found a newline
 // // Candidate 1
 // 
-// examples/typechecking/multiple_matching_impls.an:17:11	error: Expected `with` to separate this trait impl's signature from its body but found `given`
-// impl Foo a given Bar a with
+// examples/typechecking/multiple_matching_impls.an:18:12	error: `bar` is not defined, was it a typo?
+//     foo a = bar a
 // 
-// examples/typechecking/multiple_matching_impls.an:20:11	error: Expected `with` to separate this trait impl's signature from its body but found `given`
-// impl Bar a given Baz a with
-// 
-// examples/typechecking/multiple_matching_impls.an:28:11	error: Expected `with` to separate this trait impl's signature from its body but found `given`
-// impl Foo a given Print a with
+// examples/typechecking/multiple_matching_impls.an:21:12	error: `baz` is not defined, was it a typo?
+//     bar a = baz a
 

@@ -2,10 +2,10 @@ trait Foo a b with
     foo: fn a -> b
     bar: a
 
-impl Foo I32 String with
+// error: missing definition of foo
+impl foo_i32_string: Foo I32 String with
     foo _x = "test"
-    baz = 2  // error: baz not in foo
-    // error: missing definition of foo
+    baz = 2
 
 main () =
     foo 3
@@ -13,9 +13,6 @@ main () =
 
 // args: --check
 // expected stderr:
-// examples/nameresolution/Trait.an:7:0	error: Expected an unindent but found a newline
-//     baz = 2  // error: baz not in foo
-// 
 // examples/nameresolution/Trait.an:11:4	error: `foo` is not defined, was it a typo?
 //     foo 3
 // 

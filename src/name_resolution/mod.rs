@@ -61,6 +61,7 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
     let names_in_scope = &visible.definitions;
 
     let mut resolver = Resolver::new(compiler, context, names_in_scope, &statement_ctx);
+    resolver.errors.extend(visible.diagnostics.clone());
 
     match &statement.kind {
         TopLevelItemKind::Definition(definition) => {
@@ -277,7 +278,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 // Resolve body with the parameter name in scope
                 self.push_local_scope();
                 for parameter in &lambda.parameters {
-                    self.declare_names_in_pattern(*parameter, true);
+                    self.declare_names_in_pattern(parameter.pattern, true);
                 }
 
                 self.resolve_expr(lambda.body);
@@ -470,7 +471,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     fn resolve_trait_impl(&mut self, trait_impl: &TraitImpl) {
         self.link(trait_impl.trait_path);
 
-        for arg in &trait_impl.arguments {
+        for arg in &trait_impl.trait_arguments {
             self.resolve_type(arg, true);
         }
 

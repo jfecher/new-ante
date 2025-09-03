@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use cst::{
-    Mutability, Comptime, Declaration, DefinitionName, EffectType, Index, Lambda, MemberAccess, Name, OwnershipMode,
-    Pattern, Sharedness,
+    Comptime, Declaration, DefinitionName, EffectType, Index, Lambda, MemberAccess, Mutability, Name, OwnershipMode,
+    Parameter, Pattern, Sharedness,
 };
 use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
@@ -101,6 +101,7 @@ impl<'tokens> Parser<'tokens> {
     fn parse(mut self) -> ParseResult {
         let imports = self.parse_imports();
         let top_level_items = self.parse_top_level_items();
+        self.accept(Token::Newline);
         let ending_comments = self.parse_comments();
         let cst = Cst { imports, top_level_items, ending_comments };
         ParseResult { cst, diagnostics: self.diagnostics, top_level_data: self.top_level_data }
@@ -120,6 +121,12 @@ impl<'tokens> Parser<'tokens> {
 
     fn current_token_location(&self) -> Location {
         self.current_token_span().in_file(self.file_id)
+    }
+
+    /// True if we are at (or past) the end of input
+    fn at_end_of_input(&self) -> bool {
+        // The +1 accounts for the last token being `Token::EndOfInput`
+        self.token_index + 1 >= self.tokens.len()
     }
 
     /// Returns the previous token, if it exists.
@@ -145,7 +152,8 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn advance(&mut self) {
-        self.token_index = self.tokens.len().min(self.token_index + 1);
+        self.token_index += 1;
+        assert!(self.token_index < self.tokens.len(), "Parser advanced pass the end of input!");
     }
 
     /// Advance the input if the current token matches the given token.
@@ -309,7 +317,7 @@ impl<'tokens> Parser<'tokens> {
             self.advance();
         }
 
-        while *self.current_token() != Token::Newline {
+        while !self.at_end_of_input() && *self.current_token() != Token::Newline {
             self.advance();
         }
     }
@@ -498,12 +506,12 @@ impl<'tokens> Parser<'tokens> {
     fn parse_top_level_items(&mut self) -> Vec<Arc<TopLevelItem>> {
         let mut items = Vec::new();
 
-        while *self.current_token() != Token::EndOfInput {
+        while !self.at_end_of_input() {
             let position_before_comments = self.token_index;
             let comments = self.parse_comments();
 
             // We may have comments at the end of the file not attached to any top level item
-            if *self.current_token() == Token::EndOfInput {
+            if self.at_end_of_input() {
                 self.token_index = position_before_comments;
                 return items;
             }
@@ -517,7 +525,7 @@ impl<'tokens> Parser<'tokens> {
             }
 
             // In case there is no newline at the end of the file
-            if *self.current_token() == Token::EndOfInput {
+            if self.at_end_of_input() {
                 break;
             }
             self.expect_newline_with_recovery("a newline after the top level item");
@@ -736,15 +744,22 @@ impl<'tokens> Parser<'tokens> {
         self.expect(Token::Indent, "an indent")?;
 
         let result = parser(self);
-        if result.is_err() {
-            self.recover_to(Token::Unindent, &[]);
-        }
 
-        if let Err(error) = self.expect(Token::Unindent, "an unindent") {
-            // If we stopped short of the unindent, skip everything until the unindent
-            self.diagnostics.push(error);
-            self.recover_to(Token::Unindent, &[]);
-            self.advance();
+        let expect_unindent = if result.is_err() {
+            // If this returns false we reached the end of input without finding an unindent
+            self.recover_to(Token::Unindent, &[])
+        } else {
+            true
+        };
+
+        if expect_unindent {
+            if let Err(error) = self.expect(Token::Unindent, "an unindent") {
+                // If we stopped short of the unindent, skip everything until the unindent
+                self.diagnostics.push(error);
+                if self.recover_to(Token::Unindent, &[]) {
+                    self.advance();
+                }
+            }
         }
 
         Ok(result.unwrap_or(T::error_default()))
@@ -945,8 +960,26 @@ impl<'tokens> Parser<'tokens> {
         items
     }
 
-    fn parse_function_parameters(&mut self) -> Vec<PatternId> {
-        self.many0(Self::parse_function_parameter_pattern)
+    /// function_parameters: function_parameter*
+    fn parse_function_parameters(&mut self) -> Vec<Parameter> {
+        self.many0(Self::parse_function_parameter)
+    }
+
+    /// function_parameter: '{' pattern '}'
+    ///                   | function_parameter_pattern
+    fn parse_function_parameter(&mut self) -> Result<Parameter> {
+        let (implicit, pattern) = if *self.current_token() == Token::BraceLeft {
+            self.advance();
+            let pattern = self.with_pattern_id_and_location(|this| {
+                this.parse_with_recovery(Self::parse_pattern_inner, Token::BraceRight, &[Token::Newline, Token::Equal])
+            })?;
+            self.expect(Token::BraceRight, "a `}` to close the opening `{` from the implicit parameter")?;
+            (true, pattern)
+        } else {
+            (false, self.parse_function_parameter_pattern()?)
+        };
+
+        Ok(Parameter { implicit, pattern })
     }
 
     fn parse_pattern(&mut self) -> Result<PatternId> {
@@ -1576,13 +1609,17 @@ impl<'tokens> Parser<'tokens> {
     fn parse_trait_impl(&mut self) -> Result<cst::TraitImpl> {
         self.expect(Token::Impl, "`impl` to start this trait implementation")?;
 
+        let name = self.parse_ident_id()?;
+        let parameters = self.parse_function_parameters();
+        self.expect(Token::Colon, "a `:` to separate this impl's name from its type")?;
+
         let trait_path = self.parse_type_path_id()?;
-        let arguments = self.many0(Self::parse_type_arg);
+        let trait_arguments = self.many0(Self::parse_type_arg);
         self.expect(Token::With, "`with` to separate this trait impl's signature from its body")?;
 
-        let body = self.parse_indented(|this| Ok(this.many0(Self::parse_definition)))?;
+        let body = self.parse_indented(|this| Ok(this.delimited(Self::parse_definition, Token::Newline, true)))?;
 
-        Ok(cst::TraitImpl { trait_path, arguments, body })
+        Ok(cst::TraitImpl { name, parameters, trait_path, trait_arguments, body })
     }
 
     fn parse_effect_definition(&mut self) -> Result<cst::EffectDefinition> {

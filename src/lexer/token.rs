@@ -57,12 +57,12 @@ pub enum IntegerKind {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Hash)]
 pub enum ClosingBracket {
-    /// `(`
+    /// `)`
     Paren,
-    /// `[`
-    Square,
-    /// `{`
-    Curly,
+    /// `]`
+    Bracket,
+    /// `}`
+    Brace,
     /// `    `
     Unindent,
 }
@@ -72,8 +72,8 @@ impl ClosingBracket {
     pub fn token(self) -> Token {
         match self {
             ClosingBracket::Paren => Token::ParenthesisRight,
-            ClosingBracket::Square => Token::BracketRight,
-            ClosingBracket::Curly => Token::InterpolateRight,
+            ClosingBracket::Bracket => Token::BracketRight,
+            ClosingBracket::Brace => Token::BraceRight,
             ClosingBracket::Unindent => Token::Unindent,
         }
     }
@@ -83,7 +83,8 @@ impl ClosingBracket {
         match token {
             Indent | Unindent => Some(ClosingBracket::Unindent),
             ParenthesisLeft | ParenthesisRight => Some(ClosingBracket::Paren),
-            BracketLeft | BracketRight => Some(ClosingBracket::Square),
+            BracketLeft | BracketRight => Some(ClosingBracket::Bracket),
+            BraceLeft | BraceRight => Some(ClosingBracket::Brace),
             _ => None,
         }
     }
@@ -93,8 +94,8 @@ impl Display for ClosingBracket {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ClosingBracket::Paren => write!(f, "`)`"),
-            ClosingBracket::Square => write!(f, "`]`"),
-            ClosingBracket::Curly => write!(f, "`}}`"),
+            ClosingBracket::Bracket => write!(f, "`]`"),
+            ClosingBracket::Brace => write!(f, "`}}`"),
             ClosingBracket::Unindent => write!(f, "an unindent"),
         }
     }
@@ -215,8 +216,9 @@ pub enum Token {
     Add,                // +
     BracketLeft,        // [
     BracketRight,       // ]
-    InterpolateLeft,    // ${
-    InterpolateRight,   // }
+    BraceLeft,          // {
+    BraceRight,         // }
+    Interpolate,        // ${
     Pipe,               // |
     Colon,              // :
     Semicolon,          // ;
@@ -414,8 +416,9 @@ impl Display for Token {
             Token::Add => write!(f, "+"),
             Token::BracketLeft => write!(f, "["),
             Token::BracketRight => write!(f, "]"),
-            Token::InterpolateLeft => write!(f, "${{"),
-            Token::InterpolateRight => write!(f, "}}"),
+            Token::BraceLeft => write!(f, "{{"),
+            Token::BraceRight => write!(f, "}}"),
+            Token::Interpolate => write!(f, "${{"),
             Token::Pipe => write!(f, "|"),
             Token::Colon => write!(f, ":"),
             Token::Semicolon => write!(f, ";"),

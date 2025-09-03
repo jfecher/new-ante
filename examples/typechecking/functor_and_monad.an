@@ -7,13 +7,13 @@ trait Monad m with
     bind: fn (m a) (fn a -> m b) -> m b
 
 
-impl Functor Maybe with
+impl functor_maybe: Functor Maybe with
     map m f =
         match m
         | Some x -> Some (f x)
         | None -> None
 
-impl Monad Maybe with
+impl monad_maybe: Monad Maybe with
     wrap a = Some a
     
     bind m f =
@@ -22,13 +22,3 @@ impl Monad Maybe with
         | None -> None
 
 // args: --check --show-types
-// expected stderr:
-// examples/typechecking/functor_and_monad.an:16:0	error: Expected an unindent but found a newline
-// impl Monad Maybe with
-// 
-// examples/typechecking/functor_and_monad.an:19:0	error: Expected an unindent but found a newline
-//     bind m f =
-// 
-// examples/typechecking/functor_and_monad.an:24:0	error: Expected a top-level item but found an unindent
-// // args: --check --show-types
-
