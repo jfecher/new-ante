@@ -764,6 +764,7 @@ impl<'tokens> Parser<'tokens> {
         self.expect(Token::ExclamationMark, "`!` to start a mutable reference type")?;
         let owned = self.accept(Token::Owned);
         let shared = if owned { Sharedness::Owned } else { Sharedness::Shared };
+        self.parse_ident()?;
         Ok(Type::Reference(cst::Mutability::Mutable, shared))
     }
 
