@@ -47,6 +47,9 @@ print map
 // examples/codegen/map.an:21:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
 // 
+// examples/codegen/map.an:1:8	error: Could not find crate `Std`
+// import Std.HashMap
+// 
 // examples/codegen/map.an:4:13	error: `cast` is not defined, was it a typo?
 //     hash x = cast x
 

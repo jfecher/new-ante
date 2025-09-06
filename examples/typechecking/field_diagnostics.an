@@ -27,7 +27,61 @@ _ = (!&tuple).!first
 // examples/typechecking/field_diagnostics.an:12:0	error: Expected a top-level item but found `mut`
 // mut mut_tuple = (1, 1)
 // 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
 // examples/typechecking/field_diagnostics.an:1:11	error: `,` is not defined, was it a typo?
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
 // tuple = (1, 1)
 // 
 // examples/typechecking/field_diagnostics.an:3:5	error: `&` is not defined, was it a typo?
@@ -36,20 +90,317 @@ _ = (!&tuple).!first
 // examples/typechecking/field_diagnostics.an:3:6	error: `&` is not defined, was it a typo?
 // _ = (&&tuple).first
 // 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
 // examples/typechecking/field_diagnostics.an:8:10	error: `&` is not defined, was it a typo?
 // imm_ref = &tuple
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
 // 
 // examples/typechecking/field_diagnostics.an:14:4	error: `mut_tuple` is not defined, was it a typo?
 // _ = mut_tuple.&missing
 // 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
 // examples/typechecking/field_diagnostics.an:15:4	error: `mut_tuple` is not defined, was it a typo?
 // _ = mut_tuple.!missing
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
 // 
 // examples/typechecking/field_diagnostics.an:17:10	error: `!` is not defined, was it a typo?
 // mut_ref = !mut_tuple
 // 
 // examples/typechecking/field_diagnostics.an:17:11	error: `mut_tuple` is not defined, was it a typo?
 // mut_ref = !mut_tuple
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
+// 
+// examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
+// tuple = (1, 1)
 // 
 // examples/typechecking/field_diagnostics.an:22:5	error: `!` is not defined, was it a typo?
 // _ = (!&tuple).!first

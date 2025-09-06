@@ -5,8 +5,14 @@ t x = u x
 
 // args: --check examples/nameresolution/U.an
 // expected stderr:
+// examples/nameresolution/T.an:1:8	error: Could not find crate `U`
+// import U.u
+// 
 // examples/nameresolution/T.an:4:6	error: `u` is not defined, was it a typo?
 // t x = u x
+// 
+// examples/nameresolution/U.an:1:8	error: Could not find crate `T`
+// import T.t
 // 
 // examples/nameresolution/U.an:4:6	error: `t` is not defined, was it a typo?
 // u x = t x

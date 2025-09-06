@@ -5,6 +5,12 @@ id x = error
 
 // args: --check
 // expected stderr:
+// examples/nameresolution/unused_warning.an:0:0	warning: `id` was already defined
+// 
+// 
+// examples/nameresolution/unused_warning.an:0:0	warning: `id` was already defined
+// 
+// 
 // examples/nameresolution/unused_warning.an:4:7	error: `error` is not defined, was it a typo?
 // id x = error
 

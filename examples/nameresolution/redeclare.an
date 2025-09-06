@@ -8,3 +8,28 @@ foo _ =
     ()
 
 // args: --check
+// expected stderr:
+// examples/nameresolution/redeclare.an:0:0	warning: `a` was already defined
+// a = 1
+// 
+// examples/nameresolution/redeclare.an:0:0	warning: `a` was already defined
+// a = 1
+// 
+// examples/nameresolution/redeclare.an:0:0	warning: `a` was already defined
+// a = 1
+// 
+// examples/nameresolution/redeclare.an:0:0	warning: `a` was already defined
+// a = 1
+// 
+// examples/nameresolution/redeclare.an:0:0	warning: `a` was already defined
+// a = 1
+// 
+// examples/nameresolution/redeclare.an:0:0	warning: `a` was already defined
+// a = 1
+// 
+// examples/nameresolution/redeclare.an:0:0	warning: `a` was already defined
+// a = 1
+// 
+// examples/nameresolution/redeclare.an:0:0	warning: `a` was already defined
+// a = 1
+
