@@ -16,7 +16,7 @@ scc = { version = "2.3.4", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 
 [dev-dependencies]
-goldentests = { path = "../../Rust/golden-tests" }
+goldentests = "1.4.0"
 
 [profile.release]
 debug = true
