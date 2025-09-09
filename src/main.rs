@@ -20,6 +20,8 @@
 //! - `src/errors.rs`: Defines each error used in the program as well as the `Location` struct
 //! - `src/incremental.rs`: Some plumbing for the inc-complete library which also defines
 //!   which functions we're caching the result of.
+#![allow(mismatched_lifetime_syntaxes)]
+
 use clap::{CommandFactory, Parser};
 use cli::{Cli, Completions};
 use diagnostics::Diagnostic;
@@ -145,6 +147,8 @@ fn display_name_resolution(compiler: &Db) -> Vec<Diagnostic> {
             let resolve = Resolve(item.id).get(compiler);
             diagnostics.extend(resolve.errors);
         }
+
+        println!("{}", parse.cst.display_resolved(&parse.top_level_data, compiler))
     }
     diagnostics
 }

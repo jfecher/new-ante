@@ -23,6 +23,46 @@ _ = (!&tuple).!first
 
 // flags: --check
 
+// expected stdout:
+// // id = c1m75_19
+// tuple_? = ,_? 1 1
+// 
+// // id = c1m75_74
+// __? = (&_? (&_? tuple_c1m75_19)).first
+// 
+// // id = c1m75_73
+// __? = tuple_c1m75_19.!first
+// 
+// // id = c1m75_36
+// __? = tuple_c1m75_19.!missing
+// 
+// // id = c1m75_37
+// imm_ref_? = &_? tuple_c1m75_19
+// 
+// // id = c1m75_92
+// __? = imm_ref_c1m75_37.!first
+// 
+// // id = c1m75_92
+// __? = imm_ref_c1m75_37.!missing
+// 
+// // id = c1m75_6
+// __? = mut_tuple_?.&missing
+// 
+// // id = c1m75_62
+// __? = mut_tuple_?.!missing
+// 
+// // id = c1m75_64
+// mut_ref_? = !_? mut_tuple_?
+// 
+// // id = c1m75_75
+// __? = mut_ref_c1m75_64.&missing
+// 
+// // id = c1m75_79
+// __? = mut_ref_c1m75_64.!missing
+// 
+// // id = c1m75_77
+// __? = (!_? (&_? tuple_c1m75_19)).!first
+
 // expected stderr:
 // examples/typechecking/field_diagnostics.an:12:0	error: Expected a top-level item but found `mut`
 // mut mut_tuple = (1, 1)

@@ -20,6 +20,22 @@ mut x = S "original x string"
 foo x x
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m51_77
+// type S_? =
+//     message_?: String_td
+// 
+// // id = c1m51_6
+// impl print_s_?: Print_td S_c1m51_77 with
+//     printne_? s_2 = printne_? s_2.message
+// 
+// // id = c1m51_32
+// foo_? (x_1: S_c1m51_77) (y_2: S_c1m51_77) =
+//     printne_? "x before: "
+//     print_? x_1
+//     mut z_? = y_?
+//     z_?.!message
+
 // expected stderr:
 // examples/codegen/pass_by_ref.an:15:15	error: Expected an unindent but found `:=`
 //     z.!message := "modifying y"

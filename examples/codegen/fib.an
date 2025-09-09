@@ -5,6 +5,11 @@ fib n =
 print (fib 10)
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m43_87
+// fib_? n_1 =
+//     if <_? n_1 2 then n_1
+
 // expected stderr:
 // examples/codegen/fib.an:3:4	error: Expected an unindent but found `else`
 //     else fib (n - 2) + fib (n - 1)

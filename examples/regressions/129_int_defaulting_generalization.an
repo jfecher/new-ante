@@ -15,6 +15,16 @@ second b + 2i64
 // e : (U64, I64)
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m70_65
+// a_? = ,_? 1 2
+// 
+// // id = c1m70_84
+// b_? = a_c1m70_65
+// 
+// // id = c1m70_37
+// c_? = b_c1m70_84
+
 // expected stderr:
 // examples/regressions/129_int_defaulting_generalization.an:9:8	error: Expected `=` to begin the function body but found `+`
 // first b + 2u64

@@ -22,6 +22,27 @@ does_use x =
     set (y + x)
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m14_88
+// effect Log_? with
+//     log_1: fn String_td -> Unit_td
+// 
+// // id = c1m14_70
+// effect Use_? a_1 with
+//     get_2: fn Unit_td -> a_1
+//     set_4: fn a_1 -> Unit_td
+// 
+// // id = c1m14_47
+// handle_basic_? () =
+// 
+// // id = c1m14_23
+// use_resume_? () =
+// 
+// // id = c1m14_99
+// does_use_? x_1 =
+//     y_? = get_? ()
+//     set_? (+_? y_? x_1)
+
 // expected stderr:
 // examples/typechecking/effects.an:10:4	error: Expected an unindent but found `handle`
 //     handle log "test1"

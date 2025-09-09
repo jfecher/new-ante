@@ -26,6 +26,20 @@ sum_all () =
 sum_all () |> print
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m71_40
+// effect Add_? with
+//     add_1: U32
+// 
+// // id = c1m71_70
+// bar_? () =
+//     print_? "bar"
+//     add_? 3
+//     add_? 4
+// 
+// // id = c1m71_56
+// sum_all_? () =
+
 // expected stderr:
 // examples/codegen/effects/add_effect.an:2:13	error: Expected an unindent but found `->`
 //     add: U32 -> Unit

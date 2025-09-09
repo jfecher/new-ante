@@ -855,10 +855,6 @@ impl<'tokens> Parser<'tokens> {
     // Parse a type in a function argument position. e.g. `a` in `Foo a b c`
     fn parse_type_arg(&mut self) -> Result<Type> {
         match self.current_token() {
-            Token::UnitType => {
-                self.advance();
-                Ok(Type::Unit)
-            },
             Token::IntegerType(kind) => {
                 self.advance();
                 Ok(Type::Integer(*kind))
@@ -866,14 +862,6 @@ impl<'tokens> Parser<'tokens> {
             Token::FloatType(kind) => {
                 self.advance();
                 Ok(Type::Float(*kind))
-            },
-            Token::StringType => {
-                self.advance();
-                Ok(Type::String)
-            },
-            Token::CharType => {
-                self.advance();
-                Ok(Type::Char)
             },
             Token::TypeName(_) => {
                 let path = self.parse_type_path_id()?;

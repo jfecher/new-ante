@@ -12,6 +12,24 @@ map l f =
     | Cons x xs -> Cons (f x) (map xs f)
 
 // args: --check
+// expected stdout:
+// // id = c1m43_86
+// recursion_? n_1 f_2 =
+//     if >_? n_1 0 then 
+//         f_2 ()
+//         recursion_c1m43_86 (-_? n_1 1) f_2
+// 
+// // id = c1m43_38
+// shared type List_? =
+//     | Nil_?
+//     | Cons_? (a_1 (List_c1m43_38 a_1))
+// 
+// // id = c1m43_25
+// map_? l_1 f_2 =
+//     match l_1
+//     | Nil_? -> Nil_td
+//     | Cons_? x_3 xs_4 -> Cons_td (f_2 x_3) (map_c1m43_25 xs_4 f_2)
+
 // expected stderr:
 // examples/nameresolution/functions.an:3:9	error: `>` is not defined, was it a typo?
 //     if n > 0 then

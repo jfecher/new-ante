@@ -8,6 +8,12 @@ foo ("test", 2, 'c')
 foo ("hi", 7, 2.0, 3, 4, 5)
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m83_32
+// foo_? (,_? (,_? a_1 b_2) __3) =
+//     __?: string_? = a_?
+//     print_? b_2
+
 // expected stderr:
 // examples/codegen/tuples.an:8:0	error: Expected `=` to begin the function body but found a newline
 // foo ("hi", 7, 2.0, 3, 4, 5)

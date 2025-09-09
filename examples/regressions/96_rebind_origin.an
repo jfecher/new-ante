@@ -9,6 +9,16 @@ twice foo bar =
 twice 1u8 2u16
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m73_78
+// origin_? foo_1 =
+//     cast_? foo_1: U64
+// 
+// // id = c1m73_32
+// twice_? foo_1 bar_2 =
+//     origin_c1m73_78 foo_1
+//     origin_c1m73_78 bar_2
+
 // expected stderr:
 // examples/regressions/96_rebind_origin.an:11:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary

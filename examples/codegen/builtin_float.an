@@ -33,6 +33,34 @@ print (cast (cast x : F64) : F32)
 // so we can no longer support this operation at all.
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m37_62
+// add_f64_? = +_? 3 4
+// 
+// // id = c1m37_27
+// sub_f64_? = -_? 7 8
+// 
+// // id = c1m37_2
+// mul_f64_? = *_? 11 12
+// 
+// // id = c1m37_50
+// div_f64_? = /_? 15 16
+// 
+// // id = c1m37_43
+// add_f32_? = (error)
+// 
+// // id = c1m37_34
+// sub_f32_? = (error)
+// 
+// // id = c1m37_8
+// mul_f32_? = (error)
+// 
+// // id = c1m37_57
+// div_f32_? = (error)
+// 
+// // id = c1m37_44
+// x_? = (error)
+
 // expected stderr:
 // examples/codegen/builtin_float.an:11:0	error: Expected `=` to begin the function body but found a newline
 // print sub_f64

@@ -19,6 +19,13 @@ insert !map 7 21
 print map
 
 // args: --delete-binary
+// expected stdout:
+// import Std.HashMap
+// 
+// // id = c1m38_14
+// impl hash_u8_?: Hash_td U8 with
+//     hash_? x_2 = cast_? x_2
+
 // expected stderr:
 // examples/codegen/map.an:6:0	error: Expected a top-level item but found `mut`
 // mut map = empty ()

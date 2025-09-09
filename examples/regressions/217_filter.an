@@ -31,6 +31,22 @@ filtered () =
 for filtered print
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m59_9
+// effect Emit_? a_1 with
+//     emit_2: a_1
+// 
+// // id = c1m59_99
+// iota_? (n_1: U32) = (error)
+// 
+// // id = c1m59_37
+// zero_to_nine_? () =
+//     iota_c1m59_99 10
+// 
+// // id = c1m59_19
+// filtered_? () =
+//     filter_? zero_to_nine_c1m59_37 (error)
+
 // expected stderr:
 // examples/regressions/217_filter.an:2:12	error: Expected an unindent but found `->`
 //     emit: a -> Unit

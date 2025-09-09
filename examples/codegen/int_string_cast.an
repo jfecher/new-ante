@@ -14,6 +14,11 @@ debug <| cast 0
 debug <| cast 10
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m44_93
+// debug_? str_1 =
+//     <|_? print_? (++_? (++_? (++_? "string: " str_1) " len: ") (cast_? str_1.length))
+
 // expected stderr:
 // examples/codegen/int_string_cast.an:8:6	error: Expected `=` to begin the function body but found `<|`
 // debug <| cast (255: U8)

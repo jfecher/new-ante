@@ -1,3 +1,7 @@
 a = "test".c_string
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m80_65
+// a_? = "test".c_string
+

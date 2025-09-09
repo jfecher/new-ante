@@ -8,6 +8,22 @@ foo _ =
     ()
 
 // args: --check
+// expected stdout:
+// // id = c1m79_65
+// a_? = 1
+// 
+// // id = c1m79_38
+// a_? = 2
+// 
+// // id = c1m79_20
+// a_? = 3
+// 
+// // id = c1m79_32
+// foo_? __1 =
+//     a_? = 4
+//     a_? = 5
+//     ()
+
 // expected stderr:
 // examples/nameresolution/redeclare.an:0:0	warning: `a` was already defined
 // a = 1

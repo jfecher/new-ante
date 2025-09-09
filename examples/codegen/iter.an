@@ -18,6 +18,24 @@ my_iter iterable f =
 my_iter 10 print
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m50_40
+// trait MyIterable_? it_1 -> elem_2 with
+//     mynext_3: it_1
+// 
+// // id = c1m50_97
+// impl countdown_?: MyIterable_c1m50_40 I32 I32 with
+//     mynext_? x_2 =
+//         if <=_? x_2 0 then None_td
+// 
+// // id = c1m50_6
+// my_iter_? iterable_1 f_2 =
+//     match mynext_? iterable_1
+//     | None_? -> ()
+//     | Some_? (,_? elem_3 rest_4) -> 
+//         f_2 elem_3
+//         my_iter_c1m50_6 rest_4 f_2
+
 // expected stderr:
 // examples/codegen/iter.an:3:16	error: Expected an unindent but found `->`
 //     mynext : it -> Maybe (elem, it)

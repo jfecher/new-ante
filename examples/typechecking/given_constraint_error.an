@@ -3,3 +3,8 @@ impl print_impl {_: DoesNotExist a}: Print a with
     printne _ = ()
 
 // args: --check
+// expected stdout:
+// // id = c1m27_15
+// impl print_impl_? {__?: DoesNotExist_? a_?}: Print_td a_3 with
+//     printne_? __5 = ()
+

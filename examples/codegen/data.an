@@ -16,6 +16,18 @@ match s
 | None -> print "s = None"
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m60_5
+// type T_? =
+//     a_?: I32
+//     b_?: String_td
+// 
+// // id = c1m60_96
+// t_? = T_c1m60_5 1 "one"
+// 
+// // id = c1m60_65
+// s_? = Some_td 2
+
 // expected stderr:
 // examples/codegen/data.an:4:8	error: Expected `=` to begin the function body but found "t = "
 // printne "t = "

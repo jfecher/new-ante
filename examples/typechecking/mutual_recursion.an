@@ -15,6 +15,15 @@ is_even 4
 // TODO: is_odd here uses `forall a c.` instead of `forall a b.`
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m14_33
+// is_even_? n_1 =
+//     if ==_? n_1 0 then true else 
+//         print_? n_1
+// 
+// // id = c1m14_20
+// is_odd_? n_1 =
+
 // expected stderr:
 // examples/typechecking/mutual_recursion.an:6:8	error: Expected an unindent but found `not`
 //         not is_odd (n - 1)

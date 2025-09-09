@@ -48,6 +48,17 @@ iota 10
     with for my_print
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m10_9
+// effect Emit_? a_1 with
+//     emit_2: a_1
+// 
+// // id = c1m10_99
+// iota_? (n_1: U32) = (error)
+// 
+// // id = c1m10_16
+// even_? x_9 = ==_? (%_? x_9 2) 0
+
 // expected stderr:
 // examples/codegen/effects/generators_complex.an:2:12	error: Expected an unindent but found `->`
 //     emit: a -> Unit

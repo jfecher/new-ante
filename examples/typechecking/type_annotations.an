@@ -16,15 +16,23 @@ puts2
 // TODO: This first error is duplicated
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m78_32
+// foo_? (__1: I32) (__2: String_td) : Char_? = (error)
+// 
+// // id = c1m78_67
+// baz_? (a_1: Usz) : Ptr_? a_? =
+//     transmute_? a_1
+// 
+// // id = c1m78_48
+// exit2_? = exit_?
+// 
+// // id = c1m78_90
+// puts2_?: fn (Ptr_? Char_?) -> I32 = puts_?
+
 // expected stderr:
 // examples/typechecking/type_annotations.an:2:34	error: Expected an expression but found `'a`
 // foo (_: I32) (_: String) : Char = 'a'
-// 
-// examples/typechecking/type_annotations.an:7:14	error: Expected a type but found `Ptr`
-// baz (a: Usz): Ptr a =
-// 
-// examples/typechecking/type_annotations.an:11:11	error: Expected a type but found `Ptr`
-// puts2: fn (Ptr Char) -> I32 = puts
 // 
 // examples/typechecking/type_annotations.an:13:6	error: Expected `=` to begin the function body but found `"test"`
 // exit2 "test"

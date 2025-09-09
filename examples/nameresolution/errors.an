@@ -16,6 +16,26 @@ a = 2
 a = 3 // already declared
 
 // args: --check
+// expected stdout:
+// // id = c1m16_23
+// not_an_error_? = 1
+// 
+// // id = c1m16_44
+// main_? () =
+//     not_an_error_c1m16_23 is_an_error_?
+// 
+// // id = c1m16_32
+// foo_? a_1 b_2 =
+//     bar_? c_? d_? =
+//         b_?
+//     ()
+// 
+// // id = c1m16_65
+// a_? = 2
+// 
+// // id = c1m16_38
+// a_? = 3
+
 // expected stderr:
 // examples/nameresolution/errors.an:7:4	error: Expected an unindent but found `fn`
 //     fn a b -> a + c + b

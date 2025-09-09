@@ -23,18 +23,21 @@ use_state 10_i32 with state 1
 use_state 20_u64 with state 2
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m76_70
+// effect Use_? a_1 with
+//     get_2: Unit_td
+// 
+// // id = c1m76_26
+// use_state_? (y_1: Int_td a_2) =
+//     x_? = get_? (): Int_? a_?
+//     set_? (+_? x_? y_1)
+//     state_? = get_? (): Int_? a_?
+//     print_? "Ending state = "
+
 // expected stderr:
 // examples/codegen/effects/state.an:2:14	error: Expected an unindent but found `->`
 //     get: Unit -> a
-// 
-// examples/codegen/effects/state.an:5:14	error: Expected a type but found `Int`
-// use_state (y: Int a) =
-// 
-// examples/codegen/effects/state.an:6:17	error: Expected a type but found `Int`
-//     x = get () : Int a
-// 
-// examples/codegen/effects/state.an:8:21	error: Expected a type but found `Int`
-//     state = get () : Int a
 // 
 // examples/codegen/effects/state.an:9:26	error: Expected an unindent but found `${`
 //     print "Ending state = ${state}"

@@ -9,6 +9,15 @@ foo () =
 print (foo ())
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m1_32
+// foo_? () =
+//     x_? = "test"
+//     bar_? () =
+//         baz_? () = x_?
+//         baz_? ()
+//     bar_? ()
+
 // expected stderr:
 // examples/codegen/closure_nested.an:9:11	error: Expected `=` to begin the function body but found `()`
 // print (foo ())

@@ -14,6 +14,20 @@ b = foo 1.0 2.0
 c = foo "one" "two"
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m40_37
+// trait Foo_? a_1 with
+//     foo_2: fn a_1 a_1 -> a_1
+// 
+// // id = c1m40_65
+// a_? = foo_? 1 2_I32
+// 
+// // id = c1m40_84
+// b_? = foo_? 1 2
+// 
+// // id = c1m40_37
+// c_? = foo_? "one" "two"
+
 // expected stderr:
 // examples/typechecking/impl.an:5:5	error: Expected an identifier but found `Foo`
 // impl Foo I32 with

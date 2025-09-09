@@ -10,6 +10,11 @@ print map
 print map
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m11_83
+// impl hash_u8_?: Hash_td U8 with
+//     hash_? x_2 = cast_? x_2
+
 // expected stderr:
 // examples/regressions/104_print_twice.an:1:8	error: Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported
 // import HashMap
