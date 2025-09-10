@@ -39,6 +39,18 @@ use_state 20_u64 with state 2
 // examples/codegen/effects/state.an:2:14	error: Expected an unindent but found `->`
 //     get: Unit -> a
 // 
+// examples/codegen/effects/state.an:7:4	error: `set` is not defined, was it a typo?
+//     set (x + y)
+// 
+// examples/codegen/effects/state.an:7:9	error: `x` is not defined, was it a typo?
+//     set (x + y)
+// 
+// examples/codegen/effects/state.an:7:11	error: `+` is not defined, was it a typo?
+//     set (x + y)
+// 
+// examples/codegen/effects/state.an:9:4	error: `print` is not defined, was it a typo?
+//     print "Ending state = ${state}"
+// 
 // examples/codegen/effects/state.an:9:26	error: Expected an unindent but found `${`
 //     print "Ending state = ${state}"
 // 
@@ -50,16 +62,4 @@ use_state 20_u64 with state 2
 // 
 // examples/codegen/effects/state.an:23:17	error: Expected `=` to begin the function body but found `with`
 // use_state 20_u64 with state 2
-// 
-// examples/codegen/effects/state.an:7:4	error: `set` is not defined, was it a typo?
-//     set (x + y)
-// 
-// examples/codegen/effects/state.an:7:11	error: `+` is not defined, was it a typo?
-//     set (x + y)
-// 
-// examples/codegen/effects/state.an:7:9	error: `x` is not defined, was it a typo?
-//     set (x + y)
-// 
-// examples/codegen/effects/state.an:9:4	error: `print` is not defined, was it a typo?
-//     print "Ending state = ${state}"
 

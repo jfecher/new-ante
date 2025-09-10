@@ -1,13 +1,13 @@
 use std::{cell::Cell, collections::BTreeMap, path::PathBuf, sync::Arc};
 
 use inc_complete::{
-    define_input, define_intermediate, storage::{HashMapStorage, SingletonStorage}, Storage
+    accumulate::Accumulator, define_input, define_intermediate, storage::{HashMapStorage, SingletonStorage}, Storage
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{
     backend, definition_collection,
-    diagnostics::{Errors, Location},
+    diagnostics::{Diagnostic, Location},
     find_files::CrateGraph,
     name_resolution::{
         self,
@@ -53,6 +53,9 @@ pub struct DbStorage {
     get_types: HashMapStorage<GetType>,
     type_checks: HashMapStorage<TypeCheck>,
     compiled_files: HashMapStorage<CompileFile>,
+
+    #[inc_complete(accumulate)]
+    diagnostics: Accumulator<Diagnostic>,
 }
 
 std::thread_local! {
@@ -169,12 +172,11 @@ define_intermediate!(50, VisibleDefinitions -> Arc<VisibleDefinitionsResult>, Db
 pub struct VisibleDefinitionsResult {
     pub definitions: Definitions,
     pub methods: BTreeMap<TopLevelId, Definitions>,
-    pub diagnostics: Errors,
 }
 
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VisibleTypes(pub SourceFileId);
-define_intermediate!(60, VisibleTypes -> (Definitions, Errors), DbStorage, definition_collection::visible_types_impl);
+define_intermediate!(60, VisibleTypes -> Definitions, DbStorage, definition_collection::visible_types_impl);
 
 /// We iterate over collected definitions within `visible_definitions_impl`. Since
 /// collecting these can error, we need a stable iteration order, otherwise the order
@@ -196,7 +198,7 @@ define_intermediate!(70, ExportedDefinitions -> Arc<VisibleDefinitionsResult>, D
 
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportedTypes(pub SourceFileId);
-define_intermediate!(80, ExportedTypes -> (Definitions, Errors), DbStorage, definition_collection::exported_types_impl);
+define_intermediate!(80, ExportedTypes -> Definitions, DbStorage, definition_collection::exported_types_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Retrieves the imports used by a file. This step is the first done by the compiler to collect
@@ -274,4 +276,4 @@ define_intermediate!(130, TypeCheck -> TypeCheckResult, DbStorage, type_inferenc
 /// This will also return any errors originating in that file.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompileFile(pub SourceFileId);
-define_intermediate!(140, CompileFile -> (String, Errors), DbStorage, backend::compile_file_impl);
+define_intermediate!(140, CompileFile -> String, DbStorage, backend::compile_file_impl);

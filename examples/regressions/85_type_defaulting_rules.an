@@ -40,20 +40,14 @@ main ()
 // closure_? = count_down_c1m87_82 __? print_offset_c1m87_0
 
 // expected stderr:
-// examples/regressions/85_type_defaulting_rules.an:14:17	error: Expected an unindent but found `fn`
-//     count_down 3 fn x ->
-// 
-// examples/regressions/85_type_defaulting_rules.an:21:0	error: Expected `=` to begin the function body but found an unindent
-// main ()
-// 
-// examples/regressions/85_type_defaulting_rules.an:23:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
-// 
 // examples/regressions/85_type_defaulting_rules.an:7:9	error: `>` is not defined, was it a typo?
 //     if n > 0 then
 // 
 // examples/regressions/85_type_defaulting_rules.an:9:22	error: `-` is not defined, was it a typo?
 //         count_down (n - 1) f
+// 
+// examples/regressions/85_type_defaulting_rules.an:14:17	error: Expected an unindent but found `fn`
+//     count_down 3 fn x ->
 // 
 // examples/regressions/85_type_defaulting_rules.an:17:21	error: `print` is not defined, was it a typo?
 //     print_offset _ = print offset
@@ -63,4 +57,10 @@ main ()
 // 
 // examples/regressions/85_type_defaulting_rules.an:18:25	error: `_` is not defined, was it a typo?
 //     closure = count_down _ print_offset
+// 
+// examples/regressions/85_type_defaulting_rules.an:21:0	error: Expected `=` to begin the function body but found an unindent
+// main ()
+// 
+// examples/regressions/85_type_defaulting_rules.an:23:0	error: Expected `=` to begin the function body but found a newline
+// // args: --delete-binary
 

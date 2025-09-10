@@ -22,6 +22,12 @@ print map
 // examples/regressions/104_print_twice.an:3:0	error: Expected a top-level item but found a newline
 // impl hash_u8: Hash U8 with
 // 
+// examples/regressions/104_print_twice.an:3:14	error: `Hash` is not defined, was it a typo?
+// impl hash_u8: Hash U8 with
+// 
+// examples/regressions/104_print_twice.an:4:13	error: `cast` is not defined, was it a typo?
+//     hash x = cast x
+// 
 // examples/regressions/104_print_twice.an:6:0	error: Expected a top-level item but found `mut`
 // mut map = empty ()
 // 
@@ -33,10 +39,4 @@ print map
 // 
 // examples/regressions/104_print_twice.an:12:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
-// 
-// examples/regressions/104_print_twice.an:3:14	error: `Hash` is not defined, was it a typo?
-// impl hash_u8: Hash U8 with
-// 
-// examples/regressions/104_print_twice.an:4:13	error: `cast` is not defined, was it a typo?
-//     hash x = cast x
 

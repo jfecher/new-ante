@@ -18,9 +18,9 @@ foo ()
 // foo_? = get_closure_c1m38_11 ()
 
 // expected stderr:
-// examples/codegen/closure_return.an:9:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
-// 
 // examples/codegen/closure_return.an:4:4	error: `stuff` is not defined, was it a typo?
 //     stuff
+// 
+// examples/codegen/closure_return.an:9:0	error: Expected `=` to begin the function body but found a newline
+// // args: --delete-binary
 

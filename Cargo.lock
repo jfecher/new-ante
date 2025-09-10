@@ -244,9 +244,9 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "inc-complete"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cbafaaaced0ee4f767975428842524fa8df337654919b53f7ac78c93389650d"
+checksum = "a8784db8b61205637e3976ebbfcec134d1ae56860a1ca95d2a01d40598805e45"
 dependencies = [
  "dashmap",
  "inc-complete-derive",
@@ -258,9 +258,9 @@ dependencies = [
 
 [[package]]
 name = "inc-complete-derive"
-version = "0.7.0"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8123bec43f923666836ff19951f4c2020e7c96c2a58f97a8ba36a9ce9f45425d"
+checksum = "661e6798d974cb8c7e5bcad7d0a1eba45b044b0d29a8347894e66f5c4a013b9d"
 dependencies = [
  "proc-macro2",
  "quote",

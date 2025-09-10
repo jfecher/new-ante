@@ -13,6 +13,9 @@ foo 5 (library_fn ())
 // foo_? = (error)
 
 // expected stderr:
+// examples/nameresolution/import.an:1:8	error: Could not find crate `Library`
+// import Library.library_int, library_fn
+// 
 // examples/nameresolution/import.an:3:6	error: Expected an expression but found `fn`
 // foo = fn _ b -> b
 // 
@@ -21,7 +24,4 @@ foo 5 (library_fn ())
 // 
 // examples/nameresolution/import.an:6:18	error: Expected `=` to begin the function body but found `()`
 // foo 5 (library_fn ())
-// 
-// examples/nameresolution/import.an:1:8	error: Could not find crate `Library`
-// import Library.library_int, library_fn
 

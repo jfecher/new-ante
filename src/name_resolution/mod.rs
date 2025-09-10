@@ -7,7 +7,7 @@ pub mod namespace;
 pub mod builtin;
 
 use crate::{
-    diagnostics::{Diagnostic, Errors, Location}, incremental::{self, DbHandle, ExportedTypes, GetCrateGraph, GetItem, Resolve, VisibleDefinitions}, name_resolution::builtin::Builtin, parser::{
+    diagnostics::{Diagnostic, Location}, incremental::{self, DbHandle, ExportedTypes, GetCrateGraph, GetItem, Resolve, VisibleDefinitions}, name_resolution::builtin::Builtin, parser::{
         cst::{
             Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern,
             TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody,
@@ -23,14 +23,12 @@ pub struct ResolutionResult {
     /// context of that id.
     pub path_origins: BTreeMap<PathId, Origin>,
     pub name_origins: BTreeMap<NameId, Origin>,
-    pub errors: Errors,
 }
 
 struct Resolver<'local, 'inner> {
     item: TopLevelId,
     path_links: BTreeMap<PathId, Origin>,
     name_links: BTreeMap<NameId, Origin>,
-    errors: Errors,
     names_in_global_scope: &'local BTreeMap<Arc<String>, TopLevelId>,
     names_in_local_scope: Vec<BTreeMap<Arc<String>, NameId>>,
     context: &'local TopLevelContext,
@@ -62,7 +60,6 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
     let names_in_scope = &visible.definitions;
 
     let mut resolver = Resolver::new(compiler, context, names_in_scope, &statement_ctx);
-    resolver.errors.extend(visible.diagnostics.clone());
 
     match &statement.kind {
         TopLevelItemKind::Definition(definition) => {
@@ -91,14 +88,13 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             names_in_global_scope: names_in_scope,
             path_links: Default::default(),
             name_links: Default::default(),
-            errors: Vec::new(),
             names_in_local_scope: vec![Default::default()],
             context,
         }
     }
 
     fn result(self) -> ResolutionResult {
-        ResolutionResult { path_origins: self.path_links, name_origins: self.name_links, errors: self.errors }
+        ResolutionResult { path_origins: self.path_links, name_origins: self.name_links }
     }
 
     #[allow(unused)]
@@ -146,7 +142,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     return Some(submodule);
                 }
 
-                let exported = ExportedTypes(id).get(self.compiler).0;
+                let exported = ExportedTypes(id).get(self.compiler);
                 exported.get(name).copied().map(Namespace::Type)
             },
         }
@@ -267,8 +263,12 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             Ok(origin) => {
                 self.path_links.insert(path, origin);
             },
-            Err(diagnostic) => self.errors.push(diagnostic),
+            Err(diagnostic) => self.emit_diagnostic(diagnostic),
         }
+    }
+
+    fn emit_diagnostic(&self, diagnostic: Diagnostic) {
+        self.compiler.accumulate(diagnostic);
     }
 
     fn resolve_expr(&mut self, expr: ExprId) {
@@ -420,7 +420,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         } else {
             let location = self.context.name_locations[name_id].clone();
             let name = self.context.names[name_id].clone();
-            self.errors.push(Diagnostic::NameNotFound { name, location });
+            self.emit_diagnostic(Diagnostic::NameNotFound { name, location });
         }
     }
 

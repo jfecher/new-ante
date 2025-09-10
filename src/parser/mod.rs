@@ -28,7 +28,6 @@ pub mod ids;
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ParseResult {
     pub cst: Cst,
-    pub diagnostics: Vec<Diagnostic>,
     pub top_level_data: BTreeMap<TopLevelId, Arc<TopLevelContext>>,
 }
 
@@ -82,7 +81,7 @@ struct Parser<'tokens> {
 pub fn parse_impl(ctx: &incremental::Parse, db: &incremental::DbHandle) -> Arc<ParseResult> {
     let file = ctx.0.get(db);
     let tokens = Lexer::new(&file.contents).collect::<Vec<_>>();
-    Arc::new(Parser::new(ctx.0, &tokens).parse())
+    Arc::new(Parser::new(ctx.0, &tokens).parse(db))
 }
 
 impl<'tokens> Parser<'tokens> {
@@ -98,13 +97,16 @@ impl<'tokens> Parser<'tokens> {
         }
     }
 
-    fn parse(mut self) -> ParseResult {
+    fn parse(mut self, db: &incremental::DbHandle) -> ParseResult {
         let imports = self.parse_imports();
         let top_level_items = self.parse_top_level_items();
         self.accept(Token::Newline);
         let ending_comments = self.parse_comments();
         let cst = Cst { imports, top_level_items, ending_comments };
-        ParseResult { cst, diagnostics: self.diagnostics, top_level_data: self.top_level_data }
+        for diagnostic in self.diagnostics {
+            db.accumulate(diagnostic);
+        }
+        ParseResult { cst, top_level_data: self.top_level_data }
     }
 
     fn current_token(&self) -> &'tokens Token {

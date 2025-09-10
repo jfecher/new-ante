@@ -26,6 +26,7 @@ use clap::{CommandFactory, Parser};
 use cli::{Cli, Completions};
 use diagnostics::Diagnostic;
 use find_files::populate_crates_and_files;
+use inc_complete::{ComputationId, OutputType, StorageFor};
 use incremental::{CompileFile, Db, GetCrateGraph, Parse, Resolve};
 use name_resolution::namespace::{CrateId, LocalModuleId, SourceFileId, LOCAL_CRATE};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -36,7 +37,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::diagnostics::Errors;
+use crate::{diagnostics::Errors, incremental::DbStorage};
 
 // All the compiler passes:
 // (listed out of order because `cargo fmt` alphabetizes them)
@@ -90,7 +91,7 @@ fn compile(args: Cli) {
 
     let errors = if args.lex {
         display_tokens(&compiler);
-        Vec::new()
+        BTreeSet::new()
     } else if args.parse {
         display_parse_tree(&compiler)
     } else {
@@ -121,31 +122,32 @@ fn display_tokens(compiler: &Db) {
     }
 }
 
-fn display_parse_tree(compiler: &Db) -> Vec<Diagnostic> {
+fn display_parse_tree(compiler: &Db) -> BTreeSet<Diagnostic> {
     let crates = GetCrateGraph.get(compiler);
     let local_crate = &crates[&LOCAL_CRATE];
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = BTreeSet::new();
 
     for (_, file) in &local_crate.source_files {
         let result = Parse(*file).get(compiler);
         println!("{}", result.cst.display(&result.top_level_data));
-        diagnostics.extend(result.diagnostics.iter().cloned())
+
+        let parse_diagnostics: BTreeSet<_> = compiler.get_accumulated(Parse(*file));
+        diagnostics.extend(parse_diagnostics);
     }
     diagnostics
 }
 
-fn display_name_resolution(compiler: &Db) -> Vec<Diagnostic> {
+fn display_name_resolution(compiler: &Db) -> BTreeSet<Diagnostic> {
     let crates = GetCrateGraph.get(compiler);
     let local_crate = &crates[&LOCAL_CRATE];
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = BTreeSet::new();
 
     for (_, file) in &local_crate.source_files {
         let parse = Parse(*file).get(compiler);
-        diagnostics.extend(parse.diagnostics.clone());
 
         for item in &parse.cst.top_level_items {
-            let resolve = Resolve(item.id).get(compiler);
-            diagnostics.extend(resolve.errors);
+            let resolve_diagnostics: BTreeSet<_> = compiler.get_accumulated(Resolve(item.id));
+            diagnostics.extend(resolve_diagnostics);
         }
 
         println!("{}", parse.cst.display_resolved(&parse.top_level_data, compiler))
@@ -165,11 +167,16 @@ pub fn path_to_id(crate_id: CrateId, path: &Path) -> SourceFileId {
 fn compile_all(files: BTreeSet<SourceFileId>, compiler: &mut Db) -> Errors {
     files
         .into_par_iter()
-        .flat_map(|file| {
-            let (_text, errors) = CompileFile(file).get(compiler);
-            errors
-        })
+        .flat_map(|file| get_diagnostics_at_step(compiler, CompileFile(file)))
         .collect()
+}
+
+/// Retrieve all diagnostics emitted after running the given compiler step
+fn get_diagnostics_at_step<C>(compiler: &Db, step: C) -> BTreeSet<Diagnostic> where
+    C: OutputType + ComputationId,
+    DbStorage: StorageFor<C>,
+{
+    compiler.get_accumulated(step)
 }
 
 fn write_file(file_name: &Path, text: &str) -> Result<(), String> {

@@ -28,6 +28,12 @@ handle_count foo
 // handle_count_? f_1 =
 
 // expected stderr:
+// examples/typechecking/count_effect.an:5:4	error: `count` is not defined, was it a typo?
+//     count ()
+// 
+// examples/typechecking/count_effect.an:6:4	error: `repeat` is not defined, was it a typo?
+//     repeat 10 fn _ -> count ()
+// 
 // examples/typechecking/count_effect.an:6:14	error: Expected an unindent but found `fn`
 //     repeat 10 fn _ -> count ()
 // 
@@ -39,10 +45,4 @@ handle_count foo
 // 
 // examples/typechecking/count_effect.an:16:0	error: Expected `=` to begin the function body but found a newline
 // // args: --check --show-types
-// 
-// examples/typechecking/count_effect.an:5:4	error: `count` is not defined, was it a typo?
-//     count ()
-// 
-// examples/typechecking/count_effect.an:6:4	error: `repeat` is not defined, was it a typo?
-//     repeat 10 fn _ -> count ()
 

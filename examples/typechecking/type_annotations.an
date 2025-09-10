@@ -34,12 +34,6 @@ puts2
 // examples/typechecking/type_annotations.an:2:34	error: Expected an expression but found `'a`
 // foo (_: I32) (_: String) : Char = 'a'
 // 
-// examples/typechecking/type_annotations.an:13:6	error: Expected `=` to begin the function body but found `"test"`
-// exit2 "test"
-// 
-// examples/typechecking/type_annotations.an:16:0	error: Expected `=` to begin the function body but found a newline
-// // TODO: This first error is duplicated
-// 
 // examples/typechecking/type_annotations.an:8:4	error: `transmute` is not defined, was it a typo?
 //     transmute a
 // 
@@ -48,4 +42,10 @@ puts2
 // 
 // examples/typechecking/type_annotations.an:11:30	error: `puts` is not defined, was it a typo?
 // puts2: fn (Ptr Char) -> I32 = puts
+// 
+// examples/typechecking/type_annotations.an:13:6	error: Expected `=` to begin the function body but found `"test"`
+// exit2 "test"
+// 
+// examples/typechecking/type_annotations.an:16:0	error: Expected `=` to begin the function body but found a newline
+// // TODO: This first error is duplicated
 

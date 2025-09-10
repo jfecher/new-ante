@@ -23,19 +23,10 @@ print <| plus2 38 2
 // plus4_? = foo_c1m45_32 2 2 __?
 
 // expected stderr:
-// examples/codegen/explicit_curry.an:8:6	error: Expected `=` to begin the function body but found `<|`
-// print <| plus4 2
-// 
-// examples/codegen/explicit_curry.an:9:6	error: Expected `=` to begin the function body but found `<|`
-// print <| plus2 38 2
-// 
-// examples/codegen/explicit_curry.an:11:0	error: Expected a top-level item but found `4`
-// 4 |> (_ + 2) |> print
-// 
-// examples/codegen/explicit_curry.an:3:10	error: `+` is not defined, was it a typo?
+// examples/codegen/explicit_curry.an:3:6	error: `+` is not defined, was it a typo?
 //     a + b + c
 // 
-// examples/codegen/explicit_curry.an:3:6	error: `+` is not defined, was it a typo?
+// examples/codegen/explicit_curry.an:3:10	error: `+` is not defined, was it a typo?
 //     a + b + c
 // 
 // examples/codegen/explicit_curry.an:5:12	error: `_` is not defined, was it a typo?
@@ -46,4 +37,13 @@ print <| plus2 38 2
 // 
 // examples/codegen/explicit_curry.an:6:16	error: `_` is not defined, was it a typo?
 // plus4 = foo 2 2 _
+// 
+// examples/codegen/explicit_curry.an:8:6	error: Expected `=` to begin the function body but found `<|`
+// print <| plus4 2
+// 
+// examples/codegen/explicit_curry.an:9:6	error: Expected `=` to begin the function body but found `<|`
+// print <| plus2 38 2
+// 
+// examples/codegen/explicit_curry.an:11:0	error: Expected a top-level item but found `4`
+// 4 |> (_ + 2) |> print
 

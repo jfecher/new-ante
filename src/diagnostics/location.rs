@@ -56,7 +56,7 @@ impl Span {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Hash, Eq)]
 pub struct Position {
     pub byte_index: usize,
     pub line_number: u32,
@@ -66,5 +66,23 @@ pub struct Position {
 impl Position {
     pub fn start() -> Position {
         Position { byte_index: 0, line_number: 1, column_number: 1 }
+    }
+}
+
+impl PartialOrd for Position {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Position {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.byte_index.cmp(&other.byte_index)
+    }
+}
+
+impl PartialEq for Position {
+    fn eq(&self, other: &Self) -> bool {
+        self.byte_index == other.byte_index
     }
 }
