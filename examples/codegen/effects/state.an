@@ -26,10 +26,10 @@ use_state 20_u64 with state 2
 // expected stdout:
 // // id = c1m76_70
 // effect Use_? a_1 with
-//     get_2: Unit_?
+//     get_2: Unit_b
 // 
 // // id = c1m76_26
-// use_state_? (y_1: Int_? a_2) =
+// use_state_? (y_1: Int_b a_2) =
 //     x_? = get_? (): Int_? a_?
 //     set_? (+_? x_? y_1)
 //     state_? = get_? (): Int_? a_?
@@ -50,12 +50,6 @@ use_state 20_u64 with state 2
 // 
 // examples/codegen/effects/state.an:23:17	error: Expected `=` to begin the function body but found `with`
 // use_state 20_u64 with state 2
-// 
-// examples/codegen/effects/state.an:2:9	error: `Unit` is not defined, was it a typo?
-//     get: Unit -> a
-// 
-// examples/codegen/effects/state.an:5:14	error: `Int` is not defined, was it a typo?
-// use_state (y: Int a) =
 // 
 // examples/codegen/effects/state.an:7:4	error: `set` is not defined, was it a typo?
 //     set (x + y)

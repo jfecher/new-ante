@@ -19,7 +19,7 @@ main () =
 //     bar_6: a_1
 // 
 // // id = c1m88_81
-// impl foo_i32_string_?: Foo_c1m88_37 I32 String_? with
+// impl foo_i32_string_?: Foo_c1m88_37 I32 String_b with
 //     foo_? _x_2 = "test"
 //     baz_? = 2
 // 
@@ -29,9 +29,6 @@ main () =
 //     bar_?: Unit_?
 
 // expected stderr:
-// examples/nameresolution/Trait.an:6:29	error: `String` is not defined, was it a typo?
-// impl foo_i32_string: Foo I32 String with
-// 
 // examples/nameresolution/Trait.an:11:4	error: `foo` is not defined, was it a typo?
 //     foo 3
 // 

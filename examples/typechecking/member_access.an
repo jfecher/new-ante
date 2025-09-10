@@ -21,7 +21,7 @@ main () =
 // // id = c1m34_51
 // type FooBar_? =
 //     foo_?: I32
-//     bar_?: String_?
+//     bar_?: String_b
 // 
 // // id = c1m34_37
 // type Foo_? =
@@ -29,10 +29,10 @@ main () =
 // 
 // // id = c1m34_44
 // type Bar_? =
-//     bar_?: Char_?
+//     bar_?: Char_b
 // 
 // // id = c1m34_78
-// stringify_? (s_1: String_?) = s_1
+// stringify_? (s_1: String_b) = s_1
 // 
 // // id = c1m34_38
 // foo_and_bar_? a_1 b_2 =
@@ -52,14 +52,4 @@ main () =
 // main_? () =
 //     foo_and_bar_c1m34_38 foobar_c1m34_7 foobar_c1m34_7
 //     foo_and_bar_c1m34_38 foo_c1m34_32 bar_c1m34_70
-
-// expected stderr:
-// examples/typechecking/member_access.an:1:28	error: `String` is not defined, was it a typo?
-// type FooBar = foo:I32, bar:String
-// 
-// examples/typechecking/member_access.an:3:15	error: `Char` is not defined, was it a typo?
-// type Bar = bar:Char
-// 
-// examples/typechecking/member_access.an:5:14	error: `String` is not defined, was it a typo?
-// stringify (s: String) = s
 

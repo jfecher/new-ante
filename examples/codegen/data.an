@@ -20,7 +20,7 @@ match s
 // // id = c1m60_5
 // type T_? =
 //     a_?: I32
-//     b_?: String_?
+//     b_?: String_b
 // 
 // // id = c1m60_96
 // t_? = T_c1m60_5 1 "one"
@@ -49,7 +49,4 @@ match s
 // 
 // examples/codegen/data.an:16:0	error: Expected a top-level item but found `|`
 // | None -> print "s = None"
-// 
-// examples/codegen/data.an:1:21	error: `String` is not defined, was it a typo?
-// type T = a: I32, b: String
 

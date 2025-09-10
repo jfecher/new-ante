@@ -18,7 +18,7 @@ puts2
 // args: --check --show-types
 // expected stdout:
 // // id = c1m78_32
-// foo_? (__1: I32) (__2: String_?) : Char_? = (error)
+// foo_? (__1: I32) (__2: String_b) : Char_? = (error)
 // 
 // // id = c1m78_67
 // baz_? (a_1: Usz) : Ptr_? a_? =
@@ -39,9 +39,6 @@ puts2
 // 
 // examples/typechecking/type_annotations.an:16:0	error: Expected `=` to begin the function body but found a newline
 // // TODO: This first error is duplicated
-// 
-// examples/typechecking/type_annotations.an:2:17	error: `String` is not defined, was it a typo?
-// foo (_: I32) (_: String) : Char = 'a'
 // 
 // examples/typechecking/type_annotations.an:8:4	error: `transmute` is not defined, was it a typo?
 //     transmute a

@@ -697,6 +697,7 @@ impl Display for Origin {
             Origin::TopLevelDefinition(top_level_id) => write!(f, "{top_level_id}"),
             Origin::Local(name_id) => write!(f, "{name_id}"),
             Origin::TypeResolution => write!(f, "td"), // type-directed
+            Origin::Builtin(_) => write!(f, "b"),
         }
     }
 }

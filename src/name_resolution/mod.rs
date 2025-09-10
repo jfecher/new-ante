@@ -4,18 +4,17 @@ use namespace::{Namespace, SourceFileId, LOCAL_CRATE};
 use serde::{Deserialize, Serialize};
 
 pub mod namespace;
+pub mod builtin;
 
 use crate::{
-    diagnostics::{Diagnostic, Errors, Location},
-    incremental::{self, DbHandle, ExportedTypes, GetCrateGraph, GetItem, Resolve, VisibleDefinitions},
-    parser::{
+    diagnostics::{Diagnostic, Errors, Location}, incremental::{self, DbHandle, ExportedTypes, GetCrateGraph, GetItem, Resolve, VisibleDefinitions}, name_resolution::builtin::Builtin, parser::{
         cst::{
             Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern,
             TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody,
         },
         ids::{ExprId, NameId, PathId, PatternId, TopLevelId},
         TopLevelContext,
-    },
+    }
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -47,6 +46,8 @@ pub enum Origin {
     Local(NameId),
     /// This name did not resolve, try to perform type based resolution on it during type inference
     TypeResolution,
+    /// This name refers to a builtin item such as `String`, `Int`, `Unit`, `,` etc.
+    Builtin(Builtin),
 }
 
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
@@ -208,11 +209,17 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         let first_char = name.chars().next().unwrap();
         if allow_type_based_resolution && first_char.is_ascii_uppercase() && namespace == Namespace::Local {
             Ok(Origin::TypeResolution)
+        } else if let Some(origin) = self.lookup_builtin_name(name, !allow_type_based_resolution) {
+            Ok(origin)
         } else {
             let location = location.clone();
             let name = Arc::new(name.clone());
             Err(Diagnostic::NameNotInScope { name, location })
         }
+    }
+
+    fn lookup_builtin_name(&self, name: &str, is_type: bool) -> Option<Origin> {
+        Builtin::from_name(name, is_type).map(Origin::Builtin)
     }
 
     /// Lookup a single name (not a full path) in local scope

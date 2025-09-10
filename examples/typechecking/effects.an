@@ -25,12 +25,12 @@ does_use x =
 // expected stdout:
 // // id = c1m14_88
 // effect Log_? with
-//     log_1: fn String_? -> Unit_?
+//     log_1: fn String_b -> Unit_b
 // 
 // // id = c1m14_70
 // effect Use_? a_1 with
-//     get_2: fn Unit_? -> a_1
-//     set_4: fn a_1 -> Unit_?
+//     get_2: fn Unit_b -> a_1
+//     set_4: fn a_1 -> Unit_b
 // 
 // // id = c1m14_47
 // handle_basic_? () =
@@ -49,18 +49,6 @@ does_use x =
 // 
 // examples/typechecking/effects.an:14:4	error: Expected an unindent but found `handle`
 //     handle ()
-// 
-// examples/typechecking/effects.an:2:12	error: `String` is not defined, was it a typo?
-//     log: fn String -> Unit
-// 
-// examples/typechecking/effects.an:2:22	error: `Unit` is not defined, was it a typo?
-//     log: fn String -> Unit
-// 
-// examples/typechecking/effects.an:5:12	error: `Unit` is not defined, was it a typo?
-//     get: fn Unit -> a
-// 
-// examples/typechecking/effects.an:6:17	error: `Unit` is not defined, was it a typo?
-//     set: fn a -> Unit
 // 
 // examples/typechecking/effects.an:22:4	error: `set` is not defined, was it a typo?
 //     set (y + x)

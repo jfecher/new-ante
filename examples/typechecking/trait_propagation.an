@@ -17,15 +17,12 @@ foo () = baz bar
 // 
 // // id = c1m39_51
 // trait Baz_? a_1 with
-//     baz_2: fn a_1 -> Unit_?
+//     baz_2: fn a_1 -> Unit_b
 // 
 // // id = c1m39_32
 // foo_? () = baz_? bar_c1m39_70
 
 // expected stderr:
-// examples/typechecking/trait_propagation.an:4:30	error: `Unit` is not defined, was it a typo?
-// trait Baz a with baz: fn a -> Unit
-// 
 // examples/typechecking/trait_propagation.an:6:9	error: `baz` is not defined, was it a typo?
 // foo () = baz bar
 

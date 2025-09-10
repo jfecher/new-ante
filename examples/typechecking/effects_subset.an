@@ -28,7 +28,7 @@ iota 10
 // expected stdout:
 // // id = c1m72_9
 // effect Emit_? a_1 with
-//     emit_2: fn a_1 -> Unit_?
+//     emit_2: fn a_1 -> Unit_b
 // 
 // // id = c1m72_99
 // iota_? (n_1: U32) = (error)
@@ -60,7 +60,4 @@ iota 10
 // 
 // examples/typechecking/effects_subset.an:24:4	error: Expected `=` to begin the function body but found `with`
 //     with filter (fn x -> x % 2 == 0)
-// 
-// examples/typechecking/effects_subset.an:3:18	error: `Unit` is not defined, was it a typo?
-//     emit: fn a -> Unit
 

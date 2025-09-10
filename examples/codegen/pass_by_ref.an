@@ -23,7 +23,7 @@ foo x x
 // expected stdout:
 // // id = c1m51_77
 // type S_? =
-//     message_?: String_?
+//     message_?: String_b
 // 
 // // id = c1m51_6
 // impl print_s_?: Print_? S_c1m51_77 with
@@ -45,9 +45,6 @@ foo x x
 // 
 // examples/codegen/pass_by_ref.an:22:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
-// 
-// examples/codegen/pass_by_ref.an:1:19	error: `String` is not defined, was it a typo?
-// type S = message: String
 // 
 // examples/codegen/pass_by_ref.an:3:14	error: `Print` is not defined, was it a typo?
 // impl print_s: Print S with

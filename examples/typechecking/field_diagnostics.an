@@ -25,7 +25,7 @@ _ = (!&tuple).!first
 
 // expected stdout:
 // // id = c1m75_19
-// tuple_? = ,_? 1 1
+// tuple_? = ,_b 1 1
 // 
 // // id = c1m75_74
 // __? = (&_? (&_? tuple_c1m75_19)).first
@@ -92,9 +92,6 @@ _ = (!&tuple).!first
 // tuple = (1, 1)
 // 
 // examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
-// tuple = (1, 1)
-// 
-// examples/typechecking/field_diagnostics.an:1:11	error: `,` is not defined, was it a typo?
 // tuple = (1, 1)
 // 
 // examples/typechecking/field_diagnostics.an:0:0	warning: `_` was already defined
