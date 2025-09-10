@@ -42,11 +42,11 @@ ex2c (a: v) b =
 // 
 // // id = c1m13_89
 // trait T1_? a_1 with
-//     trait1_2: fn a_1 -> Unit_td
+//     trait1_2: fn a_1 -> Unit_?
 // 
 // // id = c1m13_89
 // trait T2_? a_1 with
-//     trait2_2: fn a_1 -> Unit_td
+//     trait2_2: fn a_1 -> Unit_?
 // 
 // // id = c1m13_14
 // ex2a_? (a_1: t_2) b_3 =
@@ -63,6 +63,12 @@ ex2c (a: v) b =
 //     ex2a_c1m13_14 a_1 b_3
 
 // expected stderr:
+// examples/typechecking/mutual_recursion_rigid.an:17:32	error: `Unit` is not defined, was it a typo?
+// trait T1 a with trait1: fn a -> Unit
+// 
+// examples/typechecking/mutual_recursion_rigid.an:18:32	error: `Unit` is not defined, was it a typo?
+// trait T2 a with trait2: fn a -> Unit
+// 
 // examples/typechecking/mutual_recursion_rigid.an:22:4	error: `trait1` is not defined, was it a typo?
 //     trait1 a
 // 

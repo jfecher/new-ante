@@ -34,7 +34,7 @@ bar "four" "five"
 // foo_? a_1 b_2 = bar_? a_1 b_2
 // 
 // // id = c1m3_67
-// baz_? (x_1: String_td) y_2 = bar_? x_1 y_2
+// baz_? (x_1: String_?) y_2 = bar_? x_1 y_2
 
 // expected stderr:
 // examples/typechecking/trait_impls.an:6:5	error: Expected an identifier but found `Bar`
@@ -57,6 +57,9 @@ bar "four" "five"
 // 
 // examples/typechecking/trait_impls.an:20:10	error: `bar` is not defined, was it a typo?
 // foo a b = bar a b
+// 
+// examples/typechecking/trait_impls.an:22:8	error: `String` is not defined, was it a typo?
+// baz (x: String) y = bar x y
 // 
 // examples/typechecking/trait_impls.an:22:20	error: `bar` is not defined, was it a typo?
 // baz (x: String) y = bar x y

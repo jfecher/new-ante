@@ -17,7 +17,7 @@ handle_count foo
 // expected stdout:
 // // id = c1m49_3
 // effect Count_? with
-//     count_1: fn Unit_td -> Unit_td
+//     count_1: fn Unit_? -> Unit_?
 // 
 // // id = c1m49_32
 // foo_? () =
@@ -39,6 +39,12 @@ handle_count foo
 // 
 // examples/typechecking/count_effect.an:16:0	error: Expected `=` to begin the function body but found a newline
 // // args: --check --show-types
+// 
+// examples/typechecking/count_effect.an:2:14	error: `Unit` is not defined, was it a typo?
+//     count: fn Unit -> Unit
+// 
+// examples/typechecking/count_effect.an:2:22	error: `Unit` is not defined, was it a typo?
+//     count: fn Unit -> Unit
 // 
 // examples/typechecking/count_effect.an:5:4	error: `count` is not defined, was it a typo?
 //     count ()

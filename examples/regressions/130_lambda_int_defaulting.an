@@ -23,7 +23,7 @@ iter i print
 // args: --delete-binary
 // expected stdout:
 // // id = c1m29_58
-// impl countdown_?: Iterator_td U64 U64 with
+// impl countdown_?: Iterator_? U64 U64 with
 //     next_? x_2 =
 // 
 // // id = c1m29_78
@@ -32,7 +32,7 @@ iter i print
 //     pred_?: a_2
 // 
 // // id = c1m29_17
-// impl iter_take_while_? {__?: Iterator_? i_? a_?}: Iterator_td (TakeWhile_c1m29_78 i_c1m29_74 a_5) a_5 with
+// impl iter_take_while_? {__?: Iterator_? i_? a_?}: Iterator_? (TakeWhile_c1m29_78 i_c1m29_74 a_5) a_5 with
 //     next_? tw_8 =
 //         match next_? tw_8.iter
 //         | Some_? (,_? iter_9 new_10) -> 
@@ -53,6 +53,12 @@ iter i print
 // 
 // examples/regressions/130_lambda_int_defaulting.an:23:0	error: Expected `=` to begin the function body but found a newline
 // // args: --delete-binary
+// 
+// examples/regressions/130_lambda_int_defaulting.an:1:17	error: `Iterator` is not defined, was it a typo?
+// impl countdown: Iterator U64 U64 with
+// 
+// examples/regressions/130_lambda_int_defaulting.an:11:40	error: `Iterator` is not defined, was it a typo?
+// impl iter_take_while {_: Iterator i a}: Iterator (TakeWhile i a) a with
 // 
 // examples/regressions/130_lambda_int_defaulting.an:13:14	error: `next` is not defined, was it a typo?
 //         match next tw.iter

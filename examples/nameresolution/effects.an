@@ -24,14 +24,14 @@ main () =
 // expected stdout:
 // // id = c1m85_62
 // effect Three_? with
-//     one_1: fn Unit_td -> Unit_td
+//     one_1: fn Unit_? -> Unit_?
 //     two_2: fn I32 -> I32
 //     three_3: fn I32 I32 -> I32
 // 
 // // id = c1m85_87
 // effect State_? a_1 with
-//     get_2: fn Unit_td -> a_1
-//     put_4: fn a_1 -> Unit_td
+//     get_2: fn Unit_? -> a_1
+//     put_4: fn a_1 -> Unit_?
 // 
 // // id = c1m85_44
 // main_? () =
@@ -39,4 +39,16 @@ main () =
 // expected stderr:
 // examples/nameresolution/effects.an:11:4	error: Expected an unindent but found `handle`
 //     handle ()
+// 
+// examples/nameresolution/effects.an:2:12	error: `Unit` is not defined, was it a typo?
+//     one: fn Unit -> Unit
+// 
+// examples/nameresolution/effects.an:2:20	error: `Unit` is not defined, was it a typo?
+//     one: fn Unit -> Unit
+// 
+// examples/nameresolution/effects.an:7:12	error: `Unit` is not defined, was it a typo?
+//     get: fn Unit -> a
+// 
+// examples/nameresolution/effects.an:8:17	error: `Unit` is not defined, was it a typo?
+//     put: fn a -> Unit
 

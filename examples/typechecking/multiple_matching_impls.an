@@ -37,19 +37,19 @@ impl candidate2: Foo Thing with
 // expected stdout:
 // // id = c1m19_31
 // type Thing_? =
-//     nothing_?: Unit_td
+//     nothing_?: Unit_?
 // 
 // // id = c1m19_37
 // trait Foo_? a_1 with
-//     foo_2: fn a_1 -> Unit_td
+//     foo_2: fn a_1 -> Unit_?
 // 
 // // id = c1m19_44
 // trait Bar_? a_1 with
-//     bar_2: fn a_1 -> Unit_td
+//     bar_2: fn a_1 -> Unit_?
 // 
 // // id = c1m19_51
 // trait Baz_? a_1 with
-//     baz_2: fn a_1 -> Unit_td
+//     baz_2: fn a_1 -> Unit_?
 // 
 // // id = c1m19_66
 // impl candidate1_? {__?: Bar_? a_?}: Foo_c1m19_37 a_4 with
@@ -74,6 +74,18 @@ impl candidate2: Foo Thing with
 // expected stderr:
 // examples/typechecking/multiple_matching_impls.an:16:0	error: Expected `=` to begin the function body but found a newline
 // // Candidate 1
+// 
+// examples/typechecking/multiple_matching_impls.an:2:22	error: `Unit` is not defined, was it a typo?
+// type Thing = nothing: Unit
+// 
+// examples/typechecking/multiple_matching_impls.an:5:17	error: `Unit` is not defined, was it a typo?
+//     foo: fn a -> Unit
+// 
+// examples/typechecking/multiple_matching_impls.an:8:17	error: `Unit` is not defined, was it a typo?
+//     bar: fn a -> Unit
+// 
+// examples/typechecking/multiple_matching_impls.an:11:17	error: `Unit` is not defined, was it a typo?
+//     baz: fn a -> Unit
 // 
 // examples/typechecking/multiple_matching_impls.an:18:12	error: `bar` is not defined, was it a typo?
 //     foo a = bar a

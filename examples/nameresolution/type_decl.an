@@ -25,7 +25,7 @@ type MyRef a = &a
 // type Struct1_? =
 //     a_?: I32
 //     b_?: F64
-//     c_?: String_td
+//     c_?: String_?
 // 
 // // id = c1m29_25
 // type Thingy_? = Struct1_c1m29_67
@@ -59,4 +59,7 @@ type MyRef a = &a
 // expected stderr:
 // examples/nameresolution/type_decl.an:20:16	error: Expected a newline after the top level item but found `a`
 // type MyRef a = &a
+// 
+// examples/nameresolution/type_decl.an:2:31	error: `String` is not defined, was it a typo?
+// type Struct1 = a:I32, b:F64, c:String
 

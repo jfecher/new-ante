@@ -174,7 +174,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     /// Lookup the given path in the given namespace
-    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace) -> Result<Origin, Diagnostic>
+    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace, allow_type_based_resolution: bool) -> Result<Origin, Diagnostic>
     where
         Iter: ExactSizeIterator<Item = &'a (String, Location)>,
     {
@@ -206,7 +206,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         // No known origin.
         // If the name is capitalized we delay until type inference to auto-import variants
         let first_char = name.chars().next().unwrap();
-        if first_char.is_ascii_uppercase() && namespace == Namespace::Local {
+        if allow_type_based_resolution && first_char.is_ascii_uppercase() && namespace == Namespace::Local {
             Ok(Origin::TypeResolution)
         } else {
             let location = location.clone();
@@ -229,7 +229,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         None
     }
 
-    fn lookup(&mut self, path: &Path) -> Result<Origin, Diagnostic> {
+    fn lookup(&mut self, path: &Path, allow_type_based_resolution: bool) -> Result<Origin, Diagnostic> {
         let mut components = path.components.iter().peekable();
 
         if components.len() > 1 {
@@ -245,18 +245,18 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 if **first == dependency.name {
                     // Discard the crate name
                     components.next();
-                    return self.lookup_in(components, Namespace::crate_(*dependency_id));
+                    return self.lookup_in(components, Namespace::crate_(*dependency_id), allow_type_based_resolution);
                 }
             }
         }
 
         // Not an absolute path
-        self.lookup_in(components, Namespace::Local)
+        self.lookup_in(components, Namespace::Local, allow_type_based_resolution)
     }
 
     /// Links a path to its definition or errors if it does not exist
-    fn link(&mut self, path: PathId) {
-        match self.lookup(&self.context.paths[path]) {
+    fn link(&mut self, path: PathId, allow_type_based_resolution: bool) {
+        match self.lookup(&self.context.paths[path], allow_type_based_resolution) {
             Ok(origin) => {
                 self.path_links.insert(path, origin);
             },
@@ -267,7 +267,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     fn resolve_expr(&mut self, expr: ExprId) {
         match &self.context.exprs[expr] {
             Expr::Literal(_literal) => (),
-            Expr::Variable(path) => self.link(*path),
+            Expr::Variable(path) => self.link(*path, true),
             Expr::Call(call) => {
                 self.resolve_expr(call.function);
                 for arg in &call.arguments {
@@ -365,7 +365,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     fn resolve_type(&mut self, typ: &Type, declare_type_vars: bool) {
         match typ {
             Type::Error | Type::Unit | Type::Integer(_) | Type::Float(_) | Type::String | Type::Char => (),
-            Type::Named(path) => self.link(*path),
+            Type::Named(path) => self.link(*path, false),
             Type::Variable(name) => self.resolve_type_variable(*name, declare_type_vars),
             Type::Function(function) => {
                 for parameter in &function.parameters {
@@ -393,7 +393,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     fn resolve_effect_type(&mut self, effect: &EffectType, declare_type_vars: bool) {
         match effect {
             EffectType::Known(path, args) => {
-                self.link(*path);
+                self.link(*path, false);
 
                 for arg in args {
                     self.resolve_type(arg, declare_type_vars);
@@ -469,7 +469,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     fn resolve_trait_impl(&mut self, trait_impl: &TraitImpl) {
-        self.link(trait_impl.trait_path);
+        self.link(trait_impl.trait_path, false);
 
         for arg in &trait_impl.trait_arguments {
             self.resolve_type(arg, true);
@@ -498,7 +498,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             Comptime::Expr(expr_id) => self.resolve_expr(*expr_id),
             Comptime::Derive(paths) => {
                 for path in paths {
-                    self.link(*path);
+                    self.link(*path, false);
                 }
             },
             Comptime::Definition(definition) => self.resolve_definition(definition),

@@ -19,7 +19,7 @@ exit2_result = exit2 0
 // extern add_0: fn I32 I32 -> I32
 // 
 // // id = c1m71_90
-// extern puts2_0: fn String_td -> Unit_td
+// extern puts2_0: fn String_? -> Unit_?
 // 
 // // id = c1m71_48
 // extern exit2_0: fn I32 -> never_returns_1
@@ -32,4 +32,11 @@ exit2_result = exit2 0
 // 
 // // id = c1m71_56
 // exit2_result_? = exit2_c1m71_48 0
+
+// expected stderr:
+// examples/typechecking/extern.an:6:14	error: `String` is not defined, was it a typo?
+//     puts2: fn String -> Unit
+// 
+// examples/typechecking/extern.an:6:24	error: `Unit` is not defined, was it a typo?
+//     puts2: fn String -> Unit
 

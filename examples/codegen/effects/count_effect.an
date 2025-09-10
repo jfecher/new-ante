@@ -17,7 +17,7 @@ handle_count foo |> print
 // expected stdout:
 // // id = c1m2_3
 // effect Count_? with
-//     count_1: Unit_td
+//     count_1: Unit_?
 // 
 // // id = c1m2_32
 // foo_? () =
@@ -42,6 +42,9 @@ handle_count foo |> print
 // 
 // examples/codegen/effects/count_effect.an:14:17	error: Expected `=` to begin the function body but found `|>`
 // handle_count foo |> print
+// 
+// examples/codegen/effects/count_effect.an:2:11	error: `Unit` is not defined, was it a typo?
+//     count: Unit -> Unit
 // 
 // examples/codegen/effects/count_effect.an:5:4	error: `count` is not defined, was it a typo?
 //     count ()

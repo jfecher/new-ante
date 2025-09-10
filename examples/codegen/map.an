@@ -23,7 +23,7 @@ print map
 // import Std.HashMap
 // 
 // // id = c1m38_14
-// impl hash_u8_?: Hash_td U8 with
+// impl hash_u8_?: Hash_? U8 with
 //     hash_? x_2 = cast_? x_2
 
 // expected stderr:
@@ -56,6 +56,9 @@ print map
 // 
 // examples/codegen/map.an:1:8	error: Could not find crate `Std`
 // import Std.HashMap
+// 
+// examples/codegen/map.an:3:14	error: `Hash` is not defined, was it a typo?
+// impl hash_u8: Hash U8 with
 // 
 // examples/codegen/map.an:4:13	error: `cast` is not defined, was it a typo?
 //     hash x = cast x

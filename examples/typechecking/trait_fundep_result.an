@@ -14,13 +14,16 @@ str = foo 0i32
 //     foo_3: fn a_1 -> b_2
 // 
 // // id = c1m69_56
-// impl foo_impl_?: Foo_c1m69_37 I32 String_td with
+// impl foo_impl_?: Foo_c1m69_37 I32 String_? with
 //     foo_? __2 = "hi"
 // 
 // // id = c1m69_29
 // str_? = foo_? 0_I32
 
 // expected stderr:
+// examples/typechecking/trait_fundep_result.an:5:23	error: `String` is not defined, was it a typo?
+// impl foo_impl: Foo I32 String with
+// 
 // examples/typechecking/trait_fundep_result.an:8:6	error: `foo` is not defined, was it a typo?
 // str = foo 0i32
 
