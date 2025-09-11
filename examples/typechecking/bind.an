@@ -11,6 +11,23 @@ add_one x =
     bind x (fn x -> ret (x + 1i32))
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m43_46
+// bind_? opt_1 f_2 =
+//     match opt_1
+//     | Some_? x_3 -> f_2 x_3
+//     | None_? -> None_td
+// 
+// // id = c1m43_40
+// ret_? x_1 = Some_td x_1
+// 
+// // id = c1m43_44
+// x_? = Some_td 10_I32
+// 
+// // id = c1m43_24
+// add_one_? x_1 =
+//     bind_c1m43_46 x_1 (error)
+
 // expected stderr:
 // examples/typechecking/bind.an:11:12	error: Expected a parameter but found `fn`
 //     bind x (fn x -> ret (x + 1i32))

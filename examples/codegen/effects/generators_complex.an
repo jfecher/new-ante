@@ -48,6 +48,17 @@ iota 10
     with for my_print
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m10_9
+// effect Emit_? a_1 with
+//     emit_2: a_1
+// 
+// // id = c1m10_99
+// iota_? (n_1: U32) = (error)
+// 
+// // id = c1m10_16
+// even_? x_9 = ==_? (%_? x_9 2) 0
+
 // expected stderr:
 // examples/codegen/effects/generators_complex.an:2:12	error: Expected an unindent but found `->`
 //     emit: a -> Unit
@@ -67,15 +78,15 @@ iota 10
 // examples/codegen/effects/generators_complex.an:31:18	error: Expected `=` to begin the function body but found `->`
 // for (stream: Unit -> Unit can Emit a) (f: a -> Unit pure) =
 // 
+// examples/codegen/effects/generators_complex.an:37:11	error: `%` is not defined, was it a typo?
+// even x = x % 2 == 0
+// 
+// examples/codegen/effects/generators_complex.an:37:15	error: `==` is not defined, was it a typo?
+// even x = x % 2 == 0
+// 
 // examples/codegen/effects/generators_complex.an:39:15	error: Expected `=` to begin the function body but found `U32`
 // my_print (x1: !U32, U32) =
 // 
 // examples/codegen/effects/generators_complex.an:45:4	error: Expected `=` to begin the function body but found `with`
 //     with filter even
-// 
-// examples/codegen/effects/generators_complex.an:37:15	error: `==` is not defined, was it a typo?
-// even x = x % 2 == 0
-// 
-// examples/codegen/effects/generators_complex.an:37:11	error: `%` is not defined, was it a typo?
-// even x = x % 2 == 0
 

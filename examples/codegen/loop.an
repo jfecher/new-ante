@@ -22,6 +22,16 @@ loop (s: I32) (t: I32 = 0) ->
     else recur (s + 1) (t + 1)
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m80_32
+// start_? = 10
+// 
+// // id = c1m80_53
+// seq_sum_? = (error)
+// 
+// // id = c1m80_65
+// s_? = 0
+
 // expected stderr:
 // examples/codegen/loop.an:2:10	error: Expected an expression but found `loop`
 // seq_sum = loop start (sum = 0) ->

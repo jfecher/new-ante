@@ -5,6 +5,12 @@ foo x =
 // type should be a -> (b -> a)
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m9_32
+// foo_? x_1 =
+//     y_? = (error)
+//     y_?
+
 // expected stderr:
 // examples/typechecking/generalization.an:2:8	error: Expected an expression but found `fn`
 //     y = fn _ -> x

@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    diagnostics::{Diagnostic, Errors, Location},
+    diagnostics::{Diagnostic, Location},
     incremental::{
         self, DbHandle, Definitions, ExportedDefinitions, ExportedTypes, GetCrateGraph, GetImports, Methods, Parse,
         VisibleDefinitions, VisibleDefinitionsResult, VisibleTypes,
@@ -31,7 +31,7 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
         // from this file. Otherwise we'll duplicate errors.
         // TODO: Still issue an error if the file name is not found
         let Some(import_file_id) = get_file_id(&import.crate_name, &import.module_path, db) else {
-            push_no_such_file_error(&import, &mut visible.diagnostics);
+            push_no_such_file_error(&import, db);
             continue;
         };
         let exported = ExportedDefinitions(import_file_id).get(db);
@@ -43,7 +43,7 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
                 let first_location = existing.location(db);
                 let second_location = import.location.clone();
                 let name = exported_name.clone();
-                visible.diagnostics.push(Diagnostic::ImportedNameAlreadyInScope {
+                db.accumulate(Diagnostic::ImportedNameAlreadyInScope {
                     name,
                     first_location,
                     second_location,
@@ -58,11 +58,11 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
     Arc::new(visible)
 }
 
-fn push_no_such_file_error(import: &Import, diagnostics: &mut Vec<Diagnostic>) {
+fn push_no_such_file_error(import: &Import, db: &DbHandle) {
     let location = import.location.clone();
     let module_name = import.module_path.clone();
     let crate_name = import.crate_name.clone();
-    diagnostics.push(Diagnostic::UnknownImportFile { crate_name, module_name, location })
+    db.accumulate(Diagnostic::UnknownImportFile { crate_name, module_name, location })
 }
 
 fn get_file_id(target_crate_name: &String, module_path: &PathBuf, db: &DbHandle) -> Option<SourceFileId> {
@@ -77,11 +77,11 @@ fn get_file_id(target_crate_name: &String, module_path: &PathBuf, db: &DbHandle)
     None
 }
 
-pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions, Errors) {
+pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> Definitions {
     incremental::enter_query();
     incremental::println(format!("Collecting visible types in {:?}", context.0));
 
-    let (mut definitions, mut errors) = ExportedTypes(context.0).get(db);
+    let mut definitions = ExportedTypes(context.0).get(db);
 
     // This should always be cached. Ignoring errors here since they should already be
     // included in ExportedTypes' errors
@@ -93,7 +93,7 @@ pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions
         let Some(import_file_id) = get_file_id(&import.crate_name, &import.module_path, db) else {
             continue;
         };
-        let (exports, _errors) = ExportedTypes(import_file_id).get(db);
+        let exports = ExportedTypes(import_file_id).get(db);
 
         for (exported_name, exported_id) in exports {
             if let Some(existing) = definitions.get(&exported_name) {
@@ -102,7 +102,7 @@ pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions
                 let first_location = existing.location(db);
                 let second_location = import.location.clone();
                 let name = exported_name;
-                errors.push(Diagnostic::ImportedNameAlreadyInScope { name, first_location, second_location });
+                db.accumulate(Diagnostic::ImportedNameAlreadyInScope { name, first_location, second_location });
             } else {
                 definitions.insert(exported_name, exported_id);
             }
@@ -110,17 +110,16 @@ pub fn visible_types_impl(context: &VisibleTypes, db: &DbHandle) -> (Definitions
     }
 
     incremental::exit_query();
-    (definitions, errors)
+    definitions
 }
 
 /// Collect only the exported types within a file.
-pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> (Definitions, Errors) {
+pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> Definitions {
     incremental::enter_query();
     incremental::println(format!("Collecting exported definitions in {:?}", context.0));
 
     let result = Parse(context.0).get(db);
     let mut definitions = Definitions::default();
-    let mut errors = result.diagnostics.clone();
 
     // Collect each definition, issuing an error if there is a duplicate name (imports are not counted)
     for item in result.cst.top_level_items.iter() {
@@ -131,7 +130,7 @@ pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> (Definitio
                 let first_location = existing.location(db);
                 let second_location = item.id.location(db);
                 let name = name.clone();
-                errors.push(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
+                db.accumulate(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
             } else {
                 definitions.insert(name.clone(), item.id.clone());
             }
@@ -139,7 +138,7 @@ pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> (Definitio
     }
 
     incremental::exit_query();
-    (definitions, errors)
+    definitions
 }
 
 /// Collect only the exported definitions within a file.
@@ -150,23 +149,22 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
     let result = Parse(context.0).get(db);
     let mut definitions = Definitions::default();
     let mut methods = Methods::default();
-    let mut diagnostics = Vec::new();
 
     // Collect each definition, issuing an error if there is a duplicate name (imports are not counted)
     for item in result.cst.top_level_items.iter() {
         match item.kind.name() {
             ItemName::Single(name) => {
                 let name = &result.top_level_data[&item.id].names[name];
-                declare_single(name, item, &mut definitions, &mut diagnostics, db);
+                declare_single(name, item, &mut definitions, db);
             },
             ItemName::Method { type_name, item_name } => {
-                declare_method(type_name, item_name, item, &definitions, &mut methods, &result, &mut diagnostics, db);
+                declare_method(type_name, item_name, item, &definitions, &mut methods, &result, db);
             },
             ItemName::None => (),
         }
 
         let mut declare_method = |type_name, item_name| {
-            declare_method(type_name, item_name, item, &definitions, &mut methods, &result, &mut diagnostics, db);
+            declare_method(type_name, item_name, item, &definitions, &mut methods, &result, db);
         };
 
         // Declare internal items
@@ -196,37 +194,39 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
     }
 
     incremental::exit_query();
-    Arc::new(VisibleDefinitionsResult { definitions, methods, diagnostics })
+    Arc::new(VisibleDefinitionsResult { definitions, methods })
 }
 
 fn declare_single(
-    name: &Name, item: &TopLevelItem, definitions: &mut Definitions, errors: &mut Vec<Diagnostic>, db: &DbHandle,
+    name: &Name, item: &TopLevelItem, definitions: &mut Definitions, db: &DbHandle,
 ) {
     if let Some(existing) = definitions.get(name) {
         let first_location = existing.location(db);
         let second_location = item.id.location(db);
         let name = name.clone();
-        errors.push(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
+        db.accumulate(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
     } else {
         definitions.insert(name.clone(), item.id.clone());
     }
 }
 
 fn declare_method(
-    type_name: NameId, item_name: NameId, item: &TopLevelItem, definitions: &Definitions, methods: &mut Methods,
-    parse: &ParseResult, errors: &mut Vec<Diagnostic>, db: &DbHandle,
+    type_name_id: NameId, item_name_id: NameId, item: &TopLevelItem, definitions: &Definitions, methods: &mut Methods,
+    parse: &ParseResult, db: &DbHandle,
 ) {
     let context = &parse.top_level_data[&item.id];
-    let type_name = &context.names[type_name];
-    let item_name = &context.names[item_name];
+    let type_name = &context.names[type_name_id];
+    let item_name = &context.names[item_name_id];
 
     // Methods can only be declared on a type declared in the same file, so look in the same file
     // for the type.
     if let Some(object_type) = definitions.get(type_name) {
         let object_methods = methods.entry(*object_type).or_default();
-        declare_single(item_name, item, object_methods, errors, db);
+        declare_single(item_name, item, object_methods, db);
     } else {
-        todo!("error: method defined for unknown or external type")
+        let name = type_name.clone();
+        let location = context.name_locations[type_name_id].clone();
+        db.accumulate(Diagnostic::MethodDeclaredOnUnknownType { name, location });
     }
 }
 

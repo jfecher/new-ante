@@ -4,6 +4,8 @@ use std::{
     sync::Arc,
 };
 
+use crate::{incremental::{Db, Resolve}, name_resolution::{namespace::SourceFileId, Origin}, parser::ids::{NameId, PathId}};
+
 use super::{
     cst::{
         Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, Mutability, OwnershipMode, Parameter, Path, Pattern, Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody
@@ -15,22 +17,33 @@ use super::{
 pub struct CstDisplayContext<'a> {
     cst: &'a Cst,
     context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>,
-    config: CstDisplayConfig,
+    config: CstDisplayConfig<'a>,
 }
 
 #[derive(Copy, Clone, Default)]
-pub struct CstDisplayConfig {
+pub struct CstDisplayConfig<'db> {
     pub show_comments: bool,
+
+    /// Set to `Some(db)` to show resolved definitions for each name
+    pub show_resolved: Option<&'db Db>,
 }
 
 impl Cst {
     pub fn display<'a>(&'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>) -> CstDisplayContext<'a> {
         CstDisplayContext { cst: self, context, config: CstDisplayConfig::default() }
     }
+
+    /// Display this Cst, annotating each name with a number pointing to its
+    /// resolved definition
+    pub fn display_resolved<'a>(&'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>, compiler: &'a Db) -> CstDisplayContext<'a> {
+        let mut config = CstDisplayConfig::default();
+        config.show_resolved = Some(compiler);
+        CstDisplayContext { cst: self, context, config }
+    }
 }
 
 impl Display for Path {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut path = self.components.iter();
         write!(f, "{}", path.next().unwrap().0)?;
         for (item, _) in path {
@@ -46,11 +59,11 @@ struct CstDisplay<'a> {
     indent_level: u32,
     current_item: Option<TopLevelId>,
     context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>,
-    config: CstDisplayConfig,
+    config: CstDisplayConfig<'a>,
 }
 
-impl Display for CstDisplayContext<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl<'a> Display for CstDisplayContext<'a> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         CstDisplay { context: self.context, indent_level: 0, current_item: None, config: self.config }
             .fmt_cst(&self.cst, f)
     }
@@ -101,6 +114,12 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_top_level_item(&mut self, item: &TopLevelItem, f: &mut Formatter) -> std::fmt::Result {
         self.fmt_comments(&item.comments, f)?;
+
+        if self.config.show_resolved.is_some() {
+            writeln!(f, "// id = {}", self.current_item.unwrap())?;
+            self.indent(f)?;
+        }
+
         match &item.kind {
             TopLevelItemKind::TypeDefinition(type_definition) => self.fmt_type_definition(type_definition, f),
             TopLevelItemKind::Definition(definition) => self.fmt_definition(definition, f),
@@ -149,12 +168,38 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_definition_name(&mut self, name: DefinitionName, f: &mut Formatter) -> std::fmt::Result {
         match name {
-            DefinitionName::Single(name_id) => write!(f, "{}", self.context().names[name_id]),
+            DefinitionName::Single(name_id) => self.fmt_name(name_id, f),
             DefinitionName::Method { type_name, item_name } => {
-                let type_name = &self.context().names[type_name];
-                let item_name = &self.context().names[item_name];
-                write!(f, "{type_name}.{item_name}")
+                self.fmt_name(type_name, f)?;
+                write!(f, ".")?;
+                self.fmt_name(item_name, f)
             },
+        }
+    }
+
+    fn fmt_name(&self, name: NameId, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{}", &self.context().names[name])?;
+
+        if let Some(db) = self.config.show_resolved {
+            let resolved = Resolve(self.current_item.unwrap()).get(db);
+            let origin = resolved.name_origins.get(&name);
+            let id = origin.map(ToString::to_string).unwrap_or_else(|| "?".into());
+            write!(f, "_{id}")
+        } else {
+            Ok(())
+        }
+    }
+
+    fn fmt_path(&self, path: PathId, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{}", &self.context().paths[path])?;
+
+        if let Some(db) = self.config.show_resolved {
+            let resolved = Resolve(self.current_item.unwrap()).get(db);
+            let origin = resolved.path_origins.get(&path);
+            let id = origin.map(ToString::to_string).unwrap_or_else(|| "?".into());
+            write!(f, "_{id}")
+        } else {
+            Ok(())
         }
     }
 
@@ -201,10 +246,10 @@ impl<'a> CstDisplay<'a> {
     fn fmt_effect_type(&self, effect: &EffectType, f: &mut Formatter) -> std::fmt::Result {
         match effect {
             EffectType::Known(path_id, args) => {
-                write!(f, "{}", self.context().paths[*path_id])?;
+                self.fmt_path(*path_id, f)?;
                 self.fmt_type_args(args, f)
             },
-            EffectType::Variable(name_id) => write!(f, "{}", self.context().names[*name_id]),
+            EffectType::Variable(name_id) => self.fmt_name(*name_id, f),
         }
     }
 
@@ -237,12 +282,14 @@ impl<'a> CstDisplay<'a> {
         self.indent(f)
     }
 
-    fn fmt_type_definition(&mut self, type_definition: &TypeDefinition, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_type_definition(&mut self, type_definition: &TypeDefinition, f: &mut Formatter) -> std::fmt::Result {
         if type_definition.shared {
             write!(f, "shared ")?;
         }
 
-        write!(f, "type {} =", self.context().names[type_definition.name])?;
+        write!(f, "type ")?;
+        self.fmt_name(type_definition.name, f)?;
+        write!(f, " =")?;
 
         match &type_definition.body {
             TypeDefinitionBody::Error => {
@@ -252,7 +299,8 @@ impl<'a> CstDisplay<'a> {
                 self.indent_level += 1;
                 for (name, typ) in fields {
                     self.newline(f)?;
-                    write!(f, "{}: ", self.context().names[*name])?;
+                    self.fmt_name(*name, f)?;
+                    write!(f, ": ")?;
                     self.fmt_type(typ, f)?;
                 }
                 self.indent_level -= 1;
@@ -261,7 +309,8 @@ impl<'a> CstDisplay<'a> {
                 self.indent_level += 1;
                 for (name, params) in variants {
                     self.newline(f)?;
-                    write!(f, "| {}", self.context().names[*name])?;
+                    write!(f, "| ")?;
+                    self.fmt_name(*name, f)?;
                     self.fmt_type_args(params, f)?;
                 }
                 self.indent_level -= 1;
@@ -274,11 +323,11 @@ impl<'a> CstDisplay<'a> {
         Ok(())
     }
 
-    fn fmt_type(&self, typ: &Type, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_type(&self, typ: &Type, f: &mut Formatter) -> std::fmt::Result {
         match typ {
             Type::Error => write!(f, "(error)"),
-            Type::Named(path) => write!(f, "{}", self.context().paths[*path]),
-            Type::Variable(name) => write!(f, "{}", self.context().names[*name]),
+            Type::Named(path) => self.fmt_path(*path, f),
+            Type::Variable(name) => self.fmt_name(*name, f),
             Type::Unit => write!(f, "Unit"),
             Type::Integer(kind) => write!(f, "{kind}"),
             Type::Float(kind) => write!(f, "{kind}"),
@@ -320,7 +369,7 @@ impl<'a> CstDisplay<'a> {
         match &self.context().exprs[expr] {
             Expr::Error => write!(f, "(error)"),
             Expr::Literal(literal) => self.fmt_literal(literal, f),
-            Expr::Variable(path) => write!(f, "{}", self.context().paths[*path]),
+            Expr::Variable(path) => self.fmt_path(*path, f),
             Expr::Sequence(seq) => self.fmt_sequence(seq, f),
             Expr::Definition(definition) => self.fmt_definition(definition, f),
             Expr::Call(call) => self.fmt_call(call, f),
@@ -359,7 +408,7 @@ impl<'a> CstDisplay<'a> {
         Ok(())
     }
 
-    fn fmt_call(&mut self, call: &Call, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_call(&mut self, call: &Call, f: &mut Formatter) -> std::fmt::Result {
         self.fmt_expr(call.function, f)?;
 
         for arg in call.arguments.iter().copied() {
@@ -376,7 +425,7 @@ impl<'a> CstDisplay<'a> {
         Ok(())
     }
 
-    fn fmt_member_access(&mut self, access: &MemberAccess, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_member_access(&mut self, access: &MemberAccess, f: &mut Formatter) -> std::fmt::Result {
         if self.context().exprs[access.object].is_atom() {
             self.fmt_expr(access.object, f)?;
         } else {
@@ -392,7 +441,7 @@ impl<'a> CstDisplay<'a> {
         }
     }
 
-    fn fmt_index(&mut self, index: &Index, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_index(&mut self, index: &Index, f: &mut Formatter) -> std::fmt::Result {
         if self.context().exprs[index.object].is_atom() {
             self.fmt_expr(index.object, f)?;
         } else {
@@ -412,21 +461,25 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_declaration(&self, declaration: &Declaration, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{}: ", self.context().names[declaration.name])?;
+        self.fmt_name(declaration.name, f)?;
+        write!(f, ": ")?;
         self.fmt_type(&declaration.typ, f)
     }
 
-    fn fmt_trait_definition(&mut self, trait_definition: &TraitDefinition, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "trait {}", self.context().names[trait_definition.name])?;
+    fn fmt_trait_definition(&mut self, trait_definition: &TraitDefinition, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "trait ")?;
+        self.fmt_name(trait_definition.name, f)?;
 
         for generic in &trait_definition.generics {
-            write!(f, " {}", self.context().names[*generic])?;
+            write!(f, " ")?;
+            self.fmt_name(*generic, f)?;
         }
 
         if !trait_definition.functional_dependencies.is_empty() {
             write!(f, " ->")?;
             for generic in &trait_definition.functional_dependencies {
-                write!(f, " {}", self.context().names[*generic])?;
+                write!(f, " ")?;
+                self.fmt_name(*generic, f)?;
             }
         }
 
@@ -440,11 +493,13 @@ impl<'a> CstDisplay<'a> {
         Ok(())
     }
 
-    fn fmt_trait_impl(&mut self, trait_impl: &TraitImpl, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "impl {}", self.context().names[trait_impl.name])?;
+    fn fmt_trait_impl(&mut self, trait_impl: &TraitImpl, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "impl ")?;
+        self.fmt_name(trait_impl.name, f)?;
         self.fmt_parameters(&trait_impl.parameters, f)?;
 
-        write!(f, ": {}", self.context().paths[trait_impl.trait_path])?;
+        write!(f, ": ")?;
+        self.fmt_path(trait_impl.trait_path, f)?;
         self.fmt_type_args(&trait_impl.trait_arguments, f)?;
 
         write!(f, " with")?;
@@ -458,12 +513,14 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_effect_definition(
-        &mut self, effect_definition: &EffectDefinition, f: &mut Formatter<'_>,
+        &mut self, effect_definition: &EffectDefinition, f: &mut Formatter,
     ) -> std::fmt::Result {
-        write!(f, "effect {}", self.context().names[effect_definition.name])?;
+        write!(f, "effect ")?;
+        self.fmt_name(effect_definition.name, f)?;
 
         for generic in &effect_definition.generics {
-            write!(f, " {}", self.context().names[*generic])?;
+            write!(f, " ")?;
+            self.fmt_name(*generic, f)?;
         }
 
         write!(f, " with")?;
@@ -476,17 +533,17 @@ impl<'a> CstDisplay<'a> {
         Ok(())
     }
 
-    fn fmt_extern(&mut self, extern_: &Extern, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_extern(&mut self, extern_: &Extern, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "extern ")?;
         self.fmt_declaration(&extern_.declaration, f)
     }
 
-    fn fmt_lambda(&mut self, lambda: &Lambda, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_lambda(&mut self, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "fn")?;
         self.fmt_lambda_inner(lambda, f)
     }
 
-    fn fmt_if(&mut self, if_: &If, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_if(&mut self, if_: &If, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "if ")?;
         self.fmt_expr(if_.condition, f)?;
         write!(f, " then ")?;
@@ -499,7 +556,7 @@ impl<'a> CstDisplay<'a> {
         Ok(())
     }
 
-    fn fmt_match(&mut self, match_: &Match, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_match(&mut self, match_: &Match, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "match ")?;
         self.fmt_expr(match_.expression, f)?;
 
@@ -516,10 +573,10 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_pattern(&mut self, pattern: PatternId, f: &mut Formatter) -> std::fmt::Result {
         match &self.context().patterns[pattern] {
-            Pattern::Variable(name) => write!(f, "{}", self.context().names[*name]),
+            Pattern::Variable(name) => self.fmt_name(*name, f),
             Pattern::Literal(literal) => self.fmt_literal(literal, f),
             Pattern::Constructor(path, args) => {
-                write!(f, "{}", self.context().paths[*path])?;
+                self.fmt_path(*path, f)?;
                 for arg in args {
                     if self.is_pattern_atom(*arg) {
                         write!(f, " ")?;
@@ -541,7 +598,7 @@ impl<'a> CstDisplay<'a> {
         }
     }
 
-    fn fmt_reference(&mut self, reference: &Reference, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_reference(&mut self, reference: &Reference, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "{}{}", reference.mutability, reference.sharedness)?;
         if reference.sharedness != Sharedness::Shared {
             write!(f, " ")?;
@@ -549,13 +606,13 @@ impl<'a> CstDisplay<'a> {
         self.fmt_expr(reference.rhs, f)
     }
 
-    fn fmt_type_annotation(&mut self, type_annotation: &TypeAnnotation, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_type_annotation(&mut self, type_annotation: &TypeAnnotation, f: &mut Formatter) -> std::fmt::Result {
         self.fmt_expr(type_annotation.lhs, f)?;
         write!(f, ": ")?;
         self.fmt_type(&type_annotation.rhs, f)
     }
 
-    fn fmt_comptime(&mut self, comptime: &Comptime, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_comptime(&mut self, comptime: &Comptime, f: &mut Formatter) -> std::fmt::Result {
         match comptime {
             Comptime::Expr(expr_id) => {
                 write!(f, "#")?;
@@ -564,7 +621,8 @@ impl<'a> CstDisplay<'a> {
             Comptime::Derive(paths) => {
                 write!(f, "derive")?;
                 for path in paths {
-                    write!(f, " {}", self.context().paths[*path])?;
+                    write!(f, " ")?;
+                    self.fmt_path(*path, f)?;
                 }
                 Ok(())
             },
@@ -575,7 +633,7 @@ impl<'a> CstDisplay<'a> {
         }
     }
 
-    fn fmt_quoted(&self, quoted: &Quoted, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt_quoted(&self, quoted: &Quoted, f: &mut Formatter) -> std::fmt::Result {
         assert!(!quoted.tokens.is_empty());
         write!(f, "'{}", quoted.tokens.first().unwrap())?;
 
@@ -616,7 +674,7 @@ impl<'a> CstDisplay<'a> {
 }
 
 impl Display for Mutability {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             Mutability::Immutable => write!(f, "&"),
             Mutability::Mutable => write!(f, "!"),
@@ -625,10 +683,28 @@ impl Display for Mutability {
 }
 
 impl Display for Sharedness {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             Sharedness::Shared => Ok(()),
             Sharedness::Owned => write!(f, "own"),
         }
+    }
+}
+
+impl Display for Origin {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            Origin::TopLevelDefinition(top_level_id) => write!(f, "{top_level_id}"),
+            Origin::Local(name_id) => write!(f, "{name_id}"),
+            Origin::TypeResolution => write!(f, "td"), // type-directed
+            Origin::Builtin(_) => write!(f, "b"),
+        }
+    }
+}
+
+impl Display for SourceFileId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // Limit to 2 digits, otherwise it is too long and hurts the debug format
+        write!(f, "c{}m{}", self.crate_id.0, self.local_module_id.0 % 100)
     }
 }

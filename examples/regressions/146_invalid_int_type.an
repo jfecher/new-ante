@@ -1,7 +1,7 @@
 a: Int String = 3
 
 // args: --check
-// expected stderr:
-// examples/regressions/146_invalid_int_type.an:1:4	error: Expected a type but found `Int`
-// a: Int String = 3
+// expected stdout:
+// // id = c1m96_65
+// a_?: Int_? String_? = 3
 

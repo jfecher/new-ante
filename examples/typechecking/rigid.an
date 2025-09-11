@@ -7,10 +7,14 @@ ex2: a -> b =
     fn x -> x
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m68_54
+// ex1_? (x_1: a_2) : b_? = +_? x_1 1_U32
+
 // expected stderr:
-// examples/typechecking/rigid.an:6:7	error: Expected `=` to begin the function body but found `->`
-// ex2: a -> b =
-// 
 // examples/typechecking/rigid.an:2:18	error: `+` is not defined, was it a typo?
 // ex1 (x: a): b = x + 1u32
+// 
+// examples/typechecking/rigid.an:6:7	error: Expected `=` to begin the function body but found `->`
+// ex2: a -> b =
 

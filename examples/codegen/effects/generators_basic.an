@@ -15,6 +15,17 @@ for stream f =
 for (fn () -> iota 10) print
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m87_9
+// effect Emit_? a_1 with
+//     emit_2: a_1
+// 
+// // id = c1m87_99
+// iota_? (n_1: U32) = (error)
+// 
+// // id = c1m87_64
+// for_? stream_1 f_2 =
+
 // expected stderr:
 // examples/codegen/effects/generators_basic.an:2:12	error: Expected an unindent but found `->`
 //     emit: a -> Unit

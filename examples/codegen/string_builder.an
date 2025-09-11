@@ -8,25 +8,3 @@ append !sb " World!"
 print (to_string sb)
 
 // args: --delete-binary
-// expected stderr:
-// examples/codegen/string_builder.an:1:8	error: Imports paths should have at least 2 components (e.g. `Foo.Bar`), otherwise nothing gets imported
-// import StringBuilder
-// 
-// examples/codegen/string_builder.an:3:0	error: Expected a top-level item but found a newline
-// mut sb: StringBuilder = empty ()
-// 
-// examples/codegen/string_builder.an:3:0	error: Expected a top-level item but found `mut`
-// mut sb: StringBuilder = empty ()
-// 
-// examples/codegen/string_builder.an:4:8	error: Expected `=` to begin the function body but found `!`
-// reserve !sb 10
-// 
-// examples/codegen/string_builder.an:5:7	error: Expected `=` to begin the function body but found `!`
-// append !sb "你好，"
-// 
-// examples/codegen/string_builder.an:6:7	error: Expected `=` to begin the function body but found `!`
-// append !sb " World!"
-// 
-// examples/codegen/string_builder.an:8:17	error: Expected `=` to begin the function body but found `sb`
-// print (to_string sb)
-

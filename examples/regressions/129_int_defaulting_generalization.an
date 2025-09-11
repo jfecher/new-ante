@@ -15,13 +15,20 @@ second b + 2i64
 // e : (U64, I64)
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m70_65
+// a_? = ,_b 1 2
+// 
+// // id = c1m70_84
+// b_? = a_c1m70_65
+// 
+// // id = c1m70_37
+// c_? = b_c1m70_84
+
 // expected stderr:
 // examples/regressions/129_int_defaulting_generalization.an:9:8	error: Expected `=` to begin the function body but found `+`
 // first b + 2u64
 // 
 // examples/regressions/129_int_defaulting_generalization.an:10:9	error: Expected `=` to begin the function body but found `+`
 // second b + 2i64
-// 
-// examples/regressions/129_int_defaulting_generalization.an:1:6	error: `,` is not defined, was it a typo?
-// a = 1, 2
 

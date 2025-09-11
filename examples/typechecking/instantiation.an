@@ -13,6 +13,22 @@ id "four"
 id x = x
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m24_46
+// add_? m_1 n_2 = (error)
+// 
+// // id = c1m24_52
+// one_? f_1 x_2 = f_1 x_2
+// 
+// // id = c1m24_77
+// two1_? f_1 x_2 = f_1 (f_1 x_2)
+// 
+// // id = c1m24_55
+// two2_? = add_c1m24_46 one_c1m24_52 one_c1m24_52
+// 
+// // id = c1m24_37
+// id_? x_3 = x_3
+
 // expected stderr:
 // examples/typechecking/instantiation.an:2:10	error: Expected an expression but found `fn`
 // add m n = fn f -> fn x -> m f (n f x)  // (a -> b -> c) -> (a -> d -> b) -> a -> d -> c

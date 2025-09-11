@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use types::{PrimitiveType, Type, TypeBindings};
 
 use crate::{
-    diagnostics::Errors,
     incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheck},
     name_resolution::{Origin, ResolutionResult},
     parser::{
@@ -72,7 +71,6 @@ pub fn type_check_impl(context: &TypeCheck, compiler: &DbHandle) -> TypeCheckRes
 pub struct TypeCheckResult {
     pub typ: GeneralizedType,
     pub expr_types: BTreeMap<PatternId, TopLevelType>,
-    pub errors: Errors,
 }
 
 #[allow(unused)]
@@ -85,7 +83,6 @@ struct TypeChecker<'local, 'inner> {
     bindings: TypeBindings,
     item: TopLevelId,
     next_id: u32,
-    errors: Errors,
 }
 
 #[allow(unused)]
@@ -103,12 +100,11 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             name_origins: resolve.name_origins,
             next_id: 0,
             pattern_types: Default::default(),
-            errors: resolve.errors,
         }
     }
 
     fn finish(self, typ: GeneralizedType) -> TypeCheckResult {
-        TypeCheckResult { typ, expr_types: self.pattern_types, errors: self.errors }
+        TypeCheckResult { typ, expr_types: self.pattern_types }
     }
 
     fn next_type_variable(&mut self) -> TopLevelType {

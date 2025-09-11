@@ -15,7 +15,22 @@ is_even 4
 // TODO: is_odd here uses `forall a c.` instead of `forall a b.`
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m14_33
+// is_even_? n_1 =
+//     if ==_? n_1 0 then true else 
+//         print_? n_1
+// 
+// // id = c1m14_20
+// is_odd_? n_1 =
+
 // expected stderr:
+// examples/typechecking/mutual_recursion.an:4:9	error: `==` is not defined, was it a typo?
+//     if n == 0 then true else
+// 
+// examples/typechecking/mutual_recursion.an:5:8	error: `print` is not defined, was it a typo?
+//         print n
+// 
 // examples/typechecking/mutual_recursion.an:6:8	error: Expected an unindent but found `not`
 //         not is_odd (n - 1)
 // 
@@ -24,10 +39,4 @@ is_even 4
 // 
 // examples/typechecking/mutual_recursion.an:14:0	error: Expected `=` to begin the function body but found a newline
 // // Both of these definitions should have the `Print (int a)` constraint.
-// 
-// examples/typechecking/mutual_recursion.an:4:9	error: `==` is not defined, was it a typo?
-//     if n == 0 then true else
-// 
-// examples/typechecking/mutual_recursion.an:5:8	error: `print` is not defined, was it a typo?
-//         print n
 

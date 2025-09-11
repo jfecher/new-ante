@@ -16,13 +16,36 @@ a = 2
 a = 3 // already declared
 
 // args: --check
+// expected stdout:
+// // id = c1m16_23
+// not_an_error_? = 1
+// 
+// // id = c1m16_44
+// main_? () =
+//     not_an_error_c1m16_23 is_an_error_?
+// 
+// // id = c1m16_32
+// foo_? a_1 b_2 =
+//     bar_? c_? d_? =
+//         b_?
+//     ()
+// 
+// // id = c1m16_65
+// a_? = 2
+// 
+// // id = c1m16_38
+// a_? = 3
+
 // expected stderr:
+// examples/nameresolution/errors.an:0:0	warning: `a` was already defined
+// not_an_error = 1
+// 
+// examples/nameresolution/errors.an:5:17	error: `is_an_error` is not defined, was it a typo?
+//     not_an_error is_an_error
+// 
 // examples/nameresolution/errors.an:7:4	error: Expected an unindent but found `fn`
 //     fn a b -> a + c + b
 // 
 // examples/nameresolution/errors.an:16:6	error: Expected a newline after the top level item but found //// already declared
 // a = 3 // already declared
-// 
-// examples/nameresolution/errors.an:5:17	error: `is_an_error` is not defined, was it a typo?
-//     not_an_error is_an_error
 

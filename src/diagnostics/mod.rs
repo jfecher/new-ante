@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{cmp::Ordering, path::PathBuf, sync::Arc};
 
 use colored::{ColoredString, Colorize};
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,23 @@ pub enum Diagnostic {
     RecursiveType { typ: String, location: Location },
     NamespaceNotFound { name: String, location: Location },
     NameNotFound { name: Arc<String>, location: Location },
+    MethodDeclaredOnUnknownType { name: Arc<String>, location: Location },
+}
+
+impl Ord for Diagnostic {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let order = self.location().cmp(&other.location());
+        if order != Ordering::Equal {
+            return order;
+        }
+        self.message().cmp(&other.message())
+    }
+}
+
+impl PartialOrd for Diagnostic {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Diagnostic {
@@ -77,6 +94,9 @@ impl Diagnostic {
             Diagnostic::NameNotFound { name, location: _ } => {
                 format!("`{name}` not found in scope")
             },
+            Diagnostic::MethodDeclaredOnUnknownType { name, location: _ } => {
+                format!("Methods can only be defined on types declared within the same file, which `{name}` was not")
+            }
         }
     }
 
@@ -92,6 +112,7 @@ impl Diagnostic {
             | Diagnostic::ExpectedType { location, .. }
             | Diagnostic::RecursiveType { location, .. }
             | Diagnostic::NamespaceNotFound { location, .. }
+            | Diagnostic::MethodDeclaredOnUnknownType { location, .. }
             | Diagnostic::NameNotFound { location, .. } => location,
         }
     }

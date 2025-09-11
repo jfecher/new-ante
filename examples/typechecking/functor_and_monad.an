@@ -22,3 +22,35 @@ impl monad_maybe: Monad Maybe with
         | None -> None
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m68_53
+// trait Functor_? f_1 with
+//     map_2: fn (f_1 a_4) (fn a_4 -> b_6) -> f_1 b_6
+// 
+// // id = c1m68_41
+// trait Monad_? m_1 with
+//     wrap_2: fn a_3 -> m_1 a_3
+//     bind_6: fn (m_1 a_3) (fn a_3 -> m_1 b_11) -> m_1 b_11
+// 
+// // id = c1m68_58
+// impl functor_maybe_?: Functor_c1m68_53 Maybe_? with
+//     map_? m_2 f_3 =
+//         match m_2
+//         | Some_? x_4 -> Some_td (f_3 x_4)
+//         | None_? -> None_td
+// 
+// // id = c1m68_36
+// impl monad_maybe_?: Monad_c1m68_41 Maybe_? with
+//     wrap_? a_2 = Some_td a_2
+//     bind_? m_4 f_5 =
+//         match m_4
+//         | Some_? x_6 -> f_5 x_6
+//         | None_? -> None_td
+
+// expected stderr:
+// examples/typechecking/functor_and_monad.an:10:28	error: `Maybe` is not defined, was it a typo?
+// impl functor_maybe: Functor Maybe with
+// 
+// examples/typechecking/functor_and_monad.an:16:24	error: `Maybe` is not defined, was it a typo?
+// impl monad_maybe: Monad Maybe with
+

@@ -10,6 +10,11 @@ impl MultiTrait Unit with
 one ()
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m85_46
+// trait MultiTrait_? a_1 with
+//     one_2: Unit_b
+
 // expected stderr:
 // examples/regressions/159_two_trait_functions.an:3:14	error: Expected an unindent but found `->`
 //     one: Unit -> Unit

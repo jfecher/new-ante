@@ -4,18 +4,17 @@ use namespace::{Namespace, SourceFileId, LOCAL_CRATE};
 use serde::{Deserialize, Serialize};
 
 pub mod namespace;
+pub mod builtin;
 
 use crate::{
-    diagnostics::{Diagnostic, Errors, Location},
-    incremental::{self, DbHandle, ExportedTypes, GetCrateGraph, GetItem, Resolve, VisibleDefinitions},
-    parser::{
+    diagnostics::{Diagnostic, Location}, incremental::{self, DbHandle, ExportedTypes, GetCrateGraph, GetItem, Resolve, VisibleDefinitions}, name_resolution::builtin::Builtin, parser::{
         cst::{
             Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern,
             TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody,
         },
         ids::{ExprId, NameId, PathId, PatternId, TopLevelId},
         TopLevelContext,
-    },
+    }
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -24,14 +23,12 @@ pub struct ResolutionResult {
     /// context of that id.
     pub path_origins: BTreeMap<PathId, Origin>,
     pub name_origins: BTreeMap<NameId, Origin>,
-    pub errors: Errors,
 }
 
 struct Resolver<'local, 'inner> {
     item: TopLevelId,
     path_links: BTreeMap<PathId, Origin>,
     name_links: BTreeMap<NameId, Origin>,
-    errors: Errors,
     names_in_global_scope: &'local BTreeMap<Arc<String>, TopLevelId>,
     names_in_local_scope: Vec<BTreeMap<Arc<String>, NameId>>,
     context: &'local TopLevelContext,
@@ -47,6 +44,8 @@ pub enum Origin {
     Local(NameId),
     /// This name did not resolve, try to perform type based resolution on it during type inference
     TypeResolution,
+    /// This name refers to a builtin item such as `String`, `Int`, `Unit`, `,` etc.
+    Builtin(Builtin),
 }
 
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
@@ -61,7 +60,6 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
     let names_in_scope = &visible.definitions;
 
     let mut resolver = Resolver::new(compiler, context, names_in_scope, &statement_ctx);
-    resolver.errors.extend(visible.diagnostics.clone());
 
     match &statement.kind {
         TopLevelItemKind::Definition(definition) => {
@@ -90,14 +88,13 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             names_in_global_scope: names_in_scope,
             path_links: Default::default(),
             name_links: Default::default(),
-            errors: Vec::new(),
             names_in_local_scope: vec![Default::default()],
             context,
         }
     }
 
     fn result(self) -> ResolutionResult {
-        ResolutionResult { path_origins: self.path_links, name_origins: self.name_links, errors: self.errors }
+        ResolutionResult { path_origins: self.path_links, name_origins: self.name_links }
     }
 
     #[allow(unused)]
@@ -145,7 +142,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     return Some(submodule);
                 }
 
-                let exported = ExportedTypes(id).get(self.compiler).0;
+                let exported = ExportedTypes(id).get(self.compiler);
                 exported.get(name).copied().map(Namespace::Type)
             },
         }
@@ -174,7 +171,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     /// Lookup the given path in the given namespace
-    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace) -> Result<Origin, Diagnostic>
+    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace, allow_type_based_resolution: bool) -> Result<Origin, Diagnostic>
     where
         Iter: ExactSizeIterator<Item = &'a (String, Location)>,
     {
@@ -206,13 +203,19 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         // No known origin.
         // If the name is capitalized we delay until type inference to auto-import variants
         let first_char = name.chars().next().unwrap();
-        if first_char.is_ascii_uppercase() && namespace == Namespace::Local {
+        if allow_type_based_resolution && first_char.is_ascii_uppercase() && namespace == Namespace::Local {
             Ok(Origin::TypeResolution)
+        } else if let Some(origin) = self.lookup_builtin_name(name, !allow_type_based_resolution) {
+            Ok(origin)
         } else {
             let location = location.clone();
             let name = Arc::new(name.clone());
             Err(Diagnostic::NameNotInScope { name, location })
         }
+    }
+
+    fn lookup_builtin_name(&self, name: &str, is_type: bool) -> Option<Origin> {
+        Builtin::from_name(name, is_type).map(Origin::Builtin)
     }
 
     /// Lookup a single name (not a full path) in local scope
@@ -229,7 +232,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         None
     }
 
-    fn lookup(&mut self, path: &Path) -> Result<Origin, Diagnostic> {
+    fn lookup(&mut self, path: &Path, allow_type_based_resolution: bool) -> Result<Origin, Diagnostic> {
         let mut components = path.components.iter().peekable();
 
         if components.len() > 1 {
@@ -245,29 +248,33 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 if **first == dependency.name {
                     // Discard the crate name
                     components.next();
-                    return self.lookup_in(components, Namespace::crate_(*dependency_id));
+                    return self.lookup_in(components, Namespace::crate_(*dependency_id), allow_type_based_resolution);
                 }
             }
         }
 
         // Not an absolute path
-        self.lookup_in(components, Namespace::Local)
+        self.lookup_in(components, Namespace::Local, allow_type_based_resolution)
     }
 
     /// Links a path to its definition or errors if it does not exist
-    fn link(&mut self, path: PathId) {
-        match self.lookup(&self.context.paths[path]) {
+    fn link(&mut self, path: PathId, allow_type_based_resolution: bool) {
+        match self.lookup(&self.context.paths[path], allow_type_based_resolution) {
             Ok(origin) => {
                 self.path_links.insert(path, origin);
             },
-            Err(diagnostic) => self.errors.push(diagnostic),
+            Err(diagnostic) => self.emit_diagnostic(diagnostic),
         }
+    }
+
+    fn emit_diagnostic(&self, diagnostic: Diagnostic) {
+        self.compiler.accumulate(diagnostic);
     }
 
     fn resolve_expr(&mut self, expr: ExprId) {
         match &self.context.exprs[expr] {
             Expr::Literal(_literal) => (),
-            Expr::Variable(path) => self.link(*path),
+            Expr::Variable(path) => self.link(*path, true),
             Expr::Call(call) => {
                 self.resolve_expr(call.function);
                 for arg in &call.arguments {
@@ -365,7 +372,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     fn resolve_type(&mut self, typ: &Type, declare_type_vars: bool) {
         match typ {
             Type::Error | Type::Unit | Type::Integer(_) | Type::Float(_) | Type::String | Type::Char => (),
-            Type::Named(path) => self.link(*path),
+            Type::Named(path) => self.link(*path, false),
             Type::Variable(name) => self.resolve_type_variable(*name, declare_type_vars),
             Type::Function(function) => {
                 for parameter in &function.parameters {
@@ -393,7 +400,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     fn resolve_effect_type(&mut self, effect: &EffectType, declare_type_vars: bool) {
         match effect {
             EffectType::Known(path, args) => {
-                self.link(*path);
+                self.link(*path, false);
 
                 for arg in args {
                     self.resolve_type(arg, declare_type_vars);
@@ -413,7 +420,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         } else {
             let location = self.context.name_locations[name_id].clone();
             let name = self.context.names[name_id].clone();
-            self.errors.push(Diagnostic::NameNotFound { name, location });
+            self.emit_diagnostic(Diagnostic::NameNotFound { name, location });
         }
     }
 
@@ -469,7 +476,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     fn resolve_trait_impl(&mut self, trait_impl: &TraitImpl) {
-        self.link(trait_impl.trait_path);
+        self.link(trait_impl.trait_path, false);
 
         for arg in &trait_impl.trait_arguments {
             self.resolve_type(arg, true);
@@ -498,7 +505,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             Comptime::Expr(expr_id) => self.resolve_expr(*expr_id),
             Comptime::Derive(paths) => {
                 for path in paths {
-                    self.link(*path);
+                    self.link(*path, false);
                 }
             },
             Comptime::Definition(definition) => self.resolve_definition(definition),

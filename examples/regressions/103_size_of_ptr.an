@@ -3,7 +3,10 @@ boom () : Maybe (Ptr Char) = None
 _ = boom ()
 
 // args: --delete-binary
-// expected stderr:
-// examples/regressions/103_size_of_ptr.an:2:17	error: Expected a type but found `Ptr`
-// boom () : Maybe (Ptr Char) = None
+// expected stdout:
+// // id = c1m57_4
+// boom_? () : Maybe_? (Ptr_? Char_?) = None_td
+// 
+// // id = c1m57_74
+// __? = boom_c1m57_4 ()
 

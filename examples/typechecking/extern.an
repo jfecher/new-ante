@@ -11,3 +11,25 @@ puts2_result = puts2 "test"
 exit2_result = exit2 0
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m71_32
+// extern foo_0: fn a_1 -> b_2
+// 
+// // id = c1m71_46
+// extern add_0: fn I32 I32 -> I32
+// 
+// // id = c1m71_90
+// extern puts2_0: fn String_b -> Unit_b
+// 
+// // id = c1m71_48
+// extern exit2_0: fn I32 -> never_returns_1
+// 
+// // id = c1m71_44
+// foo_result_? = foo_c1m71_32 1
+// 
+// // id = c1m71_85
+// puts2_result_? = puts2_c1m71_90 "test"
+// 
+// // id = c1m71_56
+// exit2_result_? = exit2_c1m71_48 0
+

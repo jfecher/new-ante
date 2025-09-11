@@ -25,6 +25,20 @@ iota 10
     with for print
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m72_9
+// effect Emit_? a_1 with
+//     emit_2: fn a_1 -> Unit_b
+// 
+// // id = c1m72_99
+// iota_? (n_1: U32) = (error)
+// 
+// // id = c1m72_79
+// filter_? stream_1 predicate_2 =
+// 
+// // id = c1m72_64
+// for_? stream_2 f_3 =
+
 // expected stderr:
 // examples/typechecking/effects_subset.an:5:16	error: Expected an expression but found `loop`
 // iota (n: U32) = loop (i = 0) ->

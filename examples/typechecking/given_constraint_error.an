@@ -3,3 +3,12 @@ impl print_impl {_: DoesNotExist a}: Print a with
     printne _ = ()
 
 // args: --check
+// expected stdout:
+// // id = c1m27_15
+// impl print_impl_? {__?: DoesNotExist_? a_?}: Print_? a_3 with
+//     printne_? __5 = ()
+
+// expected stderr:
+// examples/typechecking/given_constraint_error.an:2:37	error: `Print` is not defined, was it a typo?
+// impl print_impl {_: DoesNotExist a}: Print a with
+

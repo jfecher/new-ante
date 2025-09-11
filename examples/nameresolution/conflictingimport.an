@@ -5,3 +5,23 @@ library_int = 1
 library_fn _ = 3
 
 // args: --check examples/nameresolution/Library.an
+// expected stdout:
+// // id = c1m53_73
+// library_int_? = 5
+// 
+// // id = c1m53_83
+// library_fn_? __1 = 2
+// 
+// 
+// import Library.library_int, library_fn
+// 
+// // id = c1m79_73
+// library_int_? = 1
+// 
+// // id = c1m79_83
+// library_fn_? __1 = 3
+
+// expected stderr:
+// examples/nameresolution/conflictingimport.an:1:8	error: Could not find crate `Library`
+// import Library.library_int, library_fn
+

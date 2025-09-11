@@ -1,4 +1,4 @@
-use std::hash::Hasher;
+use std::{fmt::Display, hash::Hasher};
 
 use serde::{Deserialize, Serialize};
 
@@ -44,6 +44,13 @@ impl TopLevelId {
     pub(crate) fn location(&self, db: &DbHandle) -> Location {
         let result = db.get(Parse(self.source_file));
         result.top_level_data[self].location.clone()
+    }
+}
+
+impl Display for TopLevelId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // Limit it to 2 digits, otherwise it is too long and hurts debugging
+        write!(f, "{}_{}", self.source_file, self.content_hash % 100)
     }
 }
 
@@ -153,5 +160,11 @@ impl From<NameId> for usize {
 impl From<usize> for NameId {
     fn from(value: usize) -> Self {
         Self(value as u32)
+    }
+}
+
+impl Display for NameId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }

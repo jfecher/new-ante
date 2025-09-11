@@ -12,6 +12,22 @@ main () =
     bar : Unit
 
 // args: --check
+// expected stdout:
+// // id = c1m88_37
+// trait Foo_? a_1 b_2 with
+//     foo_3: fn a_1 -> b_2
+//     bar_6: a_1
+// 
+// // id = c1m88_81
+// impl foo_i32_string_?: Foo_c1m88_37 I32 String_b with
+//     foo_? _x_2 = "test"
+//     baz_? = 2
+// 
+// // id = c1m88_44
+// main_? () =
+//     foo_? 3
+//     bar_?: Unit_?
+
 // expected stderr:
 // examples/nameresolution/Trait.an:11:4	error: `foo` is not defined, was it a typo?
 //     foo 3

@@ -6,10 +6,17 @@ main () =
 main ()
 
 // args: --delete-binary
+// expected stdout:
+// // id = c1m40_44
+// main_? () =
+//     foo_? = "hi there"
+//     stuff_? () = print_? foo_?
+//     stuff_? ()
+
 // expected stderr:
-// examples/codegen/closure_basic.an:8:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
-// 
 // examples/codegen/closure_basic.an:4:4	error: `stuff` is not defined, was it a typo?
 //     stuff ()
+// 
+// examples/codegen/closure_basic.an:8:0	error: Expected `=` to begin the function body but found a newline
+// // args: --delete-binary
 

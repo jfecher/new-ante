@@ -5,6 +5,12 @@ foo a =
 // Make sure output is not "... given Print a, Print a"
 
 // args: --check --show-types
+// expected stdout:
+// // id = c1m0_32
+// foo_? a_1 =
+//     print_? a_1
+//     print_? a_1
+
 // expected stderr:
 // examples/typechecking/repeated_traits.an:2:4	error: `print` is not defined, was it a typo?
 //     print a
