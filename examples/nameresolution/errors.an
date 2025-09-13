@@ -18,23 +18,23 @@ a = 3 // already declared
 // args: --check
 // expected stdout:
 // // id = c1m16_23
-// not_an_error_? = 1
+// not_an_error_c1m16_23 = 1
 // 
 // // id = c1m16_44
-// main_? () =
+// main_c1m16_44 () =
 //     not_an_error_c1m16_23 is_an_error_?
 // 
 // // id = c1m16_32
-// foo_? a_1 b_2 =
+// foo_c1m16_32 a_1 b_2 =
 //     bar_? c_? d_? =
 //         b_?
 //     ()
 // 
 // // id = c1m16_65
-// a_? = 2
+// a_c1m16_65 = 2
 // 
 // // id = c1m16_38
-// a_? = 3
+// a_c1m16_65 = 3
 
 // expected stderr:
 // examples/nameresolution/errors.an:0:0	warning: `a` was already defined

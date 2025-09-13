@@ -24,7 +24,7 @@ test_int 3_usz
 // args: --delete-binary
 // expected stdout:
 // // id = c1m76_60
-// test_int_? x_1 =
+// test_int_c1m76_60 x_1 =
 //     print_? (+_? x_1 x_1)
 //     print_? (-_? (-_? x_1 x_1) x_1)
 //     print_? (*_? x_1 x_1)

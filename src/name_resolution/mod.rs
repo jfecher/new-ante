@@ -3,18 +3,23 @@ use std::{collections::BTreeMap, sync::Arc};
 use namespace::{Namespace, SourceFileId, LOCAL_CRATE};
 use serde::{Deserialize, Serialize};
 
-pub mod namespace;
 pub mod builtin;
+pub mod namespace;
 
 use crate::{
-    diagnostics::{Diagnostic, Location}, incremental::{self, DbHandle, ExportedTypes, GetCrateGraph, GetItem, Resolve, VisibleDefinitions}, name_resolution::builtin::Builtin, parser::{
+    diagnostics::{Diagnostic, Location},
+    incremental::{
+        self, DbHandle, ExportedTypes, GetCrateGraph, GetItem, Resolve, VisibleDefinitions, VisibleDefinitionsResult,
+    },
+    name_resolution::builtin::Builtin,
+    parser::{
         cst::{
-            Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, Path, Pattern,
-            TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody,
+            Comptime, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, Generics, ItemName, Path,
+            Pattern, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeDefinition, TypeDefinitionBody,
         },
         ids::{ExprId, NameId, PathId, PatternId, TopLevelId},
         TopLevelContext,
-    }
+    },
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,7 +34,7 @@ struct Resolver<'local, 'inner> {
     item: TopLevelId,
     path_links: BTreeMap<PathId, Origin>,
     name_links: BTreeMap<NameId, Origin>,
-    names_in_global_scope: &'local BTreeMap<Arc<String>, TopLevelId>,
+    names_in_global_scope: Arc<VisibleDefinitionsResult>,
     names_in_local_scope: Vec<BTreeMap<Arc<String>, NameId>>,
     context: &'local TopLevelContext,
     compiler: &'local DbHandle<'inner>,
@@ -57,9 +62,13 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
     // resolving just one statement in it. This does mean that `CompileFile` will later need to
     // manually query `VisibleDefinition` to pick these errors back up.
     let visible = VisibleDefinitions(context.0.source_file).get(compiler);
-    let names_in_scope = &visible.definitions;
+    let mut resolver = Resolver::new(compiler, context, visible, &statement_ctx);
 
-    let mut resolver = Resolver::new(compiler, context, names_in_scope, &statement_ctx);
+    match statement.kind.name() {
+        ItemName::Single(name_id) => resolver.link_existing_global(name_id),
+        ItemName::Method { type_name, item_name } => resolver.link_existing_method(type_name, item_name),
+        ItemName::None => (),
+    }
 
     match &statement.kind {
         TopLevelItemKind::Definition(definition) => {
@@ -79,13 +88,13 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
 
 impl<'local, 'inner> Resolver<'local, 'inner> {
     fn new(
-        compiler: &'local DbHandle<'inner>, resolve: &Resolve,
-        names_in_scope: &'local BTreeMap<Arc<String>, TopLevelId>, context: &'local TopLevelContext,
+        compiler: &'local DbHandle<'inner>, resolve: &Resolve, visible_definitions: Arc<VisibleDefinitionsResult>,
+        context: &'local TopLevelContext,
     ) -> Self {
         Self {
             compiler,
             item: resolve.0.clone(),
-            names_in_global_scope: names_in_scope,
+            names_in_global_scope: visible_definitions,
             path_links: Default::default(),
             name_links: Default::default(),
             names_in_local_scope: vec![Default::default()],
@@ -128,7 +137,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     return Some(submodule);
                 }
 
-                let type_id = self.names_in_global_scope.get(name)?;
+                let type_id = self.names_in_global_scope.definitions.get(name)?;
                 let (item, _) = GetItem(*type_id).get(self.compiler);
                 if matches!(&item.kind, TopLevelItemKind::TypeDefinition(_)) {
                     Some(Namespace::Type(*type_id))
@@ -171,7 +180,9 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     /// Lookup the given path in the given namespace
-    fn lookup_in<'a, Iter>(&mut self, mut path: Iter, mut namespace: Namespace, allow_type_based_resolution: bool) -> Result<Origin, Diagnostic>
+    fn lookup_in<'a, Iter>(
+        &mut self, mut path: Iter, mut namespace: Namespace, allow_type_based_resolution: bool,
+    ) -> Result<Origin, Diagnostic>
     where
         Iter: ExactSizeIterator<Item = &'a (String, Location)>,
     {
@@ -226,7 +237,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             }
         }
 
-        if let Some(item) = self.names_in_global_scope.get(name) {
+        if let Some(item) = self.names_in_global_scope.definitions.get(name) {
             return Some(Origin::TopLevelDefinition(*item));
         }
         None
@@ -267,6 +278,29 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         }
     }
 
+    /// Link a global whose name is expected to be in `self.names_in_global_scope`
+    fn link_existing_global(&mut self, name_id: NameId) {
+        let name = &self.context.names[name_id];
+        // panic safety: `name` should already be declared in global scope
+        let id = self.names_in_global_scope.definitions[name];
+        let origin = Origin::TopLevelDefinition(id);
+        self.name_links.insert(name_id, origin);
+    }
+
+    /// Link a method whose name is expected to be in `self.names_in_global_scope`
+    fn link_existing_method(&mut self, type_name: NameId, item_name: NameId) {
+        let item_name_string = &self.context.names[item_name];
+        let type_name_string = &self.context.names[type_name];
+
+        // panic safety: `type_name` should already be declared in global scope
+        let type_id = self.names_in_global_scope.definitions[type_name_string];
+
+        let methods = &self.names_in_global_scope.methods[&type_id];
+        let method = methods[item_name_string];
+        self.name_links.insert(type_name, Origin::TopLevelDefinition(type_id));
+        self.name_links.insert(item_name, Origin::TopLevelDefinition(method));
+    }
+
     fn emit_diagnostic(&self, diagnostic: Diagnostic) {
         self.compiler.accumulate(diagnostic);
     }
@@ -285,9 +319,11 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 // Resolve body with the parameter name in scope
                 self.push_local_scope();
                 for parameter in &lambda.parameters {
-                    self.declare_names_in_pattern(parameter.pattern, true);
+                    self.declare_names_in_pattern(parameter.pattern, true, false);
                 }
-
+                if let Some(return_type) = &lambda.return_type {
+                    self.resolve_type(return_type, true);
+                }
                 self.resolve_expr(lambda.body);
                 self.pop_local_scope();
             },
@@ -323,7 +359,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 self.resolve_expr(match_.expression);
                 for (pattern, branch) in &match_.cases {
                     self.push_local_scope();
-                    self.declare_names_in_pattern(*pattern, false);
+                    self.declare_names_in_pattern(*pattern, false, true);
                     self.resolve_expr(*branch);
                     self.pop_local_scope();
                 }
@@ -344,7 +380,9 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     ///
     /// If `declare_type_vars` is true, any type variables used that are not in scope will
     /// automatically be declared. Otherwise an error will be issued.
-    fn declare_names_in_pattern(&mut self, pattern: PatternId, declare_type_vars: bool) {
+    fn declare_names_in_pattern(
+        &mut self, pattern: PatternId, declare_type_vars: bool, allow_type_based_resolution: bool,
+    ) {
         match &self.context.patterns[pattern] {
             Pattern::Variable(name) => {
                 self.declare_name(*name);
@@ -352,14 +390,15 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             Pattern::Literal(_) => (),
             // In a constructor pattern such as `Struct foo bar baz` or `(a, b)` the arguments
             // should be declared but the function itself should never be.
-            Pattern::Constructor(_, args) => {
+            Pattern::Constructor(function, args) => {
+                self.link(*function, allow_type_based_resolution);
                 for arg in args {
-                    self.declare_names_in_pattern(*arg, declare_type_vars);
+                    self.declare_names_in_pattern(*arg, declare_type_vars, allow_type_based_resolution);
                 }
             },
             Pattern::Error => (),
             Pattern::TypeAnnotation(pattern, typ) => {
-                self.declare_names_in_pattern(*pattern, declare_type_vars);
+                self.declare_names_in_pattern(*pattern, declare_type_vars, allow_type_based_resolution);
                 self.resolve_type(typ, declare_type_vars);
             },
         }
@@ -435,7 +474,8 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 }
             },
             TypeDefinitionBody::Enum(variants) => {
-                for (_name, variant_args) in variants {
+                for (name, variant_args) in variants {
+                    self.link_existing_method(type_definition.name, *name);
                     for arg in variant_args {
                         self.resolve_type(arg, false);
                     }

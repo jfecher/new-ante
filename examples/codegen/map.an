@@ -23,7 +23,7 @@ print map
 // import Std.HashMap
 // 
 // // id = c1m38_14
-// impl hash_u8_?: Hash_? U8 with
+// impl hash_u8_c1m38_14: Hash_? U8 with
 //     hash_? x_2 = cast_? x_2
 
 // expected stderr:

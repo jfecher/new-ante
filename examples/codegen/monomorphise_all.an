@@ -10,13 +10,13 @@ baz "hi"
 // args: --delete-binary
 // expected stdout:
 // // id = c1m29_32
-// foo_? x_1 = x_1
+// foo_c1m29_32 x_1 = x_1
 // 
 // // id = c1m29_70
-// bar_? x_1 = foo_c1m29_32 x_1
+// bar_c1m29_70 x_1 = foo_c1m29_32 x_1
 // 
 // // id = c1m29_67
-// baz_? x_1 = bar_c1m29_70 x_1
+// baz_c1m29_67 x_1 = bar_c1m29_70 x_1
 
 // expected stderr:
 // examples/codegen/monomorphise_all.an:8:4	error: Expected `=` to begin the function body but found `"hi"`

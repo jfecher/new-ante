@@ -17,12 +17,12 @@ is_even 4
 // args: --check --show-types
 // expected stdout:
 // // id = c1m14_33
-// is_even_? n_1 =
+// is_even_c1m14_33 n_1 =
 //     if ==_? n_1 0 then true else 
 //         print_? n_1
 // 
 // // id = c1m14_20
-// is_odd_? n_1 =
+// is_odd_c1m14_20 n_1 =
 
 // expected stderr:
 // examples/typechecking/mutual_recursion.an:4:9	error: `==` is not defined, was it a typo?

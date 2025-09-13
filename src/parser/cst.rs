@@ -50,7 +50,7 @@ impl TopLevelItemKind {
             },
             TopLevelItemKind::TypeDefinition(type_definition) => ItemName::Single(type_definition.name),
             TopLevelItemKind::TraitDefinition(trait_definition) => ItemName::Single(trait_definition.name),
-            TopLevelItemKind::TraitImpl(_) => ItemName::None,
+            TopLevelItemKind::TraitImpl(trait_impl) => ItemName::Single(trait_impl.name),
             TopLevelItemKind::EffectDefinition(effect_definition) => ItemName::Single(effect_definition.name),
             TopLevelItemKind::Extern(extern_) => ItemName::Single(extern_.declaration.name),
             TopLevelItemKind::Comptime(_) => ItemName::None,

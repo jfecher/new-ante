@@ -15,7 +15,7 @@ double x = x * 2
 // args: --delete-binary
 // expected stdout:
 // // id = c1m46_73
-// double_? x_11 = *_? x_11 2
+// double_c1m46_73 x_11 = *_? x_11 2
 
 // expected stderr:
 // examples/codegen/mutability.an:1:1	error: Expected a top-level item but found `mut`

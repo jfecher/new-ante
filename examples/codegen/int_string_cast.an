@@ -16,7 +16,7 @@ debug <| cast 10
 // args: --delete-binary
 // expected stdout:
 // // id = c1m44_93
-// debug_? str_1 =
+// debug_c1m44_93 str_1 =
 //     <|_? print_? (++_? (++_? (++_? "string: " str_1) " len: ") (cast_? str_1.length))
 
 // expected stderr:

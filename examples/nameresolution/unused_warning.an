@@ -6,10 +6,10 @@ id x = error
 // args: --check
 // expected stdout:
 // // id = c1m76_37
-// id_? x_1 = x_1
+// id_c1m76_37 x_1 = x_1
 // 
 // // id = c1m76_73
-// id_? x_1 = error_?
+// id_c1m76_37 x_1 = error_?
 
 // expected stderr:
 // examples/nameresolution/unused_warning.an:0:0	warning: `id` was already defined

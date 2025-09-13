@@ -33,18 +33,18 @@ for filtered print
 // args: --delete-binary
 // expected stdout:
 // // id = c1m59_9
-// effect Emit_? a_1 with
+// effect Emit_c1m59_9 a_1 with
 //     emit_2: a_1
 // 
 // // id = c1m59_99
-// iota_? (n_1: U32) = (error)
+// iota_c1m59_99 (n_1: U32) = (error)
 // 
 // // id = c1m59_37
-// zero_to_nine_? () =
+// zero_to_nine_c1m59_37 () =
 //     iota_c1m59_99 10
 // 
 // // id = c1m59_19
-// filtered_? () =
+// filtered_c1m59_19 () =
 //     filter_? zero_to_nine_c1m59_37 (error)
 
 // expected stderr:

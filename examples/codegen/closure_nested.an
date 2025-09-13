@@ -11,7 +11,7 @@ print (foo ())
 // args: --delete-binary
 // expected stdout:
 // // id = c1m1_32
-// foo_? () =
+// foo_c1m1_32 () =
 //     x_? = "test"
 //     bar_? () =
 //         baz_? () = x_?

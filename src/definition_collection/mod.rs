@@ -43,11 +43,7 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
                 let first_location = existing.location(db);
                 let second_location = import.location.clone();
                 let name = exported_name.clone();
-                db.accumulate(Diagnostic::ImportedNameAlreadyInScope {
-                    name,
-                    first_location,
-                    second_location,
-                });
+                db.accumulate(Diagnostic::ImportedNameAlreadyInScope { name, first_location, second_location });
             } else {
                 visible.definitions.insert(exported_name.clone(), *exported_id);
             }
@@ -197,9 +193,7 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
     Arc::new(VisibleDefinitionsResult { definitions, methods })
 }
 
-fn declare_single(
-    name: &Name, item: &TopLevelItem, definitions: &mut Definitions, db: &DbHandle,
-) {
+fn declare_single(name: &Name, item: &TopLevelItem, definitions: &mut Definitions, db: &DbHandle) {
     if let Some(existing) = definitions.get(name) {
         let first_location = existing.location(db);
         let second_location = item.id.location(db);

@@ -27,14 +27,14 @@ bar "four" "five"
 // args: --check --show-types
 // expected stdout:
 // // id = c1m3_44
-// trait Bar_? a_1 -> b_2 with
+// trait Bar_c1m3_44 a_1 -> b_2 with
 //     bar_3: fn a_1 a_1 -> b_2
 // 
 // // id = c1m3_32
-// foo_? a_1 b_2 = bar_? a_1 b_2
+// foo_c1m3_32 a_1 b_2 = bar_? a_1 b_2
 // 
 // // id = c1m3_67
-// baz_? (x_1: String_b) y_2 = bar_? x_1 y_2
+// baz_c1m3_67 (x_1: String_b) y_2 = bar_? x_1 y_2
 
 // expected stderr:
 // examples/typechecking/trait_impls.an:6:5	error: Expected an identifier but found `Bar`

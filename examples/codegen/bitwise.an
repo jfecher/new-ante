@@ -10,10 +10,10 @@ print (bnot x)
 // args: --delete-binary
 // expected stdout:
 // // id = c1m71_44
-// x_? = 3
+// x_c1m71_44 = 3
 // 
 // // id = c1m71_89
-// y_? = 5
+// y_c1m71_89 = 5
 
 // expected stderr:
 // examples/codegen/bitwise.an:5:12	error: Expected `=` to begin the function body but found `x`

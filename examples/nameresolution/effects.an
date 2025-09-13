@@ -23,18 +23,18 @@ main () =
 // args: --check
 // expected stdout:
 // // id = c1m85_62
-// effect Three_? with
+// effect Three_c1m85_62 with
 //     one_1: fn Unit_b -> Unit_b
 //     two_2: fn I32 -> I32
 //     three_3: fn I32 I32 -> I32
 // 
 // // id = c1m85_87
-// effect State_? a_1 with
+// effect State_c1m85_87 a_1 with
 //     get_2: fn Unit_b -> a_1
 //     put_4: fn a_1 -> Unit_b
 // 
 // // id = c1m85_44
-// main_? () =
+// main_c1m85_44 () =
 
 // expected stderr:
 // examples/nameresolution/effects.an:11:4	error: Expected an unindent but found `handle`

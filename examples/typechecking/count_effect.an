@@ -16,16 +16,16 @@ handle_count foo
 // args: --check --show-types
 // expected stdout:
 // // id = c1m49_3
-// effect Count_? with
+// effect Count_c1m49_3 with
 //     count_1: fn Unit_b -> Unit_b
 // 
 // // id = c1m49_32
-// foo_? () =
+// foo_c1m49_32 () =
 //     count_? ()
 //     repeat_? 10
 // 
 // // id = c1m49_95
-// handle_count_? f_1 =
+// handle_count_c1m49_95 f_1 =
 
 // expected stderr:
 // examples/typechecking/count_effect.an:5:4	error: `count` is not defined, was it a typo?

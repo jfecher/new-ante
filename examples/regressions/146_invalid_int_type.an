@@ -3,5 +3,5 @@ a: Int String = 3
 // args: --check
 // expected stdout:
 // // id = c1m96_65
-// a_?: Int_? String_? = 3
+// a_c1m96_65: Int_? String_? = 3
 

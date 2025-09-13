@@ -12,7 +12,7 @@ one ()
 // args: --delete-binary
 // expected stdout:
 // // id = c1m85_46
-// trait MultiTrait_? a_1 with
+// trait MultiTrait_c1m85_46 a_1 with
 //     one_2: Unit_b
 
 // expected stderr:

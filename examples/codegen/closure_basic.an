@@ -8,7 +8,7 @@ main ()
 // args: --delete-binary
 // expected stdout:
 // // id = c1m40_44
-// main_? () =
+// main_c1m40_44 () =
 //     foo_? = "hi there"
 //     stuff_? () = print_? foo_?
 //     stuff_? ()

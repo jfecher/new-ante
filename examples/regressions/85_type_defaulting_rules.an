@@ -23,21 +23,21 @@ main ()
 // args: --delete-binary
 // expected stdout:
 // // id = c1m87_82
-// count_down_? n_1 f_2 =
+// count_down_c1m87_82 n_1 f_2 =
 //     if >_? n_1 0 then 
 //         f_2 n_1
 //         count_down_c1m87_82 (-_? n_1 1) f_2
 // 
 // // id = c1m87_44
-// main_? () =
+// main_c1m87_44 () =
 //     mut offset_? = 1
 //     count_down_c1m87_82 3
 // 
 // // id = c1m87_0
-// print_offset_? __1 = print_? offset_?
+// print_offset_c1m87_0 __1 = print_? offset_?
 // 
 // // id = c1m87_8
-// closure_? = count_down_c1m87_82 __? print_offset_c1m87_0
+// closure_c1m87_8 = count_down_c1m87_82 __? print_offset_c1m87_0
 
 // expected stderr:
 // examples/regressions/85_type_defaulting_rules.an:7:9	error: `>` is not defined, was it a typo?

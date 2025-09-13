@@ -165,14 +165,12 @@ pub fn path_to_id(crate_id: CrateId, path: &Path) -> SourceFileId {
 /// together at the end.
 #[allow(unused)]
 fn compile_all(files: BTreeSet<SourceFileId>, compiler: &mut Db) -> Errors {
-    files
-        .into_par_iter()
-        .flat_map(|file| get_diagnostics_at_step(compiler, CompileFile(file)))
-        .collect()
+    files.into_par_iter().flat_map(|file| get_diagnostics_at_step(compiler, CompileFile(file))).collect()
 }
 
 /// Retrieve all diagnostics emitted after running the given compiler step
-fn get_diagnostics_at_step<C>(compiler: &Db, step: C) -> BTreeSet<Diagnostic> where
+fn get_diagnostics_at_step<C>(compiler: &Db, step: C) -> BTreeSet<Diagnostic>
+where
     C: OutputType + ComputationId,
     DbStorage: StorageFor<C>,
 {

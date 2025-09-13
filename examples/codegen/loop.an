@@ -24,13 +24,13 @@ loop (s: I32) (t: I32 = 0) ->
 // args: --delete-binary
 // expected stdout:
 // // id = c1m80_32
-// start_? = 10
+// start_c1m80_32 = 10
 // 
 // // id = c1m80_53
-// seq_sum_? = (error)
+// seq_sum_c1m80_53 = (error)
 // 
 // // id = c1m80_65
-// s_? = 0
+// s_c1m80_65 = 0
 
 // expected stderr:
 // examples/codegen/loop.an:2:10	error: Expected an expression but found `loop`

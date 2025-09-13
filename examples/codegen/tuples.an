@@ -10,7 +10,7 @@ foo ("hi", 7, 2.0, 3, 4, 5)
 // args: --delete-binary
 // expected stdout:
 // // id = c1m83_32
-// foo_? (,_? (,_? a_1 b_2) __3) =
+// foo_c1m83_32 (,_b (,_b a_1 b_2) __3) =
 //     __?: string_? = a_?
 //     print_? b_2
 

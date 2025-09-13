@@ -9,13 +9,13 @@ foo ()
 // args: --delete-binary
 // expected stdout:
 // // id = c1m38_11
-// get_closure_? () =
+// get_closure_c1m38_11 () =
 //     foo_? = "hi there"
 //     stuff_? () = print_? foo_?
 //     stuff_?
 // 
 // // id = c1m38_32
-// foo_? = get_closure_c1m38_11 ()
+// foo_c1m38_32 = get_closure_c1m38_11 ()
 
 // expected stderr:
 // examples/codegen/closure_return.an:4:4	error: `stuff` is not defined, was it a typo?

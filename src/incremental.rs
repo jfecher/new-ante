@@ -1,7 +1,10 @@
 use std::{cell::Cell, collections::BTreeMap, path::PathBuf, sync::Arc};
 
 use inc_complete::{
-    accumulate::Accumulator, define_input, define_intermediate, storage::{HashMapStorage, SingletonStorage}, Storage
+    accumulate::Accumulator,
+    define_input, define_intermediate,
+    storage::{HashMapStorage, SingletonStorage},
+    Storage,
 };
 use serde::{Deserialize, Serialize};
 

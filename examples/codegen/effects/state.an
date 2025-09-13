@@ -25,11 +25,11 @@ use_state 20_u64 with state 2
 // args: --delete-binary
 // expected stdout:
 // // id = c1m76_70
-// effect Use_? a_1 with
+// effect Use_c1m76_70 a_1 with
 //     get_2: Unit_b
 // 
 // // id = c1m76_26
-// use_state_? (y_1: Int_b a_2) =
+// use_state_c1m76_26 (y_1: Int_b a_2) =
 //     x_? = get_? (): Int_? a_?
 //     set_? (+_? x_? y_1)
 //     state_? = get_? (): Int_? a_?

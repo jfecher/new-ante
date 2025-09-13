@@ -96,7 +96,7 @@ impl Diagnostic {
             },
             Diagnostic::MethodDeclaredOnUnknownType { name, location: _ } => {
                 format!("Methods can only be defined on types declared within the same file, which `{name}` was not")
-            }
+            },
         }
     }
 

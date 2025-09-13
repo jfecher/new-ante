@@ -12,7 +12,7 @@ print map
 // args: --delete-binary
 // expected stdout:
 // // id = c1m11_83
-// impl hash_u8_?: Hash_? U8 with
+// impl hash_u8_c1m11_83: Hash_? U8 with
 //     hash_? x_2 = cast_? x_2
 
 // expected stderr:

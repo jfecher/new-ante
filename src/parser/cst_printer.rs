@@ -4,11 +4,18 @@ use std::{
     sync::Arc,
 };
 
-use crate::{incremental::{Db, Resolve}, name_resolution::{namespace::SourceFileId, Origin}, parser::ids::{NameId, PathId}};
+use crate::{
+    incremental::{Db, Resolve},
+    name_resolution::{namespace::SourceFileId, Origin},
+    parser::ids::{NameId, PathId},
+};
 
 use super::{
     cst::{
-        Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, Mutability, OwnershipMode, Parameter, Path, Pattern, Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody
+        Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr, Extern,
+        FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, Mutability, OwnershipMode, Parameter,
+        Path, Pattern, Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition,
+        TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody,
     },
     ids::{ExprId, PatternId, TopLevelId},
     TopLevelContext,
@@ -35,7 +42,9 @@ impl Cst {
 
     /// Display this Cst, annotating each name with a number pointing to its
     /// resolved definition
-    pub fn display_resolved<'a>(&'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>, compiler: &'a Db) -> CstDisplayContext<'a> {
+    pub fn display_resolved<'a>(
+        &'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>, compiler: &'a Db,
+    ) -> CstDisplayContext<'a> {
         let mut config = CstDisplayConfig::default();
         config.show_resolved = Some(compiler);
         CstDisplayContext { cst: self, context, config }
@@ -512,9 +521,7 @@ impl<'a> CstDisplay<'a> {
         Ok(())
     }
 
-    fn fmt_effect_definition(
-        &mut self, effect_definition: &EffectDefinition, f: &mut Formatter,
-    ) -> std::fmt::Result {
+    fn fmt_effect_definition(&mut self, effect_definition: &EffectDefinition, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "effect ")?;
         self.fmt_name(effect_definition.name, f)?;
 

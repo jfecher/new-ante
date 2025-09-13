@@ -9,7 +9,7 @@ print y
 // args: --delete-binary
 // expected stdout:
 // // id = c1m64_89
-// y_? = x_?
+// y_c1m64_89 = x_?
 
 // expected stderr:
 // examples/regressions/201_mutable_variables_copy.an:1:1	error: Expected a top-level item but found `mut`

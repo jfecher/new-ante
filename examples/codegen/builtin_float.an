@@ -35,31 +35,31 @@ print (cast (cast x : F64) : F32)
 // args: --delete-binary
 // expected stdout:
 // // id = c1m37_62
-// add_f64_? = +_? 3 4
+// add_f64_c1m37_62 = +_? 3 4
 // 
 // // id = c1m37_27
-// sub_f64_? = -_? 7 8
+// sub_f64_c1m37_27 = -_? 7 8
 // 
 // // id = c1m37_2
-// mul_f64_? = *_? 11 12
+// mul_f64_c1m37_2 = *_? 11 12
 // 
 // // id = c1m37_50
-// div_f64_? = /_? 15 16
+// div_f64_c1m37_50 = /_? 15 16
 // 
 // // id = c1m37_43
-// add_f32_? = (error)
+// add_f32_c1m37_43 = (error)
 // 
 // // id = c1m37_34
-// sub_f32_? = (error)
+// sub_f32_c1m37_34 = (error)
 // 
 // // id = c1m37_8
-// mul_f32_? = (error)
+// mul_f32_c1m37_8 = (error)
 // 
 // // id = c1m37_57
-// div_f32_? = (error)
+// div_f32_c1m37_57 = (error)
 // 
 // // id = c1m37_44
-// x_? = (error)
+// x_c1m37_44 = (error)
 
 // expected stderr:
 // examples/codegen/builtin_float.an:4:14	error: `+` is not defined, was it a typo?
