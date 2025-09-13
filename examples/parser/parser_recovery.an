@@ -37,16 +37,34 @@ main () =
         false 
     else 
         true
-    
-    
-
 
 // args: --parse --no-color
-// expected stdout: main () =
-
-
-
-// expected stderr:
-// examples/parser/parse_error.an:2:12	error: Expected an unindent but found `else`
-//     if true else
+// expected stdout:
+// type IntBinTreeNode =
+//     value: I32
+//     left: IntBinTree
+//     right: IntBinTree
+// 
+// type IntBinTree =
+//     | IntBinTreeNode
+//     | Leaf
+// 
+// sum tree = match tree
+// | IntBinTreeNode val left right -> + (+ val (sum left)) (sum right)
+// | Leaf -> 0
+// 
+// flatten_filter tree comparator threshold = match tree
+// | IntBinTreeNode val left right -> 
+//     if comparator val threshold then 
+//         Cons val (append (flatten_filter left comparator threshold) (flatten_filter tree comparator threshold)) else 
+//         append (flatten_filter left comparator threshold) (flatten_filter tree comparator threshold)
+// | Leaf -> ()
+// 
+// main () =
+//     my_tree = IntBinTreeNode 10 (IntBinTreeNode 6 (IntBinTreeNode 7 Leaf Leaf) Leaf) (IntBinTreeNode 4 Leaf Leaf)
+//     sum my_tree
+//     add1 x = + x 1
+//     if > (sum my_tree) 1 then 
+//         false else 
+//         true
 

@@ -7,8 +7,7 @@ main () =
 // expected stdout: main () =
 
 
-
-// expected stderr:
-// examples/parser/parse_error.an:2:12	error: Expected an unindent but found `else`
-//     if true else
+//expected stderr:
+//./examples/parser/parse_error.an:2:12	error: Expected an unindent but found `else`
+//    if true else
 
