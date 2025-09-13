@@ -3,11 +3,17 @@ main () =
 
     bar a b = if then else
 
-// args: --parse --no-color
-// expected stdout: main () =
-
 
 //expected stderr:
 //./examples/parser/parse_error.an:2:12	error: Expected an unindent but found `else`
 //    if true else
+
+// args: --parse --no-color
+// expected stdout: main () =
+
+
+
+// expected stderr:
+// examples/parser/parse_error.an:2:12	error: Expected an unindent but found `else`
+//     if true else
 
