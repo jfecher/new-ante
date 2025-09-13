@@ -781,6 +781,7 @@ impl<'tokens> Parser<'tokens> {
         self.expect(Token::ExclamationMark, "`!` to start a mutable reference type")?;
         let owned = self.accept(Token::Owned);
         let shared = if owned { Sharedness::Owned } else { Sharedness::Shared };
+        self.parse_ident()?;
         Ok(Type::Reference(cst::Mutability::Mutable, shared))
     }
 
@@ -789,7 +790,10 @@ impl<'tokens> Parser<'tokens> {
         self.expect(Token::Ampersand, "`&` to start an immutable reference type")?;
         let owned = self.accept(Token::Owned);
         let shared = if owned { Sharedness::Owned } else { Sharedness::Shared };
-        Ok(Type::Reference(cst::Mutability::Immutable, shared))
+        match self.parse_type_application() {
+            Ok(application) => Ok(Type::TypeApplication(Box::new(Type::Reference(cst::Mutability::Immutable, shared)), vec![application])),
+            Err(_) => Ok(Type::Reference(cst::Mutability::Immutable, shared))
+        }
     }
 
     fn parse_function_type(&mut self) -> Result<Type> {
@@ -1372,6 +1376,8 @@ impl<'tokens> Parser<'tokens> {
 
             let then = this.parse_expr_with_recovery(body, Token::Else, &[Token::Newline])?;
 
+            this.accept(Token::Newline);
+    
             let else_ = if this.accept(Token::Else) { Some(body(this)?) } else { None };
             Ok(Expr::If(cst::If { condition, then, else_ }))
         })
