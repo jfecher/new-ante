@@ -688,7 +688,7 @@ impl<'tokens> Parser<'tokens> {
                     |this| {
                         this.expect(Token::Pipe, "`|`")?;
                         let variant_name = this.parse_type_name_id()?;
-                        let parameters = this.many0(Self::parse_type); // TODO: arg type
+                        let parameters = this.many0(Self::parse_type_arg);
                         Ok((variant_name, parameters))
                     },
                     Token::Newline,

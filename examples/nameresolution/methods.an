@@ -31,7 +31,7 @@ Tree.map (self: Tree q) (f: fn q -> z): Tree z =
 // // id = c1m12_66
 // shared type Tree_c1m12_66 =
 //     | Leaf_c1m12_66 t_1
-//     | Node_c1m12_66 ((Tree_c1m12_66 t_1) (Tree_c1m12_66 t_1))
+//     | Node_c1m12_66 (Tree_c1m12_66 t_1) (Tree_c1m12_66 t_1)
 // 
 // // id = c1m12_25
 // Tree_c1m12_66.map_c1m12_25 (self_2: Tree_c1m12_66 q_3) (f_4: fn q_3 -> z_6) : Tree_c1m12_66 z_6 =
