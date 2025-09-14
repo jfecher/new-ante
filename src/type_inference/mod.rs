@@ -15,6 +15,8 @@ use crate::{
 };
 
 pub mod types;
+pub mod type_context;
+pub mod type_id;
 
 /// Get the type of the name defined by this TopLevelId.
 /// If this doesn't define a name we return the Unit type by default.

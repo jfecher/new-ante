@@ -1,18 +1,15 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
-    rc::Rc,
     sync::Arc,
 };
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    iterator_extensions::vecmap,
-    lexer::token::{FloatKind, IntegerKind},
-    parser::{
+    lexer::token::{FloatKind, IntegerKind}, parser::{
         cst::{Mutability, Sharedness},
-        ids::ExprId,
-    },
+        ids::{ExprId, NameId},
+    }, type_inference::type_id::TypeId
 };
 
 /// A top-level type is a type which may be in a top-level signature.
@@ -37,12 +34,14 @@ pub enum TopLevelType {
     TypeApplication(Arc<TopLevelType>, Arc<Vec<TopLevelType>>),
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     /// Any primitive type which can be compared for unification via primitive equality
     Primitive(PrimitiveType),
+
     /// A user-supplied generic type. We don't want to bind over these like we do with type variables.
-    Generic(ExprId),
+    Generic(NameId),
+
     /// We represent type variables with unique ids and an external bindings map instead of a
     /// `Arc<RwLock<..>>` or similar because these need to be compared for equality, serialized, and
     /// be performant. We want the faster insertion of a local BTreeMap compared to a thread-safe
@@ -50,28 +49,28 @@ pub enum Type {
     /// able to access it from other threads.
     TypeVariable(TypeVariableId),
     Function(FunctionType),
-    TypeApplication(Rc<Type>, Rc<Vec<Type>>),
+    TypeApplication(TypeId, Vec<TypeId>),
     Reference(Mutability, Sharedness),
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct FunctionType {
-    parameters: Rc<Vec<Type>>,
-    return_type: Rc<Type>,
-    effects: Rc<Type>,
+    pub parameters: Vec<TypeId>,
+    pub return_type: TypeId,
+    pub effects: TypeId,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum PrimitiveType {
     Error,
     Unit,
     Bool,
     Pointer,
-    Int(IntegerKind),
-    Float(FloatKind),
+    Char,
     /// TODO: This should be a struct type
     String,
-    Char,
+    Int(IntegerKind),
+    Float(FloatKind),
 }
 
 /// Maps type variables to their bindings
@@ -94,38 +93,6 @@ impl TopLevelType {
 
 #[allow(unused)]
 impl Type {
-    /// Convert an ast type to a `Type` as closely as possible.
-    /// This method does not emit any errors and relies on name resolution
-    /// to emit errors when resolving types.
-    pub fn from_ast_type(typ: &crate::parser::cst::Type) -> Type {
-        match typ {
-            crate::parser::cst::Type::Integer(kind) => Type::Primitive(PrimitiveType::Int(*kind)),
-            crate::parser::cst::Type::Float(kind) => Type::Primitive(PrimitiveType::Float(*kind)),
-            crate::parser::cst::Type::String => Type::Primitive(PrimitiveType::String),
-            crate::parser::cst::Type::Char => Type::Primitive(PrimitiveType::Char),
-            crate::parser::cst::Type::Named(_path) => todo!("Resolve named types"),
-            crate::parser::cst::Type::Variable(_name) => todo!("Resolve named types"),
-            crate::parser::cst::Type::Function(function) => {
-                let parameters = Rc::new(vecmap(&function.parameters, Self::from_ast_type));
-                let return_type = Rc::new(Self::from_ast_type(&function.return_type));
-
-                let effects = match function.effects.as_ref() {
-                    Some(effects) => todo!(), //Rc::new(Self::from_ast_type(effects)),
-                    None => todo!(),
-                };
-                Type::Function(FunctionType { parameters, return_type, effects })
-            },
-            crate::parser::cst::Type::Error => Type::Primitive(PrimitiveType::Error),
-            crate::parser::cst::Type::Unit => Type::Primitive(PrimitiveType::Unit),
-            crate::parser::cst::Type::TypeApplication(f, args) => {
-                let f = Rc::new(Self::from_ast_type(f));
-                let args = Rc::new(vecmap(args, Type::from_ast_type));
-                Type::TypeApplication(f, args)
-            },
-            crate::parser::cst::Type::Reference(mutability, sharedness) => Type::Reference(*mutability, *sharedness),
-        }
-    }
-
     /// Substitutes any generics with the given names with the corresponding type in the map
     pub fn substitute(&self, _substitutions: &Substitutions, _bindings: &TypeBindings) -> Type {
         todo!()
