@@ -1,6 +1,14 @@
 use rustc_hash::FxHashMap;
 
-use crate::{iterator_extensions::vecmap, lexer::token::{FloatKind, IntegerKind}, type_inference::{type_id::TypeId, types::{FunctionType, PrimitiveType, Type}}, vecmap::VecMap};
+use crate::{
+    iterator_extensions::vecmap,
+    lexer::token::{FloatKind, IntegerKind},
+    type_inference::{
+        type_id::TypeId,
+        types::{FunctionType, PrimitiveType, Type},
+    },
+    vecmap::VecMap,
+};
 
 pub struct TypeContext {
     id_to_type: VecMap<TypeId, Type>,
@@ -108,7 +116,7 @@ impl TypeContext {
             crate::parser::cst::Type::Reference(mutability, sharedness) => {
                 let typ = Type::Reference(*mutability, *sharedness);
                 self.get_or_insert_type(typ)
-            }
+            },
         }
     }
 }

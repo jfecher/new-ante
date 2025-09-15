@@ -6,10 +6,12 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    lexer::token::{FloatKind, IntegerKind}, parser::{
+    lexer::token::{FloatKind, IntegerKind},
+    parser::{
         cst::{Mutability, Sharedness},
         ids::{ExprId, NameId},
-    }, type_inference::type_id::TypeId
+    },
+    type_inference::type_id::TypeId,
 };
 
 /// A top-level type is a type which may be in a top-level signature.

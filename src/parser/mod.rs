@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use cst::{
-    Comptime, Declaration, DefinitionName, EffectType, Index, Lambda, MemberAccess, Mutability, Name, OwnershipMode,
-    Parameter, Pattern, Sharedness,
+    Comptime, Declaration, EffectType, Index, Lambda, MemberAccess, Mutability, Name, OwnershipMode, Parameter,
+    Pattern, Sharedness,
 };
 use ids::{ExprId, NameId, PathId, PatternId, TopLevelId};
 use rustc_hash::FxHashSet;
@@ -265,6 +265,20 @@ impl<'tokens> Parser<'tokens> {
     fn new_top_level_id_from_name_id(&mut self, name: NameId) -> TopLevelId {
         let data = &self.current_context.names[name];
         let hash = Self::hash_top_level_data(&mut self.top_level_item_hashes, data);
+        self.new_top_level_id_helper(hash)
+    }
+
+    /// Create a new TopLevelId from the name of a given top level item.
+    fn new_top_level_id_from_pattern_id(&mut self, pattern: PatternId) -> TopLevelId {
+        let hash = match &self.current_context.patterns[pattern] {
+            Pattern::Variable(name) | Pattern::MethodName { type_name: _, item_name: name } => {
+                let data = &self.current_context.names[*name];
+                Self::hash_top_level_data(&mut self.top_level_item_hashes, data)
+            },
+            // Default to a nonsense hash and rely on collision detection to deduplicate it
+            _ => Self::hash_top_level_data(&mut self.top_level_item_hashes, &()),
+        };
+
         self.new_top_level_id_helper(hash)
     }
 
@@ -547,7 +561,7 @@ impl<'tokens> Parser<'tokens> {
                     self.token_index -= 1;
                 }
 
-                id = self.new_top_level_id_from_name_id(definition.name.item_name());
+                id = self.new_top_level_id_from_pattern_id(definition.pattern);
                 TopLevelItemKind::Definition(definition)
             },
             Token::Shared | Token::Type => {
@@ -595,52 +609,72 @@ impl<'tokens> Parser<'tokens> {
         comments
     }
 
+    /// definition: non_function_definition | function_definition
     fn parse_definition(&mut self) -> Result<Definition> {
-        let mutable = self.accept(Token::Mut);
+        match self.current_token() {
+            Token::Mut => self.parse_non_function_definition(),
+            _ => {
+                let start_index = self.token_index;
 
-        let start_location = self.current_token_location();
-        let name = self.parse_definition_name()?;
-        let parameters = self.parse_function_parameters();
-
-        // If this is a lambda, reserve the lambda's expr id ahead of time so it is allocated
-        // before the body for better cache performance
-        let lambda = (parameters.len() != 0).then(|| self.reserve_expr());
-
-        let mut typ = None;
-        let mut effects = None;
-        if self.accept(Token::Colon) {
-            typ = self.parse_with_recovery(Self::parse_type, Token::Equal, &[Token::Newline, Token::Indent]).ok();
-            effects = self.parse_effects_clause();
+                if let Ok(function) = self.parse_function_definition() {
+                    Ok(function)
+                } else {
+                    self.token_index = start_index;
+                    self.parse_non_function_definition()
+                }
+            }
         }
+    }
+
+    /// non_function_definition: 'mut'? pattern '=' expression
+    fn parse_non_function_definition(&mut self) -> Result<Definition> {
+        let mutable = self.accept(Token::Mut);
+        let pattern = self.parse_pattern()?;
         self.expect(Token::Equal, "`=` to begin the function body")?;
 
         let rhs = self
             .try_parse_or_recover_to_newline(|this| this.parse_block_or_expression())
             .unwrap_or_else(|| self.push_expr(Expr::Error, self.current_token_location()));
 
-        if let Some(id) = lambda {
-            let lambda = Expr::Lambda(Lambda { parameters, return_type: typ, effects, body: rhs });
-            self.insert_expr(id, lambda, start_location);
-            Ok(Definition { mutable, name, typ: None, rhs: id })
-        } else {
-            Ok(Definition { mutable, name, typ, rhs })
-        }
+        Ok(Definition { mutable, pattern, rhs })
     }
 
-    fn parse_definition_name(&mut self) -> Result<DefinitionName> {
-        match self.current_token() {
+    /// function_definition: function_name_pattern parameter+ (':' typ)? effects_clause '=' expression
+    fn parse_function_definition(&mut self) -> Result<Definition> {
+        let start_location = self.current_token_location();
+        let name = self.parse_function_name_pattern()?;
+        let parameters = self.parse_function_parameters();
+
+        let return_type = if self.accept(Token::Colon) {
+            self.parse_with_recovery(Self::parse_type, Token::Equal, &[Token::Newline, Token::Indent]).ok()
+        } else {
+            None
+        };
+
+        let effects = self.parse_effects_clause();
+        self.expect(Token::Equal, "`=` to begin the function body")?;
+
+        let lambda_id = self.reserve_expr();
+        let body = self
+            .try_parse_or_recover_to_newline(|this| this.parse_block_or_expression())
+            .unwrap_or_else(|| self.push_expr(Expr::Error, self.current_token_location()));
+
+        let lambda = Expr::Lambda(Lambda { parameters, return_type, effects, body });
+        self.insert_expr(lambda_id, lambda, start_location);
+        Ok(Definition { mutable: false, pattern: name, rhs: lambda_id })
+    }
+
+    fn parse_function_name_pattern(&mut self) -> Result<PatternId> {
+        self.with_pattern_id_and_location(|this| match this.current_token() {
+            Token::Identifier(_) => this.parse_ident_id().map(Pattern::Variable),
             Token::TypeName(_) => {
-                let type_name = self.parse_type_name_id()?;
-                self.expect(Token::MemberAccess, "a `.` to separate this method's object type from its name")?;
-                let item_name = self.parse_ident_id()?;
-                Ok(DefinitionName::Method { type_name, item_name })
+                let type_name = this.parse_type_name_id()?;
+                this.expect(Token::MemberAccess, "a `.` to separate this method's object type from its name")?;
+                let item_name = this.parse_ident_id()?;
+                Ok(Pattern::MethodName { type_name, item_name })
             },
-            Token::Identifier(_) => {
-                let name = self.parse_ident_id()?;
-                Ok(DefinitionName::Single(name))
-            },
-            _ => self.expected("a definition name"),
-        }
+            _ => this.expected("a definition name"),
+        })
     }
 
     fn parse_type_definition(&mut self) -> Result<TypeDefinition> {

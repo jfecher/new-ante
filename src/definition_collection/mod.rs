@@ -8,9 +8,9 @@ use crate::{
     },
     name_resolution::namespace::SourceFileId,
     parser::{
-        cst::{Import, ItemName, Name, TopLevelItem, TopLevelItemKind, TypeDefinitionBody},
-        ids::NameId,
-        ParseResult,
+        cst::{Import, ItemName, Literal, Pattern, TopLevelItemKind, TypeDefinitionBody},
+        ids::{NameId, PatternId, TopLevelId},
+        TopLevelContext,
     },
 };
 
@@ -143,24 +143,20 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
     incremental::println(format!("Collecting exported definitions in {:?}", context.0));
 
     let result = Parse(context.0).get(db);
-    let mut definitions = Definitions::default();
-    let mut methods = Methods::default();
+    let mut declarer = Declarer::new(db);
 
     // Collect each definition, issuing an error if there is a duplicate name (imports are not counted)
     for item in result.cst.top_level_items.iter() {
+        let data = &result.top_level_data[&item.id];
         match item.kind.name() {
-            ItemName::Single(name) => {
-                let name = &result.top_level_data[&item.id].names[name];
-                declare_single(name, item, &mut definitions, db);
-            },
-            ItemName::Method { type_name, item_name } => {
-                declare_method(type_name, item_name, item, &definitions, &mut methods, &result, db);
-            },
+            ItemName::Single(name) => declarer.declare_single(name, item.id, data),
+            ItemName::Pattern(pattern) => declarer.declare_names_in_pattern(pattern, item.id, data),
             ItemName::None => (),
         }
 
         let mut declare_method = |type_name, item_name| {
-            declare_method(type_name, item_name, item, &definitions, &mut methods, &result, db);
+            let context = &result.top_level_data[&item.id];
+            declarer.declare_method(type_name, item_name, item.id, context);
         };
 
         // Declare internal items
@@ -190,37 +186,77 @@ pub fn exported_definitions_impl(context: &ExportedDefinitions, db: &DbHandle) -
     }
 
     incremental::exit_query();
-    Arc::new(VisibleDefinitionsResult { definitions, methods })
+    Arc::new(VisibleDefinitionsResult { definitions: declarer.definitions, methods: declarer.methods })
 }
 
-fn declare_single(name: &Name, item: &TopLevelItem, definitions: &mut Definitions, db: &DbHandle) {
-    if let Some(existing) = definitions.get(name) {
-        let first_location = existing.location(db);
-        let second_location = item.id.location(db);
-        let name = name.clone();
-        db.accumulate(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
-    } else {
-        definitions.insert(name.clone(), item.id.clone());
+struct Declarer<'local, 'db> {
+    definitions: Definitions,
+    methods: Methods,
+    db: &'local DbHandle<'db>,
+}
+
+impl<'local, 'db> Declarer<'local, 'db> {
+    fn new(db: &'local DbHandle<'db>) -> Self {
+        Self { definitions: Default::default(), methods: Default::default(), db }
     }
-}
 
-fn declare_method(
-    type_name_id: NameId, item_name_id: NameId, item: &TopLevelItem, definitions: &Definitions, methods: &mut Methods,
-    parse: &ParseResult, db: &DbHandle,
-) {
-    let context = &parse.top_level_data[&item.id];
-    let type_name = &context.names[type_name_id];
-    let item_name = &context.names[item_name_id];
+    fn declare_names_in_pattern(&mut self, pattern: PatternId, id: TopLevelId, context: &TopLevelContext) {
+        match &context.patterns[pattern] {
+            Pattern::Error => (),
+            // No variables in a unit literal to declare
+            Pattern::Literal(Literal::Unit) => (),
+            Pattern::Literal(_) => {
+                let location = context.pattern_locations[pattern].clone();
+                self.db.accumulate(Diagnostic::LiteralUsedAsName { location });
+            },
+            Pattern::Variable(name) => self.declare_single(*name, id, context),
+            Pattern::Constructor(_, args) => {
+                for arg in args {
+                    self.declare_names_in_pattern(*arg, id, context);
+                }
+            },
+            Pattern::TypeAnnotation(pattern, _) => {
+                self.declare_names_in_pattern(*pattern, id, context);
+            },
+            Pattern::MethodName { type_name, item_name } => {
+                self.declare_method(*type_name, *item_name, id, context);
+            },
+        }
+    }
 
-    // Methods can only be declared on a type declared in the same file, so look in the same file
-    // for the type.
-    if let Some(object_type) = definitions.get(type_name) {
-        let object_methods = methods.entry(*object_type).or_default();
-        declare_single(item_name, item, object_methods, db);
-    } else {
-        let name = type_name.clone();
-        let location = context.name_locations[type_name_id].clone();
-        db.accumulate(Diagnostic::MethodDeclaredOnUnknownType { name, location });
+    fn declare_single(&mut self, name_id: NameId, id: TopLevelId, context: &TopLevelContext) {
+        self.declare_single_helper(name_id, id, context, |this| &mut this.definitions);
+    }
+
+    fn declare_single_helper(
+        &mut self, name_id: NameId, id: TopLevelId, context: &TopLevelContext,
+        definitions: impl FnOnce(&mut Self) -> &mut Definitions,
+    ) {
+        let name = context.names[name_id].clone();
+
+        if let Some(existing) = self.definitions.get(&name) {
+            let first_location = existing.location(self.db);
+            let second_location = context.name_locations[name_id].clone();
+            self.db.accumulate(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
+        } else {
+            definitions(self).insert(name, id.clone());
+        }
+    }
+
+    fn declare_method(
+        &mut self, type_name_id: NameId, item_name_id: NameId, id: TopLevelId, context: &TopLevelContext,
+    ) {
+        let type_name = &context.names[type_name_id];
+
+        // Methods can only be declared on a type declared in the same file, so look in the same file for the type.
+        if let Some(object_type) = self.definitions.get(type_name) {
+            let object_type = *object_type;
+            self.declare_single_helper(item_name_id, id, context, |this| this.methods.entry(object_type).or_default());
+        } else {
+            let name = type_name.clone();
+            let location = context.name_locations[type_name_id].clone();
+            self.db.accumulate(Diagnostic::MethodDeclaredOnUnknownType { name, location });
+        }
     }
 }
 

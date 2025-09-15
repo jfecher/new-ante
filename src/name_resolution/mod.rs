@@ -56,7 +56,7 @@ pub enum Origin {
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
     incremental::enter_query();
     let (statement, statement_ctx) = GetItem(context.0.clone()).get(compiler);
-    incremental::println(format!("Resolving {}", statement.kind.name_string(&statement_ctx)));
+    incremental::println(format!("Resolving {:?}", statement.kind.name()));
 
     // Note that we discord errors here because they're errors for the entire file and we are
     // resolving just one statement in it. This does mean that `CompileFile` will later need to
@@ -66,7 +66,7 @@ pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult 
 
     match statement.kind.name() {
         ItemName::Single(name_id) => resolver.link_existing_global(name_id),
-        ItemName::Method { type_name, item_name } => resolver.link_existing_method(type_name, item_name),
+        ItemName::Pattern(pattern) => resolver.link_existing_pattern(pattern),
         ItemName::None => (),
     }
 
@@ -301,6 +301,26 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         self.name_links.insert(item_name, Origin::TopLevelDefinition(method));
     }
 
+    fn link_existing_pattern(&mut self, pattern: PatternId) {
+        match &self.context.patterns[pattern] {
+            Pattern::Error => (),
+            // The only literal pattern allowed in a global's name is `()` which has nothing to link
+            Pattern::Literal(_) => (),
+            Pattern::Variable(name_id) => self.link_existing_global(*name_id),
+            Pattern::Constructor(constructor, args) => {
+                self.link(*constructor, false);
+                for arg in args {
+                    self.link_existing_pattern(*arg);
+                }
+            },
+            Pattern::TypeAnnotation(pattern, typ) => {
+                self.link_existing_pattern(*pattern);
+                self.resolve_type(typ, false);
+            },
+            Pattern::MethodName { type_name, item_name } => self.link_existing_method(*type_name, *item_name),
+        }
+    }
+
     fn emit_diagnostic(&self, diagnostic: Diagnostic) {
         self.compiler.accumulate(diagnostic);
     }
@@ -401,6 +421,10 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                 self.declare_names_in_pattern(*pattern, declare_type_vars, allow_type_based_resolution);
                 self.resolve_type(typ, declare_type_vars);
             },
+            Pattern::MethodName { type_name, item_name } => {
+                self.resolve_variable(*type_name, false);
+                self.declare_name(*item_name);
+            },
         }
     }
 
@@ -412,7 +436,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
         match typ {
             Type::Error | Type::Unit | Type::Integer(_) | Type::Float(_) | Type::String | Type::Char => (),
             Type::Named(path) => self.link(*path, false),
-            Type::Variable(name) => self.resolve_type_variable(*name, declare_type_vars),
+            Type::Variable(name) => self.resolve_variable(*name, declare_type_vars),
             Type::Function(function) => {
                 for parameter in &function.parameters {
                     self.resolve_type(parameter, declare_type_vars);
@@ -445,16 +469,18 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     self.resolve_type(arg, declare_type_vars);
                 }
             },
-            EffectType::Variable(name_id) => self.resolve_type_variable(*name_id, declare_type_vars),
+            EffectType::Variable(name_id) => self.resolve_variable(*name_id, declare_type_vars),
         }
     }
 
-    fn resolve_type_variable(&mut self, name_id: NameId, declare_type_vars: bool) {
+    /// If `auto_declare` is true, automatically declare the name if not found instead of issuing
+    /// an error.
+    fn resolve_variable(&mut self, name_id: NameId, auto_declare: bool) {
         let name = &self.context.names[name_id];
 
         if let Some(origin) = self.lookup_local_name(name) {
             self.name_links.insert(name_id, origin);
-        } else if declare_type_vars {
+        } else if auto_declare {
             self.declare_name(name_id);
         } else {
             let location = self.context.name_locations[name_id].clone();
@@ -499,11 +525,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     }
 
     fn resolve_definition(&mut self, definition: &Definition) {
-        if let Some(typ) = definition.typ.as_ref() {
-            // TODO: We should only set declare_type_vars to true here
-            // if we're resolving a top-level definition, not a local one.
-            self.resolve_type(typ, true);
-        }
+        self.declare_names_in_pattern(definition.pattern, true, false);
         self.resolve_expr(definition.rhs);
     }
 

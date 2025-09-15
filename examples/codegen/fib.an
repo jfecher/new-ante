@@ -17,6 +17,6 @@ print (fib 10)
 // examples/codegen/fib.an:3:4	error: Expected an unindent but found `else`
 //     else fib (n - 2) + fib (n - 1)
 // 
-// examples/codegen/fib.an:5:11	error: Expected `=` to begin the function body but found `10`
+// examples/codegen/fib.an:5:6	error: Expected `=` to begin the function body but found `(`
 // print (fib 10)
 

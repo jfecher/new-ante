@@ -39,9 +39,9 @@ for (fn () -> iota 10) print
 // examples/codegen/effects/generators_basic.an:15:0	error: Expected a top-level item but found an unindent
 // for (fn () -> iota 10) print
 // 
-// examples/codegen/effects/generators_basic.an:15:5	error: Expected a parameter but found `fn`
+// examples/codegen/effects/generators_basic.an:15:4	error: Expected `=` to begin the function body but found `(`
 // for (fn () -> iota 10) print
 // 
-// examples/codegen/effects/generators_basic.an:17:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
+// examples/codegen/effects/generators_basic.an:15:5	error: Expected a parameter but found `fn`
+// for (fn () -> iota 10) print
 

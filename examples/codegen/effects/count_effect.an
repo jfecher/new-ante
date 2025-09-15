@@ -46,6 +46,6 @@ handle_count foo |> print
 // examples/codegen/effects/count_effect.an:12:4	error: Expected a top-level item but found `|`
 //     | count () -> 1 + resume ()
 // 
-// examples/codegen/effects/count_effect.an:14:17	error: Expected `=` to begin the function body but found `|>`
+// examples/codegen/effects/count_effect.an:14:13	error: Expected `=` to begin the function body but found `foo`
 // handle_count foo |> print
 

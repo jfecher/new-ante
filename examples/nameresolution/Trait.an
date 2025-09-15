@@ -20,8 +20,8 @@ main () =
 // 
 // // id = c1m88_81
 // impl foo_i32_string_c1m88_81: Foo_c1m88_37 I32 String_b with
-//     foo_? _x_2 = "test"
-//     baz_? = 2
+//     foo_1 _x_2 = "test"
+//     baz_3 = 2
 // 
 // // id = c1m88_44
 // main_c1m88_44 () =

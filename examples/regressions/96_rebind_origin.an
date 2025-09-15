@@ -23,6 +23,6 @@ twice 1u8 2u16
 // examples/regressions/96_rebind_origin.an:3:4	error: `cast` is not defined, was it a typo?
 //     cast foo : U64
 // 
-// examples/regressions/96_rebind_origin.an:11:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
+// examples/regressions/96_rebind_origin.an:9:6	error: Expected `=` to begin the function body but found `1_U8`
+// twice 1u8 2u16
 

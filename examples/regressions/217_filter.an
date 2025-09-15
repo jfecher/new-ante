@@ -54,10 +54,10 @@ for filtered print
 // examples/regressions/217_filter.an:4:16	error: Expected an expression but found `loop`
 // iota (n: U32) = loop (i = 0) ->
 // 
-// examples/regressions/217_filter.an:10:21	error: Expected `=` to begin the function body but found `->`
+// examples/regressions/217_filter.an:10:7	error: Expected `=` to begin the function body but found `(`
 // filter (stream: Unit -> Unit) (f: a -> Bool pure) =
 // 
-// examples/regressions/217_filter.an:18:18	error: Expected `=` to begin the function body but found `->`
+// examples/regressions/217_filter.an:18:4	error: Expected `=` to begin the function body but found `(`
 // for (stream: Unit -> Unit can Emit a) (f: a -> Unit pure) =
 // 
 // examples/regressions/217_filter.an:29:4	error: `filter` is not defined, was it a typo?
@@ -69,6 +69,6 @@ for filtered print
 // examples/regressions/217_filter.an:29:25	error: Expected an expression but found `fn`
 //     filter zero_to_nine (fn x -> x % 2 == 0)
 // 
-// examples/regressions/217_filter.an:33:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
+// examples/regressions/217_filter.an:31:4	error: Expected `=` to begin the function body but found `filtered`
+// for filtered print
 

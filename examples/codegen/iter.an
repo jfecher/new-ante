@@ -25,7 +25,7 @@ my_iter 10 print
 // 
 // // id = c1m50_97
 // impl countdown_c1m50_97: MyIterable_c1m50_40 I32 I32 with
-//     mynext_? x_2 =
+//     mynext_1 x_2 =
 //         if <=_? x_2 0 then None_td
 // 
 // // id = c1m50_6
@@ -49,6 +49,6 @@ my_iter 10 print
 // examples/codegen/iter.an:12:10	error: `mynext` is not defined, was it a typo?
 //     match mynext iterable
 // 
-// examples/codegen/iter.an:20:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
+// examples/codegen/iter.an:18:8	error: Expected `=` to begin the function body but found `10`
+// my_iter 10 print
 

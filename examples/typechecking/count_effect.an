@@ -43,6 +43,6 @@ handle_count foo
 // examples/typechecking/count_effect.an:12:4	error: Expected a top-level item but found `|`
 //     | count () -> 1 + resume ()
 // 
-// examples/typechecking/count_effect.an:16:0	error: Expected `=` to begin the function body but found a newline
-// // args: --check --show-types
+// examples/typechecking/count_effect.an:14:13	error: Expected `=` to begin the function body but found `foo`
+// handle_count foo
 

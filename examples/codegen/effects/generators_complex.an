@@ -57,7 +57,7 @@ iota 10
 // iota_c1m10_99 (n_1: U32) = (error)
 // 
 // // id = c1m10_16
-// even_c1m10_16 x_9 = ==_? (%_? x_9 2) 0
+// even_c1m10_16 x_13 = ==_? (%_? x_13 2) 0
 
 // expected stderr:
 // examples/codegen/effects/generators_complex.an:2:12	error: Expected an unindent but found `->`
@@ -66,16 +66,16 @@ iota 10
 // examples/codegen/effects/generators_complex.an:4:16	error: Expected an expression but found `loop`
 // iota (n: U32) = loop (i = 0) ->
 // 
-// examples/codegen/effects/generators_complex.an:9:21	error: Expected `=` to begin the function body but found `->`
+// examples/codegen/effects/generators_complex.an:9:7	error: Expected `=` to begin the function body but found `(`
 // filter (stream: Unit -> Unit can Emit a) (f: a -> Bool pure) =
 // 
-// examples/codegen/effects/generators_complex.an:16:18	error: Expected `=` to begin the function body but found `->`
+// examples/codegen/effects/generators_complex.an:16:4	error: Expected `=` to begin the function body but found `(`
 // map (stream: Unit -> Unit can Emit a) (f: a -> b pure): Unit can Emit b =
 // 
-// examples/codegen/effects/generators_complex.an:22:24	error: Expected `=` to begin the function body but found `->`
+// examples/codegen/effects/generators_complex.an:22:10	error: Expected `=` to begin the function body but found `(`
 // enumerate (stream: Unit -> Unit can Emit a): Unit can Emit (U32, a) =
 // 
-// examples/codegen/effects/generators_complex.an:31:18	error: Expected `=` to begin the function body but found `->`
+// examples/codegen/effects/generators_complex.an:31:4	error: Expected `=` to begin the function body but found `(`
 // for (stream: Unit -> Unit can Emit a) (f: a -> Unit pure) =
 // 
 // examples/codegen/effects/generators_complex.an:37:11	error: `%` is not defined, was it a typo?
@@ -84,9 +84,9 @@ iota 10
 // examples/codegen/effects/generators_complex.an:37:15	error: `==` is not defined, was it a typo?
 // even x = x % 2 == 0
 // 
-// examples/codegen/effects/generators_complex.an:39:15	error: Expected `=` to begin the function body but found `U32`
+// examples/codegen/effects/generators_complex.an:39:9	error: Expected `=` to begin the function body but found `(`
 // my_print (x1: !U32, U32) =
 // 
-// examples/codegen/effects/generators_complex.an:45:4	error: Expected `=` to begin the function body but found `with`
-//     with filter even
+// examples/codegen/effects/generators_complex.an:44:5	error: Expected `=` to begin the function body but found `10`
+// iota 10
 

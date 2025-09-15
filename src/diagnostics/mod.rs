@@ -26,6 +26,7 @@ pub enum Diagnostic {
     NamespaceNotFound { name: String, location: Location },
     NameNotFound { name: Arc<String>, location: Location },
     MethodDeclaredOnUnknownType { name: Arc<String>, location: Location },
+    LiteralUsedAsName { location: Location },
 }
 
 impl Ord for Diagnostic {
@@ -97,6 +98,9 @@ impl Diagnostic {
             Diagnostic::MethodDeclaredOnUnknownType { name, location: _ } => {
                 format!("Methods can only be defined on types declared within the same file, which `{name}` was not")
             },
+            Diagnostic::LiteralUsedAsName { location: _ } => {
+                format!("Expected a definition name but found a literal")
+            },
         }
     }
 
@@ -113,6 +117,7 @@ impl Diagnostic {
             | Diagnostic::RecursiveType { location, .. }
             | Diagnostic::NamespaceNotFound { location, .. }
             | Diagnostic::MethodDeclaredOnUnknownType { location, .. }
+            | Diagnostic::LiteralUsedAsName { location }
             | Diagnostic::NameNotFound { location, .. } => location,
         }
     }

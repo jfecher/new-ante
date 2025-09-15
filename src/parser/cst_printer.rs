@@ -12,10 +12,10 @@ use crate::{
 
 use super::{
     cst::{
-        Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr, Extern,
-        FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, Mutability, OwnershipMode, Parameter,
-        Path, Pattern, Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition,
-        TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody,
+        Call, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, If,
+        Import, Index, Lambda, Literal, Match, MemberAccess, Mutability, OwnershipMode, Parameter, Path, Pattern,
+        Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type,
+        TypeAnnotation, TypeDefinition, TypeDefinitionBody,
     },
     ids::{ExprId, PatternId, TopLevelId},
     TopLevelContext,
@@ -160,12 +160,7 @@ impl<'a> CstDisplay<'a> {
             write!(f, "mut ")?;
         }
 
-        self.fmt_definition_name(definition.name, f)?;
-
-        if let Some(typ) = &definition.typ {
-            write!(f, ": ")?;
-            self.fmt_type(typ, f)?;
-        }
+        self.fmt_pattern(definition.pattern, f)?;
 
         write!(f, " =")?;
         if !matches!(self.context().exprs[definition.rhs], Expr::Sequence(_)) {
@@ -173,17 +168,6 @@ impl<'a> CstDisplay<'a> {
         }
 
         self.fmt_expr(definition.rhs, f)
-    }
-
-    fn fmt_definition_name(&mut self, name: DefinitionName, f: &mut Formatter) -> std::fmt::Result {
-        match name {
-            DefinitionName::Single(name_id) => self.fmt_name(name_id, f),
-            DefinitionName::Method { type_name, item_name } => {
-                self.fmt_name(type_name, f)?;
-                write!(f, ".")?;
-                self.fmt_name(item_name, f)
-            },
-        }
     }
 
     fn fmt_name(&self, name: NameId, f: &mut Formatter) -> std::fmt::Result {
@@ -213,7 +197,7 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_function(&mut self, definition: &Definition, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
-        self.fmt_definition_name(definition.name, f)?;
+        self.fmt_pattern(definition.pattern, f)?;
         self.fmt_lambda_inner(lambda, f)
     }
 
@@ -602,6 +586,11 @@ impl<'a> CstDisplay<'a> {
                 write!(f, ": ")?;
                 self.fmt_type(typ, f)
             },
+            Pattern::MethodName { type_name, item_name } => {
+                self.fmt_name(*type_name, f)?;
+                write!(f, ".")?;
+                self.fmt_name(*item_name, f)
+            },
         }
     }
 
@@ -652,12 +641,11 @@ impl<'a> CstDisplay<'a> {
 
     /// True if this pattern never requires parenthesis
     fn is_pattern_atom(&self, pattern: PatternId) -> bool {
+        use Pattern::*;
         match &self.context().patterns[pattern] {
-            Pattern::Error => true,
-            Pattern::Variable(_) => true,
-            Pattern::Literal(_) => true,
-            Pattern::Constructor(_, args) => args.is_empty(),
-            Pattern::TypeAnnotation(_, _) => false,
+            Error | Variable(_) | Literal(_) | MethodName { .. } => true,
+            Constructor(_, args) => args.is_empty(),
+            TypeAnnotation(_, _) => false,
         }
     }
 

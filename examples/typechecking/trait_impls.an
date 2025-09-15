@@ -55,8 +55,8 @@ bar "four" "five"
 // examples/typechecking/trait_impls.an:22:20	error: `bar` is not defined, was it a typo?
 // baz (x: String) y = bar x y
 // 
-// examples/typechecking/trait_impls.an:25:0	error: Expected `=` to begin the function body but found a newline
-// bar "four" "five"
+// examples/typechecking/trait_impls.an:23:4	error: Expected `=` to begin the function body but found `3`
+// bar 3 2
 // 
 // examples/typechecking/trait_impls.an:25:4	error: Expected `=` to begin the function body but found `"four"`
 // bar "four" "five"

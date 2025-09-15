@@ -14,9 +14,9 @@ use crate::{
     type_inference::types::{GeneralizedType, TopLevelType, TypeVariableId},
 };
 
-pub mod types;
 pub mod type_context;
 pub mod type_id;
+pub mod types;
 
 /// Get the type of the name defined by this TopLevelId.
 /// If this doesn't define a name we return the Unit type by default.
