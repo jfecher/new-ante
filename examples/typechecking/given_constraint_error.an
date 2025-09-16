@@ -4,8 +4,8 @@ impl print_impl {_: DoesNotExist a}: Print a with
 
 // args: --check
 // expected stdout:
-// // id = c1m27_15
-// impl print_impl_c1m27_15 {__?: DoesNotExist_? a_?}: Print_? a_3 with
+// // id = c1m27_90
+// impl print_impl_c1m27_90 {__?: DoesNotExist_? a_?}: Print_? a_3 with
 //     printne_4 __5 = ()
 
 // expected stderr:

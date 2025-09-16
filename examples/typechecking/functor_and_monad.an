@@ -32,15 +32,15 @@ impl monad_maybe: Monad Maybe with
 //     wrap_2: fn a_3 -> m_1 a_3
 //     bind_6: fn (m_1 a_3) (fn a_3 -> m_1 b_11) -> m_1 b_11
 // 
-// // id = c1m68_58
-// impl functor_maybe_c1m68_58: Functor_c1m68_53 Maybe_? with
+// // id = c1m68_10
+// impl functor_maybe_c1m68_10: Functor_c1m68_53 Maybe_? with
 //     map_1 m_2 f_3 =
 //         match m_2
 //         | Some_td x_4 -> Some_td (f_3 x_4)
 //         | None_td -> None_td
 // 
-// // id = c1m68_36
-// impl monad_maybe_c1m68_36: Monad_c1m68_41 Maybe_? with
+// // id = c1m68_62
+// impl monad_maybe_c1m68_62: Monad_c1m68_41 Maybe_? with
 //     wrap_1 a_2 = Some_td a_2
 //     bind_3 m_4 f_5 =
 //         match m_4

@@ -23,8 +23,8 @@ my_iter 10 print
 // trait MyIterable_c1m50_40 it_1 -> elem_2 with
 //     mynext_3: it_1
 // 
-// // id = c1m50_97
-// impl countdown_c1m50_97: MyIterable_c1m50_40 I32 I32 with
+// // id = c1m50_31
+// impl countdown_c1m50_31: MyIterable_c1m50_40 I32 I32 with
 //     mynext_1 x_2 =
 //         if <=_? x_2 0 then None_td
 // 

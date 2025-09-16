@@ -25,8 +25,8 @@ foo x x
 // type S_c1m51_77 =
 //     message_?: String_b
 // 
-// // id = c1m51_6
-// impl print_s_c1m51_6: Print_? S_c1m51_77 with
+// // id = c1m51_52
+// impl print_s_c1m51_52: Print_? S_c1m51_77 with
 //     printne_1 s_2 = printne_1 s_2.message
 // 
 // // id = c1m51_32

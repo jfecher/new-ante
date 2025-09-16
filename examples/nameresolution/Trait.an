@@ -18,8 +18,8 @@ main () =
 //     foo_3: fn a_1 -> b_2
 //     bar_6: a_1
 // 
-// // id = c1m88_81
-// impl foo_i32_string_c1m88_81: Foo_c1m88_37 I32 String_b with
+// // id = c1m88_10
+// impl foo_i32_string_c1m88_10: Foo_c1m88_37 I32 String_b with
 //     foo_1 _x_2 = "test"
 //     baz_3 = 2
 // 

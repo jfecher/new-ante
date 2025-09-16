@@ -13,8 +13,8 @@ str = foo 0i32
 // trait Foo_c1m69_37 a_1 -> b_2 with
 //     foo_3: fn a_1 -> b_2
 // 
-// // id = c1m69_56
-// impl foo_impl_c1m69_56: Foo_c1m69_37 I32 String_b with
+// // id = c1m69_46
+// impl foo_impl_c1m69_46: Foo_c1m69_37 I32 String_b with
 //     foo_1 __2 = "hi"
 // 
 // // id = c1m69_29

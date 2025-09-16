@@ -56,24 +56,24 @@ impl candidate2: Foo Thing with
 // main_c1m19_44 () =
 //     foo_? (Thing_c1m19_31 ())
 // 
-// // id = c1m19_77
-// impl candidate1_c1m19_77 {__?: Bar_? a_?}: Foo_c1m19_37 a_3 with
-//     foo_4 a_5 = bar_c1m19_23 a_5
+// // id = c1m19_27
+// impl candidate1_c1m19_27 {__?: Bar_? a_?}: Foo_c1m19_37 a_3 with
+//     foo_4 a_5 = bar_c1m19_28 a_5
 // 
-// // id = c1m19_23
-// impl bar_c1m19_23 {__?: Baz_? a_?}: Bar_c1m19_44 a_3 with
-//     bar_4 a_5 = baz_c1m19_39 a_5
-// 
-// // id = c1m19_39
-// impl baz_c1m19_39: Baz_c1m19_51 Thing_c1m19_31 with
-//     baz_1 __2 = ()
+// // id = c1m19_28
+// impl bar_c1m19_28 {__?: Baz_? a_?}: Bar_c1m19_44 a_3 with
+//     bar_4 a_5 = baz_c1m19_71 a_5
 // 
 // // id = c1m19_71
-// impl does_not_match_c1m19_71 {__?: Print_? a_?}: Foo_c1m19_37 a_3 with
+// impl baz_c1m19_71: Baz_c1m19_51 Thing_c1m19_31 with
+//     baz_1 __2 = ()
+// 
+// // id = c1m19_43
+// impl does_not_match_c1m19_43 {__?: Print_? a_?}: Foo_c1m19_37 a_3 with
 //     foo_4 __5 = ()
 // 
-// // id = c1m19_54
-// impl candidate2_c1m19_54: Foo_c1m19_37 Thing_c1m19_31 with
+// // id = c1m19_63
+// impl candidate2_c1m19_63: Foo_c1m19_37 Thing_c1m19_31 with
 //     foo_1 __2 = ()
 
 // expected stderr:

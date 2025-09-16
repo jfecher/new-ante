@@ -22,8 +22,8 @@ iter i print
 
 // args: --delete-binary
 // expected stdout:
-// // id = c1m29_58
-// impl countdown_c1m29_58: Iterator_? U64 U64 with
+// // id = c1m29_78
+// impl countdown_c1m29_78: Iterator_? U64 U64 with
 //     next_1 x_2 =
 // 
 // // id = c1m29_78
@@ -31,8 +31,8 @@ iter i print
 //     iter_?: i_1
 //     pred_?: a_2
 // 
-// // id = c1m29_17
-// impl iter_take_while_c1m29_17 {__?: Iterator_? i_? a_?}: Iterator_? (TakeWhile_c1m29_78 i_c1m29_74 a_5) a_5 with
+// // id = c1m29_39
+// impl iter_take_while_c1m29_39 {__?: Iterator_? i_? a_?}: Iterator_? (TakeWhile_c1m29_78 i_c1m29_74 a_5) a_5 with
 //     next_7 tw_8 =
 //         match next_7 tw_8.iter
 //         | Some_td (,_b iter_9 new_10) -> 
