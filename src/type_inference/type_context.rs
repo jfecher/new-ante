@@ -21,24 +21,31 @@ impl TypeContext {
     /// ids instead of requiring a lookup whenever constructing a primitive type.
     pub fn new() -> Self {
         let mut id_to_type = VecMap::default();
-        let error = id_to_type.push(Type::Primitive(PrimitiveType::Error));
-        let unit = id_to_type.push(Type::Primitive(PrimitiveType::Unit));
-        let bool = id_to_type.push(Type::Primitive(PrimitiveType::Bool));
-        let pointer = id_to_type.push(Type::Primitive(PrimitiveType::Pointer));
-        let char = id_to_type.push(Type::Primitive(PrimitiveType::Char));
-        let string = id_to_type.push(Type::Primitive(PrimitiveType::String));
-        let i8 = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::I8)));
-        let i16 = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::I16)));
-        let i32 = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::I32)));
-        let i64 = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::I64)));
-        let isz = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::Isz)));
-        let u8 = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::U8)));
-        let u16 = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::U16)));
-        let u32 = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::U32)));
-        let u64 = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::U64)));
-        let usz = id_to_type.push(Type::Primitive(PrimitiveType::Int(IntegerKind::Usz)));
-        let f32 = id_to_type.push(Type::Primitive(PrimitiveType::Float(FloatKind::F32)));
-        let f64 = id_to_type.push(Type::Primitive(PrimitiveType::Float(FloatKind::F64)));
+        let mut type_to_id = FxHashMap::default();
+        let mut insert = |typ| {
+            let id = id_to_type.push(Type::Primitive(typ));
+            type_to_id.insert(id, Type::Primitive(typ));
+            id
+        };
+
+        let error = insert(PrimitiveType::Error);
+        let unit = insert(PrimitiveType::Unit);
+        let bool = insert(PrimitiveType::Bool);
+        let pointer = insert(PrimitiveType::Pointer);
+        let char = insert(PrimitiveType::Char);
+        let string = insert(PrimitiveType::String);
+        let i8 = insert(PrimitiveType::Int(IntegerKind::I8));
+        let i16 = insert(PrimitiveType::Int(IntegerKind::I16));
+        let i32 = insert(PrimitiveType::Int(IntegerKind::I32));
+        let i64 = insert(PrimitiveType::Int(IntegerKind::I64));
+        let isz = insert(PrimitiveType::Int(IntegerKind::Isz));
+        let u8 = insert(PrimitiveType::Int(IntegerKind::U8));
+        let u16 = insert(PrimitiveType::Int(IntegerKind::U16));
+        let u32 = insert(PrimitiveType::Int(IntegerKind::U32));
+        let u64 = insert(PrimitiveType::Int(IntegerKind::U64));
+        let usz = insert(PrimitiveType::Int(IntegerKind::Usz));
+        let f32 = insert(PrimitiveType::Float(FloatKind::F32));
+        let f64 = insert(PrimitiveType::Float(FloatKind::F64));
 
         assert_eq!(error, TypeId::ERROR);
         assert_eq!(unit, TypeId::UNIT);
@@ -60,6 +67,10 @@ impl TypeContext {
         assert_eq!(f64, TypeId::F64);
 
         Self { id_to_type, type_to_id: Default::default() }
+    }
+
+    pub fn get_type(&self, id: TypeId) -> &Type {
+        &self.id_to_type[id]
     }
 
     pub fn get_or_insert_type(&mut self, typ: Type) -> TypeId {
@@ -107,10 +118,10 @@ impl TypeContext {
             },
             crate::parser::cst::Type::Error => TypeId::ERROR,
             crate::parser::cst::Type::Unit => TypeId::UNIT,
-            crate::parser::cst::Type::TypeApplication(f, args) => {
+            crate::parser::cst::Type::Application(f, args) => {
                 let f = self.convert_ast_type(f);
                 let args = vecmap(args, |typ| self.convert_ast_type(typ));
-                let typ = Type::TypeApplication(f, args);
+                let typ = Type::Application(f, args);
                 self.get_or_insert_type(typ)
             },
             crate::parser::cst::Type::Reference(mutability, sharedness) => {

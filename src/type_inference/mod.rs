@@ -1,59 +1,36 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-use types::{PrimitiveType, Type, TypeBindings};
+use types::{Type, TypeBindings};
 
 use crate::{
-    incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheck},
+    incremental::{self, DbHandle, GetItem, Resolve, TypeCheck},
     name_resolution::{Origin, ResolutionResult},
     parser::{
         cst::{Expr, Literal, TopLevelItemKind},
         ids::{ExprId, NameId, PathId, PatternId, TopLevelId},
         TopLevelContext,
     },
-    type_inference::types::{GeneralizedType, TopLevelType, TypeVariableId},
+    type_inference::{type_id::TypeId, types::{GeneralizedType, TopLevelType, TypeVariableId}},
 };
 
 pub mod type_context;
 pub mod type_id;
 pub mod types;
+mod get_type;
 
-/// Get the type of the name defined by this TopLevelId.
-/// If this doesn't define a name we return the Unit type by default.
-///
-/// This is very similar to but separate from `type_check_impl`. We separate these
-/// because `type_check_impl` will always type check the contents of a definition,
-/// and we don't want other definitions to depend on the contents of another definition
-/// if the other definition provides a type annotation. Without type annotations the two
-/// functions should be mostly equivalent.
-pub fn get_type_impl(context: &GetType, compiler: &DbHandle) -> GeneralizedType {
-    incremental::enter_query();
-    let (item, _item_context) = compiler.get(GetItem(context.0.clone()));
-    incremental::println(format!("Get type of {:?}", item.id));
-
-    let typ = match &item.kind {
-        TopLevelItemKind::Definition(_) => todo!(),
-        TopLevelItemKind::TypeDefinition(_) => GeneralizedType::unit(),
-        TopLevelItemKind::TraitDefinition(_) => GeneralizedType::unit(),
-        TopLevelItemKind::TraitImpl(_) => todo!(),
-        TopLevelItemKind::EffectDefinition(_) => GeneralizedType::unit(),
-        TopLevelItemKind::Extern(_) => todo!(),
-        TopLevelItemKind::Comptime(_) => todo!(),
-    };
-    incremental::exit_query();
-    typ
-}
+pub use get_type::get_type_impl;
 
 /// Actually type check a statement and its contents.
 /// Unlike `get_type_impl`, this always type checks the expressions inside a statement
 /// to ensure they type check correctly.
 pub fn type_check_impl(context: &TypeCheck, compiler: &DbHandle) -> TypeCheckResult {
     incremental::enter_query();
-    let (item, item_context) = GetItem(context.0.clone()).get(compiler);
+    let (item, item_context) = GetItem(context.0).get(compiler);
     incremental::println(format!("Type checking {:?}", item.id));
 
-    let resolve = Resolve(context.0.clone()).get(compiler);
-    let checker = TypeChecker::new(context.0.clone(), resolve, &item_context, compiler);
+    let resolve = Resolve(context.0).get(compiler);
+    let checker = TypeChecker::new(context.0, resolve, &item_context, compiler);
 
     let typ = match &item.kind {
         TopLevelItemKind::Definition(_) => todo!(),
@@ -109,13 +86,13 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
         TypeCheckResult { typ, expr_types: self.pattern_types }
     }
 
-    fn next_type_variable(&mut self) -> TopLevelType {
-        let id = TypeVariableId(self.next_id);
+    fn next_type_variable(&mut self) -> TypeId {
+        let _id = TypeVariableId(self.next_id);
         self.next_id += 1;
-        TopLevelType::TypeVariable(id)
+        todo!()
     }
 
-    fn store_and_return_type(&mut self, _id: ExprId, _typ: Type) -> Type {
+    fn store_and_return_type(&mut self, _expr: ExprId, typ: TypeId) -> TypeId {
         todo!()
     }
 
@@ -131,33 +108,9 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
         todo!("Generalize")
     }
 
-    /// Replaces any `Type::TypeVariable`s with `Type::Generic`s.
-    /// Their names are simply their integer ids converted to a string to ensure they do not
-    /// collide with the names of any existing generics in the same type.
-    fn replace_type_variables_with_named_generics(&mut self, typ: &TopLevelType) -> TopLevelType {
-        match typ {
-            TopLevelType::Generic(name) => TopLevelType::Generic(name.clone()),
-            TopLevelType::TypeVariable(_) => todo!(),
-            TopLevelType::Function { parameter, return_type } => {
-                let parameter = Arc::new(self.replace_type_variables_with_named_generics(parameter));
-                let return_type = Arc::new(self.replace_type_variables_with_named_generics(return_type));
-                TopLevelType::Function { parameter, return_type }
-            },
-            TopLevelType::Primitive(_) => todo!(),
-            TopLevelType::TypeApplication(..) => todo!(),
-        }
-    }
-
-    fn check_expr(&mut self, expr: ExprId, _expected: &Type) -> Type {
+    fn check_expr(&mut self, expr: ExprId, _expected: &Type) -> TypeId {
         let typ = match &self.context.exprs[expr] {
-            Expr::Literal(Literal::Unit) => Type::unit(),
-            Expr::Literal(Literal::Integer(_, Some(kind))) => Type::Primitive(PrimitiveType::Int(*kind)),
-            Expr::Literal(Literal::Float(_, Some(kind))) => Type::Primitive(PrimitiveType::Float(*kind)),
-            Expr::Literal(Literal::Bool(_)) => Type::Primitive(PrimitiveType::Bool),
-            Expr::Literal(Literal::Integer(_, None)) => todo!(),
-            Expr::Literal(Literal::Float(_, None)) => todo!(),
-            Expr::Literal(Literal::String(_)) => todo!(),
-            Expr::Literal(Literal::Char(_)) => todo!(),
+            Expr::Literal(literal) => self.check_literal(literal),
             Expr::Variable(_identifier) => {
                 // If this is a built-in, get that type. Otherwise, lookup or query its type.
                 todo!()
@@ -173,9 +126,22 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             Expr::Reference(_reference) => todo!(),
             Expr::TypeAnnotation(_type_annotation) => todo!(),
             Expr::Quoted(_quoted) => todo!(),
-            Expr::Error => Type::error(),
+            Expr::Error => TypeId::ERROR,
         };
         self.store_and_return_type(expr, typ)
+    }
+
+    fn check_literal(&mut self, literal: &Literal) -> TypeId {
+        match literal {
+            Literal::Unit => TypeId::UNIT,
+            Literal::Integer(_, Some(kind)) => TypeId::integer(*kind),
+            Literal::Float(_, Some(kind)) => TypeId::float(*kind),
+            Literal::Bool(_) => TypeId::BOOL,
+            Literal::Integer(_, None) => todo!(),
+            Literal::Float(_, None) => todo!(),
+            Literal::String(_) => TypeId::STRING,
+            Literal::Char(_) => TypeId::CHAR,
+        }
     }
 
     fn instantiate(&mut self, _typ: &GeneralizedType) -> TopLevelType {

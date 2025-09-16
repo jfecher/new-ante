@@ -73,7 +73,7 @@ pub enum Type {
     Integer(IntegerKind),
     Float(FloatKind),
     Function(FunctionType),
-    TypeApplication(Box<Type>, Vec<Type>),
+    Application(Box<Type>, Vec<Type>),
     Reference(Mutability, Sharedness),
 }
 
@@ -149,15 +149,14 @@ impl ErrorDefault for Expr {
 impl Expr {
     /// Are parenthesis not required when printing this Expr within another?
     pub fn is_atom(&self) -> bool {
-        match self {
-            Expr::Error => true,
-            Expr::Literal(_) => true,
-            Expr::Variable(_) => true,
-            Expr::MemberAccess(_) => true,
-            Expr::Index(_) => true,
-            Expr::Reference(_) => true,
-            _ => false,
-        }
+        matches!(self,
+            Expr::Error
+            | Expr::Literal(_)
+            | Expr::Variable(_)
+            | Expr::MemberAccess(_)
+            | Expr::Index(_)
+            | Expr::Reference(_)
+        )
     }
 }
 

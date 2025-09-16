@@ -90,18 +90,16 @@ fn add_source_files_of_crate(compiler: &mut Db, crates: &mut CrateGraph, crate_i
             continue;
         };
 
-        for file in src_folder {
-            if let Ok(file) = file {
-                let path = file.path();
-                if path.is_dir() {
-                    remaining.push(path);
-                } else if path.extension() == Some(&OsStr::from("an")) {
-                    let id = SourceFileId::new(crate_id, &path);
-                    let data = read_file_data(path.clone());
-                    id.set(compiler, Arc::new(data));
-                    let path = Arc::new(path);
-                    source_files.insert(path, id);
-                }
+        for file in src_folder.flatten() {
+            let path = file.path();
+            if path.is_dir() {
+                remaining.push(path);
+            } else if path.extension() == Some(&OsStr::from("an")) {
+                let id = SourceFileId::new(crate_id, &path);
+                let data = read_file_data(path.clone());
+                id.set(compiler, Arc::new(data));
+                let path = Arc::new(path);
+                source_files.insert(path, id);
             }
         }
     }
@@ -144,16 +142,14 @@ fn find_crate_dependencies(crates: &mut CrateGraph, crate_id: CrateId) -> Vec<Cr
             continue;
         };
 
-        for dependency in deps_folder {
-            if let Ok(dependency) = dependency {
-                let path = dependency.path();
-                if path.is_dir() {
-                    let name = path.file_name().unwrap().to_string_lossy().into_owned();
-                    let id = new_crate_id(&crates, &name, 0);
-                    dependencies.push(id);
+        for dependency in deps_folder.flatten() {
+            let path = dependency.path();
+            if path.is_dir() {
+                let name = path.file_name().unwrap().to_string_lossy().into_owned();
+                let id = new_crate_id(crates, &name, 0);
+                dependencies.push(id);
 
-                    crates.insert(id, Crate::new(name, path));
-                }
+                crates.insert(id, Crate::new(name, path));
             }
         }
     }

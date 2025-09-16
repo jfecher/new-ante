@@ -41,7 +41,7 @@ struct Resolver<'local, 'inner> {
 }
 
 /// Where was this variable defined?
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Origin {
     /// This name comes from this top level definition
     TopLevelDefinition(TopLevelId),
@@ -55,7 +55,7 @@ pub enum Origin {
 
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
     incremental::enter_query();
-    let (statement, statement_ctx) = GetItem(context.0.clone()).get(compiler);
+    let (statement, statement_ctx) = GetItem(context.0).get(compiler);
     incremental::println(format!("Resolving {:?}", statement.kind.name()));
 
     // Note that we discord errors here because they're errors for the entire file and we are
@@ -93,7 +93,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
     ) -> Self {
         Self {
             compiler,
-            item: resolve.0.clone(),
+            item: resolve.0,
             names_in_global_scope: visible_definitions,
             path_links: Default::default(),
             name_links: Default::default(),
@@ -145,7 +145,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     None
                 }
             },
-            Namespace::Type(_) => return None,
+            Namespace::Type(_) => None,
             Namespace::Module(id) => {
                 if let Some(submodule) = self.get_item_in_submodule(id, name) {
                     return Some(submodule);
@@ -449,7 +449,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     }
                 }
             },
-            Type::TypeApplication(f, args) => {
+            Type::Application(f, args) => {
                 self.resolve_type(f, declare_type_vars);
                 for arg in args {
                     self.resolve_type(arg, declare_type_vars);

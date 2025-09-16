@@ -294,7 +294,7 @@ impl<'tokens> Parser<'tokens> {
         let id = TopLevelId::new(self.file_id, hash);
         let empty_context = TopLevelContext::new(self.file_id);
         let old_context = std::mem::replace(&mut self.current_context, empty_context);
-        self.top_level_data.insert(id.clone(), Arc::new(old_context));
+        self.top_level_data.insert(id, Arc::new(old_context));
         id
     }
 
@@ -534,10 +534,8 @@ impl<'tokens> Parser<'tokens> {
 
             if *self.current_token() == Token::Extern {
                 self.try_parse_or_recover_to_newline(|this| this.parse_extern(comments, &mut items));
-            } else {
-                if let Some(item) = self.try_parse_or_recover_to_newline(|this| this.parse_top_level_item(comments)) {
-                    items.push(Arc::new(item));
-                }
+            } else if let Some(item) = self.try_parse_or_recover_to_newline(|this| this.parse_top_level_item(comments)) {
+                items.push(Arc::new(item));
             }
 
             // In case there is no newline at the end of the file
@@ -884,7 +882,7 @@ impl<'tokens> Parser<'tokens> {
         if args.is_empty() {
             Ok(typ)
         } else {
-            Ok(Type::TypeApplication(Box::new(typ), args))
+            Ok(Type::Application(Box::new(typ), args))
         }
     }
 
@@ -1140,7 +1138,7 @@ impl<'tokens> Parser<'tokens> {
         l_prec > r_prec || (l_prec == r_prec && !r_is_right_assoc)
     }
 
-    fn pop_operator<'c>(&mut self, operator_stack: &mut Vec<&(Token, Span)>, results: &mut Vec<ExprId>) {
+    fn pop_operator(&mut self, operator_stack: &mut Vec<&(Token, Span)>, results: &mut Vec<ExprId>) {
         let rhs = results.pop().unwrap();
         let lhs = results.pop().unwrap();
         let location = self.expr_location(lhs).to(&self.expr_location(rhs));

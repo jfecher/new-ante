@@ -31,7 +31,7 @@ pub fn visible_definitions_impl(context: &VisibleDefinitions, db: &DbHandle) -> 
         // from this file. Otherwise we'll duplicate errors.
         // TODO: Still issue an error if the file name is not found
         let Some(import_file_id) = get_file_id(&import.crate_name, &import.module_path, db) else {
-            push_no_such_file_error(&import, db);
+            push_no_such_file_error(import, db);
             continue;
         };
         let exported = ExportedDefinitions(import_file_id).get(db);
@@ -128,7 +128,7 @@ pub fn exported_types_impl(context: &ExportedTypes, db: &DbHandle) -> Definition
                 let name = name.clone();
                 db.accumulate(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
             } else {
-                definitions.insert(name.clone(), item.id.clone());
+                definitions.insert(name.clone(), item.id);
             }
         }
     }
@@ -239,7 +239,7 @@ impl<'local, 'db> Declarer<'local, 'db> {
             let second_location = context.name_locations[name_id].clone();
             self.db.accumulate(Diagnostic::NameAlreadyInScope { name, first_location, second_location });
         } else {
-            definitions(self).insert(name, id.clone());
+            definitions(self).insert(name, id);
         }
     }
 

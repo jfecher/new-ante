@@ -45,8 +45,7 @@ impl Cst {
     pub fn display_resolved<'a>(
         &'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>, compiler: &'a Db,
     ) -> CstDisplayContext<'a> {
-        let mut config = CstDisplayConfig::default();
-        config.show_resolved = Some(compiler);
+        let config = CstDisplayConfig { show_resolved: Some(compiler), ..Default::default() };
         CstDisplayContext { cst: self, context, config }
     }
 }
@@ -74,7 +73,7 @@ struct CstDisplay<'a> {
 impl<'a> Display for CstDisplayContext<'a> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         CstDisplay { context: self.context, indent_level: 0, current_item: None, config: self.config }
-            .fmt_cst(&self.cst, f)
+            .fmt_cst(self.cst, f)
     }
 }
 
@@ -248,7 +247,7 @@ impl<'a> CstDisplay<'a> {
 
     /// Formats type arguments with a leading space in front of each (including the first)
     fn fmt_type_args(&self, args: &[Type], f: &mut Formatter) -> std::fmt::Result {
-        let requires_parens = |typ: &Type| matches!(typ, Type::Function(_) | Type::TypeApplication(..));
+        let requires_parens = |typ: &Type| matches!(typ, Type::Function(_) | Type::Application(..));
 
         for arg in args {
             if requires_parens(arg) {
@@ -325,7 +324,7 @@ impl<'a> CstDisplay<'a> {
             Type::Integer(kind) => write!(f, "{kind}"),
             Type::Float(kind) => write!(f, "{kind}"),
             Type::Function(function_type) => self.fmt_function_type(function_type, f),
-            Type::TypeApplication(constructor, args) => self.fmt_type_application(constructor, args, f),
+            Type::Application(constructor, args) => self.fmt_type_application(constructor, args, f),
             Type::String => write!(f, "String"),
             Type::Char => write!(f, "Char"),
             Type::Reference(mutable, shared) => self.fmt_reference_type(*mutable, *shared, f),
@@ -337,7 +336,7 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_type_application(&self, constructor: &Type, args: &[Type], f: &mut Formatter) -> std::fmt::Result {
-        let requires_parens = |typ: &Type| matches!(typ, Type::Function(_) | Type::TypeApplication(..));
+        let requires_parens = |typ: &Type| matches!(typ, Type::Function(_) | Type::Application(..));
 
         if requires_parens(constructor) {
             write!(f, "(")?;

@@ -31,7 +31,7 @@ pub enum Diagnostic {
 
 impl Ord for Diagnostic {
     fn cmp(&self, other: &Self) -> Ordering {
-        let order = self.location().cmp(&other.location());
+        let order = self.location().cmp(other.location());
         if order != Ordering::Equal {
             return order;
         }
@@ -99,7 +99,7 @@ impl Diagnostic {
                 format!("Methods can only be defined on types declared within the same file, which `{name}` was not")
             },
             Diagnostic::LiteralUsedAsName { location: _ } => {
-                format!("Expected a definition name but found a literal")
+                "Expected a definition name but found a literal".to_string()
             },
         }
     }
