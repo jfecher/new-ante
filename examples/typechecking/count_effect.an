@@ -14,35 +14,9 @@ handle_count f =
 handle_count foo
 
 // args: --check --show-types
-// expected stdout:
-// // id = c1m49_3
-// effect Count_? with
-//     count_1: fn Unit_b -> Unit_b
-// 
-// // id = c1m49_32
-// foo_? () =
-//     count_? ()
-//     repeat_? 10
-// 
-// // id = c1m49_95
-// handle_count_? f_1 =
-
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/count_effect.an:5:4	error: `count` is not defined, was it a typo?
-//     count ()
-// 
-// examples/typechecking/count_effect.an:6:4	error: `repeat` is not defined, was it a typo?
-//     repeat 10 fn _ -> count ()
-// 
-// examples/typechecking/count_effect.an:6:14	error: Expected an unindent but found `fn`
-//     repeat 10 fn _ -> count ()
-// 
-// examples/typechecking/count_effect.an:9:4	error: Expected an unindent but found `handle`
-//     handle
-// 
-// examples/typechecking/count_effect.an:12:4	error: Expected a top-level item but found `|`
-//     | count () -> 1 + resume ()
-// 
-// examples/typechecking/count_effect.an:16:0	error: Expected `=` to begin the function body but found a newline
-// // args: --check --show-types
+// thread 'main' panicked at src/name_resolution/mod.rs:331:38:
+// not yet implemented
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

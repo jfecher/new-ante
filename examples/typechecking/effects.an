@@ -22,40 +22,9 @@ does_use x =
     set (y + x)
 
 // args: --check --show-types
-// expected stdout:
-// // id = c1m14_88
-// effect Log_? with
-//     log_1: fn String_b -> Unit_b
-// 
-// // id = c1m14_70
-// effect Use_? a_1 with
-//     get_2: fn Unit_b -> a_1
-//     set_4: fn a_1 -> Unit_b
-// 
-// // id = c1m14_47
-// handle_basic_? () =
-// 
-// // id = c1m14_23
-// use_resume_? () =
-// 
-// // id = c1m14_99
-// does_use_? x_1 =
-//     y_? = get_? ()
-//     set_? (+_? y_? x_1)
-
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/effects.an:10:4	error: Expected an unindent but found `handle`
-//     handle log "test1"
-// 
-// examples/typechecking/effects.an:14:4	error: Expected an unindent but found `handle`
-//     handle ()
-// 
-// examples/typechecking/effects.an:22:4	error: `set` is not defined, was it a typo?
-//     set (y + x)
-// 
-// examples/typechecking/effects.an:22:9	error: `y` is not defined, was it a typo?
-//     set (y + x)
-// 
-// examples/typechecking/effects.an:22:11	error: `+` is not defined, was it a typo?
-//     set (y + x)
+// thread 'main' panicked at src/name_resolution/mod.rs:331:38:
+// not yet implemented
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

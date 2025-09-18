@@ -18,7 +18,7 @@ flatten_filter tree comparator threshold = match tree
         if comparator val threshold then
             Cons val 
                 (append 
-                    (flatten_filter left comparator threshold) 
+                    ||
                     (flatten_filter tree comparator threshold))
         else 
             (append 
@@ -56,7 +56,7 @@ main () =
 // flatten_filter tree comparator threshold = match tree
 // | IntBinTreeNode val left right -> 
 //     if comparator val threshold then 
-//         Cons val (append (flatten_filter left comparator threshold) (flatten_filter tree comparator threshold)) else 
+//         Cons val else 
 //         append (flatten_filter left comparator threshold) (flatten_filter tree comparator threshold)
 // | Leaf -> ()
 // 
@@ -67,4 +67,8 @@ main () =
 //     if > (sum my_tree) 1 then 
 //         false else 
 //         true
+
+// expected stderr:
+// examples/parser/parser_recovery.an:21:20	error: Expected an unindent but found `|`
+//                     ||
 

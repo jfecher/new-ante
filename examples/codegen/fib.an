@@ -8,13 +8,19 @@ print (fib 10)
 // expected stdout:
 // // id = c1m43_87
 // fib_? n_1 =
-//     if <_? n_1 2 then n_1
+//     if <_? n_1 2 then n_1 else +_? (fib_c1m43_87 (-_? n_1 2)) (fib_c1m43_87 (-_? n_1 1))
 
 // expected stderr:
 // examples/codegen/fib.an:2:9	error: `<` is not defined, was it a typo?
 //     if n < 2 then n
 // 
-// examples/codegen/fib.an:3:4	error: Expected an unindent but found `else`
+// examples/codegen/fib.an:3:16	error: `-` is not defined, was it a typo?
+//     else fib (n - 2) + fib (n - 1)
+// 
+// examples/codegen/fib.an:3:21	error: `+` is not defined, was it a typo?
+//     else fib (n - 2) + fib (n - 1)
+// 
+// examples/codegen/fib.an:3:30	error: `-` is not defined, was it a typo?
 //     else fib (n - 2) + fib (n - 1)
 // 
 // examples/codegen/fib.an:5:11	error: Expected `=` to begin the function body but found `10`
