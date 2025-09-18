@@ -14,8 +14,13 @@ double x = x * 2
 
 // args: --delete-binary
 // expected stdout:
+// // id = c1m46_24
+// mutate_? (n_9: ! I32) =
+//     x_? = double_? (@_? n_?)
+//     n_9
+// 
 // // id = c1m46_73
-// double_? x_11 = *_? x_11 2
+// double_? x_1 = *_? x_1 2
 
 // expected stderr:
 // examples/codegen/mutability.an:1:1	error: Expected a top-level item but found `mut`
@@ -36,8 +41,8 @@ double x = x * 2
 // examples/codegen/mutability.an:9:0	error: Expected `=` to begin the function body but found a newline
 // mutate (n: !I32) =
 // 
-// examples/codegen/mutability.an:9:12	error: Expected `=` to begin the function body but found `I32`
-// mutate (n: !I32) =
+// examples/codegen/mutability.an:11:6	error: Expected an unindent but found `:=`
+//     n := x
 // 
 // examples/codegen/mutability.an:13:13	error: `*` is not defined, was it a typo?
 // double x = x * 2

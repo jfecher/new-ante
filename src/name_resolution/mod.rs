@@ -328,6 +328,7 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
                     self.pop_local_scope();
                 }
             },
+            Expr::Handle(_handle) => todo!(),
             Expr::Reference(reference) => {
                 self.resolve_expr(reference.rhs);
             },

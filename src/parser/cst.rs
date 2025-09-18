@@ -155,6 +155,7 @@ pub enum Expr {
     Lambda(Lambda),
     If(If),
     Match(Match),
+    Handle(Handle),
     Reference(Reference),
     TypeAnnotation(TypeAnnotation),
     Quoted(Quoted),
@@ -315,6 +316,13 @@ pub struct Match {
     pub cases: Vec<(PatternId, ExprId)>,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Handle {
+    /// The effectful expression being handled
+    pub expression: ExprId,
+    pub cases: Vec<(HandlePattern, ExprId)>,
+}
+
 /// `&rhs`, `!rhs`
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Reference {
@@ -355,6 +363,13 @@ impl ErrorDefault for Pattern {
         Self::Error
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct HandlePattern {
+    pub function: NameId,
+    pub args: Vec<PatternId>,
+}
+
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TypeAnnotation {

@@ -9,11 +9,7 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    diagnostics::{Diagnostic, ErrorDefault, Location, LocationData, Span},
-    incremental,
-    lexer::{token::Token, Lexer},
-    name_resolution::namespace::SourceFileId,
-    vecmap::VecMap,
+    diagnostics::{Diagnostic, ErrorDefault, Location, LocationData, Span}, incremental, lexer::{token::Token, Lexer}, name_resolution::namespace::SourceFileId, parser::cst::{Handle, HandlePattern}, vecmap::VecMap
 };
 
 use self::cst::{
@@ -781,8 +777,10 @@ impl<'tokens> Parser<'tokens> {
         self.expect(Token::ExclamationMark, "`!` to start a mutable reference type")?;
         let owned = self.accept(Token::Owned);
         let shared = if owned { Sharedness::Owned } else { Sharedness::Shared };
-        self.parse_ident()?;
-        Ok(Type::Reference(cst::Mutability::Mutable, shared))
+        match self.parse_type_application() {
+            Ok(application) => Ok(Type::TypeApplication(Box::new(Type::Reference(cst::Mutability::Mutable, shared)), vec![application])),
+            Err(_) => Ok(Type::Reference(cst::Mutability::Mutable, shared))
+        }
     }
 
     // TODO: Parse lifetime & element type
@@ -1134,6 +1132,7 @@ impl<'tokens> Parser<'tokens> {
         match self.current_token() {
             Token::If => self.parse_if_expr(),
             Token::Match => self.parse_match(),
+            Token::Handle => self.parse_handle(),
             _ => self.parse_shunting_yard(),
         }
     }
@@ -1414,6 +1413,39 @@ impl<'tokens> Parser<'tokens> {
             Ok(Expr::Match(cst::Match { expression, cases }))
         })
     }
+
+    fn parse_handle(&mut self) -> Result<ExprId> {
+        self.with_expr_id_and_location(|this| {
+            this.expect(Token::Handle, "`handle` to start this match expression")?;
+
+            let expression = this.parse_block_or_expression()?;
+
+            let cases = this.many0(|this| {
+                if *this.peek_next_token() == Token::Pipe {
+                    this.accept(Token::Newline);
+                }
+
+                this.expect(Token::Pipe, "a `|` to start a new pattern")?;
+                let pattern = this.parse_handle_pattern()?;
+                this.expect(Token::RightArrow, "a `->` to separate the handle pattern from the match branch")?;
+                let branch = this.parse_block_or_expression()?;
+                Ok((pattern, branch))
+            });
+
+            Ok(Expr::Handle(cst::Handle { expression, cases }))
+        })
+    }
+
+    fn parse_handle_pattern(&mut self) -> Result<HandlePattern> {
+        let function_name = self.parse_ident_id()?;
+        
+        let parameter_patterns = self.many0(|this| {
+            this.parse_pattern()
+        });
+        
+        Ok(cst::HandlePattern{function: function_name, args: parameter_patterns})
+    }
+
 
     /// Parse an indent followed by any arbitrary tokens until a matching unindent
     fn parse_quoted_block(&mut self) -> Result<ExprId> {

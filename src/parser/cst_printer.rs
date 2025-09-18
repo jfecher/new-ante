@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{incremental::{Db, Resolve}, name_resolution::{namespace::SourceFileId, Origin}, parser::ids::{NameId, PathId}};
+use crate::{incremental::{Db, Resolve}, name_resolution::{namespace::SourceFileId, Origin}, parser::{cst::{Handle, HandlePattern}, ids::{NameId, PathId}}};
 
 use super::{
     cst::{
@@ -378,6 +378,7 @@ impl<'a> CstDisplay<'a> {
             Expr::Lambda(lambda) => self.fmt_lambda(lambda, f),
             Expr::If(if_) => self.fmt_if(if_, f),
             Expr::Match(match_) => self.fmt_match(match_, f),
+            Expr::Handle(handle_) => self.fmt_handle(handle_, f),
             Expr::Reference(reference) => self.fmt_reference(reference, f),
             Expr::TypeAnnotation(type_annotation) => self.fmt_type_annotation(type_annotation, f),
             Expr::Quoted(quoted) => self.fmt_quoted(quoted, f),
@@ -568,6 +569,36 @@ impl<'a> CstDisplay<'a> {
             self.fmt_expr(*branch, f)?;
         }
 
+        Ok(())
+    }
+
+    fn fmt_handle(&mut self, handle_: &Handle, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "handle ")?;
+        self.fmt_expr(handle_.expression, f)?;
+
+        for (pattern, branch) in &handle_.cases {
+            self.newline(f)?;
+            write!(f, "| ")?;
+            self.fmt_handle_pattern(pattern, f)?;
+            write!(f, " -> ")?;
+            self.fmt_expr(*branch, f)?;
+        }
+
+        Ok(())
+    }
+
+    fn fmt_handle_pattern(&mut self, pattern: &HandlePattern, f: &mut Formatter) -> std::fmt::Result {
+        self.fmt_name(pattern.function, f)?;
+        for arg in pattern.args.iter() {
+            if self.is_pattern_atom(*arg) {
+                write!(f, " ")?;
+                self.fmt_pattern(*arg, f)?;
+            } else {
+                write!(f, " (")?;
+                self.fmt_pattern(*arg, f)?;
+                write!(f, ")")?;
+            }
+        }
         Ok(())
     }
 

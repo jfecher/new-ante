@@ -168,6 +168,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             Expr::Index(_index) => todo!(),
             Expr::If(_if) => todo!(),
             Expr::Match(_match) => todo!(),
+            Expr::Handle(_handle) => todo!(),
             Expr::Reference(_reference) => todo!(),
             Expr::TypeAnnotation(_type_annotation) => todo!(),
             Expr::Quoted(_quoted) => todo!(),
