@@ -35,8 +35,13 @@ main () =
 // 
 // // id = c1m85_44
 // main_c1m85_44 () =
-
-// expected stderr:
-// examples/nameresolution/effects.an:11:4	error: Expected an unindent but found `handle`
 //     handle ()
+//     | one_? () -> ()
+//     | one_? () -> ()
+//     handle ()
+//     | get_? () -> resume_? ()
+//     | put_? () -> ()
+//     handle ()
+//     | put_? () -> ()
+//     | three_? 0 1 -> ()
 

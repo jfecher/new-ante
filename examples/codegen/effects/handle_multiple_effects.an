@@ -28,11 +28,13 @@ print <| read_or_zero foo
 // 
 // // id = c1m91_10
 // read_or_zero_c1m91_10 f_1 =
+//     handle <|_? Some_? (f_? ())
+//     | fail_? () -> None_?
+//     | read_? () -> resume_? 5_U32
 // 
 // // id = c1m91_32
 // foo_c1m91_32 () =
 //     if false then fail_? ()
-//     read_? ()
 
 // expected stderr:
 // examples/codegen/effects/handle_multiple_effects.an:3:15	error: Expected an unindent but found `->`
@@ -41,13 +43,10 @@ print <| read_or_zero foo
 // examples/codegen/effects/handle_multiple_effects.an:6:15	error: Expected an unindent but found `->`
 //     read: Unit -> a
 // 
-// examples/codegen/effects/handle_multiple_effects.an:9:4	error: Expected an unindent but found `handle`
-//     handle Some <| f ()
-// 
 // examples/codegen/effects/handle_multiple_effects.an:14:18	error: `fail` is not defined, was it a typo?
 //     if false then fail ()
 // 
-// examples/codegen/effects/handle_multiple_effects.an:15:4	error: `read` is not defined, was it a typo?
+// examples/codegen/effects/handle_multiple_effects.an:15:4	error: Expected an unindent but found `read`
 //     read ()
 // 
 // examples/codegen/effects/handle_multiple_effects.an:17:6	error: Expected `=` to begin the function body but found `<|`

@@ -13,6 +13,7 @@ use crate::{
     incremental,
     lexer::{token::Token, Lexer},
     name_resolution::namespace::SourceFileId,
+    parser::cst::HandlePattern,
     vecmap::VecMap,
 };
 
@@ -534,7 +535,8 @@ impl<'tokens> Parser<'tokens> {
 
             if *self.current_token() == Token::Extern {
                 self.try_parse_or_recover_to_newline(|this| this.parse_extern(comments, &mut items));
-            } else if let Some(item) = self.try_parse_or_recover_to_newline(|this| this.parse_top_level_item(comments)) {
+            } else if let Some(item) = self.try_parse_or_recover_to_newline(|this| this.parse_top_level_item(comments))
+            {
                 items.push(Arc::new(item));
             }
 
@@ -620,7 +622,7 @@ impl<'tokens> Parser<'tokens> {
                     self.token_index = start_index;
                     self.parse_non_function_definition()
                 }
-            }
+            },
         }
     }
 
@@ -811,17 +813,22 @@ impl<'tokens> Parser<'tokens> {
     // TODO: Parse lifetime & element type
     fn parse_mutable_reference_type(&mut self) -> Result<Type> {
         self.expect(Token::ExclamationMark, "`!` to start a mutable reference type")?;
-        let owned = self.accept(Token::Owned);
-        let shared = if owned { Sharedness::Owned } else { Sharedness::Shared };
-        Ok(Type::Reference(cst::Mutability::Mutable, shared))
+        self.parse_reference_element_type(cst::Mutability::Mutable)
     }
 
     // TODO: Parse lifetime & element type
     fn parse_immutable_reference_type(&mut self) -> Result<Type> {
         self.expect(Token::Ampersand, "`&` to start an immutable reference type")?;
+        self.parse_reference_element_type(cst::Mutability::Immutable)
+    }
+
+    fn parse_reference_element_type(&mut self, mutability: cst::Mutability) -> Result<Type> {
         let owned = self.accept(Token::Owned);
         let shared = if owned { Sharedness::Owned } else { Sharedness::Shared };
-        Ok(Type::Reference(cst::Mutability::Immutable, shared))
+        match self.parse_type_application() {
+            Ok(application) => Ok(Type::Application(Box::new(Type::Reference(mutability, shared)), vec![application])),
+            Err(_) => Ok(Type::Reference(mutability, shared)),
+        }
     }
 
     fn parse_function_type(&mut self) -> Result<Type> {
@@ -1162,6 +1169,7 @@ impl<'tokens> Parser<'tokens> {
         match self.current_token() {
             Token::If => self.parse_if_expr(),
             Token::Match => self.parse_match(),
+            Token::Handle => self.parse_handle(),
             _ => self.parse_shunting_yard(),
         }
     }
@@ -1404,6 +1412,8 @@ impl<'tokens> Parser<'tokens> {
 
             let then = this.parse_expr_with_recovery(body, Token::Else, &[Token::Newline])?;
 
+            this.accept(Token::Newline);
+
             let else_ = if this.accept(Token::Else) { Some(body(this)?) } else { None };
             Ok(Expr::If(cst::If { condition, then, else_ }))
         })
@@ -1439,6 +1449,36 @@ impl<'tokens> Parser<'tokens> {
 
             Ok(Expr::Match(cst::Match { expression, cases }))
         })
+    }
+
+    fn parse_handle(&mut self) -> Result<ExprId> {
+        self.with_expr_id_and_location(|this| {
+            this.expect(Token::Handle, "`handle` to start this match expression")?;
+
+            let expression = this.parse_block_or_expression()?;
+
+            let cases = this.many0(|this| {
+                if *this.peek_next_token() == Token::Pipe {
+                    this.accept(Token::Newline);
+                }
+
+                this.expect(Token::Pipe, "a `|` to start a new pattern")?;
+                let pattern = this.parse_handle_pattern()?;
+                this.expect(Token::RightArrow, "a `->` to separate the handle pattern from the match branch")?;
+                let branch = this.parse_block_or_expression()?;
+                Ok((pattern, branch))
+            });
+
+            Ok(Expr::Handle(cst::Handle { expression, cases }))
+        })
+    }
+
+    fn parse_handle_pattern(&mut self) -> Result<HandlePattern> {
+        let function_name = self.parse_ident_id()?;
+
+        let parameter_patterns = self.many0(|this| this.parse_pattern());
+
+        Ok(cst::HandlePattern { function: function_name, args: parameter_patterns })
     }
 
     /// Parse an indent followed by any arbitrary tokens until a matching unindent

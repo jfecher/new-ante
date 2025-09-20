@@ -1,4 +1,12 @@
-use crate::{incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheck}, name_resolution::ResolutionResult, parser::{cst::{Definition, Expr, Pattern, TopLevelItemKind}, TopLevelContext}, type_inference::types::{GeneralizedType, TopLevelType}};
+use crate::{
+    incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheck},
+    name_resolution::ResolutionResult,
+    parser::{
+        cst::{Definition, Expr, Pattern, TopLevelItemKind},
+        TopLevelContext,
+    },
+    type_inference::types::{GeneralizedType, TopLevelType},
+};
 
 /// Get the type of the name defined by this TopLevelId.
 /// If this doesn't define a name we return the Unit type by default.
@@ -37,7 +45,9 @@ pub fn get_type_impl(context: &GetType, compiler: &DbHandle) -> GeneralizedType 
 /// If the type is successfully found then this definition will not be dependent on the
 /// types of its contents to get its type. Put another way, if the type is known then
 /// we don't need to re-type check this definition when its contents change.
-fn try_get_type(definition: &Definition, context: &TopLevelContext, resolve: &ResolutionResult) -> Option<GeneralizedType> {
+fn try_get_type(
+    definition: &Definition, context: &TopLevelContext, resolve: &ResolutionResult,
+) -> Option<GeneralizedType> {
     if let Pattern::TypeAnnotation(_, typ) = &context.patterns[definition.pattern] {
         return Some(GeneralizedType::from_ast_type(typ, resolve));
     }
@@ -45,17 +55,19 @@ fn try_get_type(definition: &Definition, context: &TopLevelContext, resolve: &Re
     if let Expr::Lambda(lambda) = &context.exprs[definition.rhs] {
         let return_type = Box::new(TopLevelType::from_ast_type(lambda.return_type.as_ref()?, resolve));
 
-        let parameters = lambda.parameters.iter().map(|parameter| {
-            match &context.patterns[parameter.pattern] {
+        let parameters = lambda
+            .parameters
+            .iter()
+            .map(|parameter| match &context.patterns[parameter.pattern] {
                 Pattern::TypeAnnotation(_, typ) => Some(TopLevelType::from_ast_type(typ, resolve)),
                 _ => None,
-            }
-        }).collect::<Option<Vec<_>>>()?;
+            })
+            .collect::<Option<Vec<_>>>()?;
 
         // TODO: effects
         // let effects = lambda.effects.as_ref();
         let function = TopLevelType::Function { parameters, return_type };
-        return Some(GeneralizedType::from_top_level_type(function))
+        return Some(GeneralizedType::from_top_level_type(function));
     }
 
     None

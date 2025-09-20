@@ -11,13 +11,16 @@ use crate::{
         ids::{ExprId, NameId, PathId, PatternId, TopLevelId},
         TopLevelContext,
     },
-    type_inference::{type_id::TypeId, types::{GeneralizedType, TopLevelType, TypeVariableId}},
+    type_inference::{
+        type_id::TypeId,
+        types::{GeneralizedType, TopLevelType, TypeVariableId},
+    },
 };
 
+mod get_type;
 pub mod type_context;
 pub mod type_id;
 pub mod types;
-mod get_type;
 
 pub use get_type::get_type_impl;
 
@@ -123,6 +126,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             Expr::Index(_index) => todo!(),
             Expr::If(_if) => todo!(),
             Expr::Match(_match) => todo!(),
+            Expr::Handle(_handle) => todo!(),
             Expr::Reference(_reference) => todo!(),
             Expr::TypeAnnotation(_type_annotation) => todo!(),
             Expr::Quoted(_quoted) => todo!(),
