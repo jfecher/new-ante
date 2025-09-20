@@ -8,13 +8,13 @@ u x = t x
 // import U.u
 // 
 // // id = c1m85_96
-// t_? x_1 = u_? x_1
+// t_c1m85_96 x_1 = u_? x_1
 // 
 // 
 // import T.t
 // 
 // // id = c1m90_23
-// u_? x_1 = t_? x_1
+// u_c1m90_23 x_1 = t_? x_1
 
 // expected stderr:
 // examples/nameresolution/U.an:1:8	error: Could not find crate `T`

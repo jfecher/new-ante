@@ -1,6 +1,5 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
-    rc::Rc,
     sync::Arc,
 };
 
@@ -9,10 +8,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     iterator_extensions::vecmap,
     lexer::token::{FloatKind, IntegerKind},
+    name_resolution::ResolutionResult,
     parser::{
-        cst::{Mutability, Sharedness},
-        ids::ExprId,
+        cst::{self, Mutability, Sharedness},
+        ids::NameId,
     },
+    type_inference::type_id::TypeId,
 };
 
 /// A top-level type is a type which may be in a top-level signature.
@@ -23,55 +24,51 @@ pub enum TopLevelType {
     /// Any primitive type which can be compared for unification via primitive equality
     Primitive(PrimitiveType),
     /// A user-supplied generic type. We don't want to bind over these like we do with type variables.
-    Generic(ExprId),
-    /// We represent type variables with unique ids and an external bindings map instead of a
-    /// `Arc<RwLock<..>>` or similar because these need to be compared for equality, serialized, and
-    /// be performant. We want the faster insertion of a local BTreeMap compared to a thread-safe
-    /// version so we use a BTreeMap internally then freeze it in an Arc when finished to be
-    /// able to access it from other threads.
-    TypeVariable(TypeVariableId),
+    Generic(NameId),
     Function {
-        parameter: Arc<TopLevelType>,
-        return_type: Arc<TopLevelType>,
+        parameters: Vec<TopLevelType>,
+        return_type: Box<TopLevelType>,
     },
-    TypeApplication(Arc<TopLevelType>, Arc<Vec<TopLevelType>>),
+    TypeApplication(Box<TopLevelType>, Vec<TopLevelType>),
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     /// Any primitive type which can be compared for unification via primitive equality
     Primitive(PrimitiveType),
+
     /// A user-supplied generic type. We don't want to bind over these like we do with type variables.
-    Generic(ExprId),
+    Generic(NameId),
+
     /// We represent type variables with unique ids and an external bindings map instead of a
     /// `Arc<RwLock<..>>` or similar because these need to be compared for equality, serialized, and
     /// be performant. We want the faster insertion of a local BTreeMap compared to a thread-safe
     /// version so we use a BTreeMap internally then freeze it in an Arc when finished to be
     /// able to access it from other threads.
-    TypeVariable(TypeVariableId),
+    Variable(TypeVariableId),
     Function(FunctionType),
-    TypeApplication(Rc<Type>, Rc<Vec<Type>>),
+    Application(TypeId, Vec<TypeId>),
     Reference(Mutability, Sharedness),
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct FunctionType {
-    parameters: Rc<Vec<Type>>,
-    return_type: Rc<Type>,
-    effects: Rc<Type>,
+    pub parameters: Vec<TypeId>,
+    pub return_type: TypeId,
+    pub effects: TypeId,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum PrimitiveType {
     Error,
     Unit,
     Bool,
     Pointer,
-    Int(IntegerKind),
-    Float(FloatKind),
+    Char,
     /// TODO: This should be a struct type
     String,
-    Char,
+    Int(IntegerKind),
+    Float(FloatKind),
 }
 
 /// Maps type variables to their bindings
@@ -90,42 +87,53 @@ impl TopLevelType {
     pub fn unit() -> Self {
         Self::Primitive(PrimitiveType::Unit)
     }
+
+    pub fn from_ast_type(typ: &cst::Type, resolve: &ResolutionResult) -> TopLevelType {
+        match typ {
+            cst::Type::Error => TopLevelType::error(),
+            cst::Type::Unit => TopLevelType::unit(),
+            cst::Type::Char => TopLevelType::Primitive(PrimitiveType::Char),
+            cst::Type::String => TopLevelType::Primitive(PrimitiveType::String),
+            cst::Type::Named(path_id) => {
+                let _origin = resolve.path_origins[path_id];
+                todo!("resolve named type")
+            },
+            cst::Type::Variable(name_id) => TopLevelType::Generic(*name_id),
+            cst::Type::Integer(kind) => TopLevelType::Primitive(PrimitiveType::Int(*kind)),
+            cst::Type::Float(kind) => TopLevelType::Primitive(PrimitiveType::Float(*kind)),
+            cst::Type::Function(function_type) => {
+                // TODO: Effects
+                let parameters = vecmap(&function_type.parameters, |typ| Self::from_ast_type(typ, resolve));
+                let return_type = Box::new(Self::from_ast_type(&function_type.return_type, resolve));
+                Self::Function { parameters, return_type }
+            },
+            cst::Type::Application(constructor, args) => {
+                let constructor = Box::new(Self::from_ast_type(constructor, resolve));
+                let args = vecmap(args, |arg| Self::from_ast_type(arg, resolve));
+                Self::TypeApplication(constructor, args)
+            },
+            cst::Type::Reference(mutability, sharedness) => todo!("Reference types"),
+        }
+    }
+
+    fn find_generics(&self) -> Vec<NameId> {
+        match self {
+            TopLevelType::Primitive(_) => Vec::new(),
+            TopLevelType::Generic(generic) => vec![*generic],
+            TopLevelType::Function { parameters, return_type } => parameters
+                .iter()
+                .chain(std::iter::once(return_type.as_ref()))
+                .flat_map(|typ| typ.find_generics())
+                .collect(),
+            TopLevelType::TypeApplication(constructor, args) => {
+                std::iter::once(constructor.as_ref()).chain(args).flat_map(|typ| typ.find_generics()).collect()
+            },
+        }
+    }
 }
 
 #[allow(unused)]
 impl Type {
-    /// Convert an ast type to a `Type` as closely as possible.
-    /// This method does not emit any errors and relies on name resolution
-    /// to emit errors when resolving types.
-    pub fn from_ast_type(typ: &crate::parser::cst::Type) -> Type {
-        match typ {
-            crate::parser::cst::Type::Integer(kind) => Type::Primitive(PrimitiveType::Int(*kind)),
-            crate::parser::cst::Type::Float(kind) => Type::Primitive(PrimitiveType::Float(*kind)),
-            crate::parser::cst::Type::String => Type::Primitive(PrimitiveType::String),
-            crate::parser::cst::Type::Char => Type::Primitive(PrimitiveType::Char),
-            crate::parser::cst::Type::Named(_path) => todo!("Resolve named types"),
-            crate::parser::cst::Type::Variable(_name) => todo!("Resolve named types"),
-            crate::parser::cst::Type::Function(function) => {
-                let parameters = Rc::new(vecmap(&function.parameters, Self::from_ast_type));
-                let return_type = Rc::new(Self::from_ast_type(&function.return_type));
-
-                let effects = match function.effects.as_ref() {
-                    Some(effects) => todo!(), //Rc::new(Self::from_ast_type(effects)),
-                    None => todo!(),
-                };
-                Type::Function(FunctionType { parameters, return_type, effects })
-            },
-            crate::parser::cst::Type::Error => Type::Primitive(PrimitiveType::Error),
-            crate::parser::cst::Type::Unit => Type::Primitive(PrimitiveType::Unit),
-            crate::parser::cst::Type::TypeApplication(f, args) => {
-                let f = Rc::new(Self::from_ast_type(f));
-                let args = Rc::new(vecmap(args, Type::from_ast_type));
-                Type::TypeApplication(f, args)
-            },
-            crate::parser::cst::Type::Reference(mutability, sharedness) => Type::Reference(*mutability, *sharedness),
-        }
-    }
-
     /// Substitutes any generics with the given names with the corresponding type in the map
     pub fn substitute(&self, _substitutions: &Substitutions, _bindings: &TypeBindings) -> Type {
         todo!()
@@ -161,7 +169,7 @@ pub struct TypePrinter<'typ, 'bindings> {
 
 impl std::fmt::Display for TypePrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.fmt_type(&self.typ, f)
+        self.fmt_type(self.typ, f)
     }
 }
 
@@ -170,8 +178,8 @@ impl TypePrinter<'_, '_> {
         match typ {
             Type::Primitive(primitive_type) => write!(f, "{primitive_type}"),
             Type::Generic(_) => todo!("format generic type"),
-            Type::TypeVariable(id) => {
-                if let Some(binding) = self.bindings.get(&id) {
+            Type::Variable(id) => {
+                if let Some(binding) = self.bindings.get(id) {
                     self.fmt_type(binding, f)
                 } else {
                     write!(f, "{id}")
@@ -180,7 +188,7 @@ impl TypePrinter<'_, '_> {
             Type::Function(_function) => {
                 todo!("format function type")
             },
-            Type::TypeApplication(_, _) => todo!("format type application"),
+            Type::Application(_, _) => todo!("format type application"),
             Type::Reference(mutability, sharedness) => write!(f, "{mutability}{sharedness}"),
         }
     }
@@ -221,12 +229,12 @@ impl std::fmt::Display for TypeVariableId {
 /// Other definitions like parameters are never generic.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GeneralizedType {
-    pub generics: Vec<ExprId>,
+    pub generics: Vec<NameId>,
     pub typ: TopLevelType,
 }
 
 impl GeneralizedType {
-    pub fn new(generics: Vec<ExprId>, typ: TopLevelType) -> Self {
+    fn new(generics: Vec<NameId>, typ: TopLevelType) -> Self {
         Self { typ, generics }
     }
 
@@ -238,9 +246,16 @@ impl GeneralizedType {
         TopLevelTypePrinter { typ: self, bindings }
     }
 
-    #[allow(unused)]
-    pub fn from_ast_type(_typ: &crate::parser::cst::Type) -> Self {
-        todo!("resolve generalized type")
+    pub fn from_ast_type(typ: &cst::Type, resolve: &ResolutionResult) -> Self {
+        let typ = TopLevelType::from_ast_type(typ, resolve);
+        Self::from_top_level_type(typ)
+    }
+
+    /// Convert a TopLevelType into a GeneralizedType. TopLevelTypes never contain
+    /// unbound type variables so this operation cannot fail.
+    pub fn from_top_level_type(typ: TopLevelType) -> GeneralizedType {
+        let generics = typ.find_generics();
+        GeneralizedType { generics, typ }
     }
 }
 

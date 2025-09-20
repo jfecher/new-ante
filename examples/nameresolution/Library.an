@@ -6,8 +6,8 @@ library_fn _ = 2
 // args: --check
 // expected stdout:
 // // id = c1m53_73
-// library_int_? = 5
+// library_int_c1m53_73 = 5
 // 
 // // id = c1m53_83
-// library_fn_? __1 = 2
+// library_fn_c1m53_83 __1 = 2
 

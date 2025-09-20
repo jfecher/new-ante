@@ -18,27 +18,33 @@ puts2
 // args: --check --show-types
 // expected stdout:
 // // id = c1m78_32
-// foo_? (__1: I32) (__2: String_b) : Char_? = (error)
+// foo_c1m78_32 (__1: I32) (__2: String_b) : Char_b = (error)
 // 
 // // id = c1m78_67
-// baz_? (a_1: Usz) : Ptr_? a_? =
+// baz_c1m78_67 (a_1: Usz) : Ptr_? a_1 =
 //     transmute_? a_1
 // 
 // // id = c1m78_48
-// exit2_? = exit_?
+// exit2_c1m78_48 = exit_?
 // 
 // // id = c1m78_90
-// puts2_?: fn (Ptr_? Char_?) -> I32 = puts_?
+// puts2_c1m78_90 : fn (Ptr_? Char_b) -> I32 = puts_?
 
 // expected stderr:
 // examples/typechecking/type_annotations.an:2:34	error: Expected an expression but found `'a`
 // foo (_: I32) (_: String) : Char = 'a'
+// 
+// examples/typechecking/type_annotations.an:7:14	error: `Ptr` is not defined, was it a typo?
+// baz (a: Usz): Ptr a =
 // 
 // examples/typechecking/type_annotations.an:8:4	error: `transmute` is not defined, was it a typo?
 //     transmute a
 // 
 // examples/typechecking/type_annotations.an:10:8	error: `exit` is not defined, was it a typo?
 // exit2 = exit
+// 
+// examples/typechecking/type_annotations.an:11:11	error: `Ptr` is not defined, was it a typo?
+// puts2: fn (Ptr Char) -> I32 = puts
 // 
 // examples/typechecking/type_annotations.an:11:30	error: `puts` is not defined, was it a typo?
 // puts2: fn (Ptr Char) -> I32 = puts

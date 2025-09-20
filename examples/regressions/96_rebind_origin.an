@@ -11,11 +11,11 @@ twice 1u8 2u16
 // args: --delete-binary
 // expected stdout:
 // // id = c1m73_78
-// origin_? foo_1 =
+// origin_c1m73_78 foo_1 =
 //     cast_? foo_1: U64
 // 
 // // id = c1m73_32
-// twice_? foo_1 bar_2 =
+// twice_c1m73_32 foo_1 bar_2 =
 //     origin_c1m73_78 foo_1
 //     origin_c1m73_78 bar_2
 
@@ -23,6 +23,6 @@ twice 1u8 2u16
 // examples/regressions/96_rebind_origin.an:3:4	error: `cast` is not defined, was it a typo?
 //     cast foo : U64
 // 
-// examples/regressions/96_rebind_origin.an:11:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
+// examples/regressions/96_rebind_origin.an:9:6	error: Expected `=` to begin the function body but found `1_U8`
+// twice 1u8 2u16
 

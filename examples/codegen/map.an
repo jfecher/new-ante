@@ -22,9 +22,9 @@ print map
 // expected stdout:
 // import Std.HashMap
 // 
-// // id = c1m38_14
-// impl hash_u8_?: Hash_? U8 with
-//     hash_? x_2 = cast_? x_2
+// // id = c1m38_36
+// impl hash_u8_c1m38_36: Hash_? U8 with
+//     hash_1 x_2 = cast_? x_2
 
 // expected stderr:
 // examples/codegen/map.an:1:8	error: Could not find crate `Std`
@@ -60,6 +60,6 @@ print map
 // examples/codegen/map.an:17:7	error: Expected `=` to begin the function body but found `!`
 // insert !map 7 21
 // 
-// examples/codegen/map.an:21:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
+// examples/codegen/map.an:19:6	error: Expected `=` to begin the function body but found `map`
+// print map
 

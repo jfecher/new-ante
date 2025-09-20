@@ -5,7 +5,7 @@ show "foo"
 // args: --delete-binary
 // expected stdout:
 // // id = c1m30_22
-// show_? x_1 = puts_? x_1.c_string
+// show_c1m30_22 x_1 = puts_? x_1.c_string
 
 // expected stderr:
 // examples/codegen/function_call.an:1:10	error: `puts` is not defined, was it a typo?

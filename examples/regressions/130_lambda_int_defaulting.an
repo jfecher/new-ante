@@ -22,24 +22,24 @@ iter i print
 
 // args: --delete-binary
 // expected stdout:
-// // id = c1m29_58
-// impl countdown_?: Iterator_? U64 U64 with
-//     next_? x_2 =
+// // id = c1m29_78
+// impl countdown_c1m29_78: Iterator_? U64 U64 with
+//     next_1 x_2 =
 // 
 // // id = c1m29_78
-// type TakeWhile_? =
+// type TakeWhile_c1m29_78 =
 //     iter_?: i_1
 //     pred_?: a_2
 // 
-// // id = c1m29_17
-// impl iter_take_while_? {__?: Iterator_? i_? a_?}: Iterator_? (TakeWhile_c1m29_78 i_c1m29_74 a_5) a_5 with
-//     next_? tw_8 =
-//         match next_? tw_8.iter
-//         | Some_? (,_? iter_9 new_10) -> 
-//         | None_? -> None_td
+// // id = c1m29_39
+// impl iter_take_while_c1m29_39 {__?: Iterator_? i_? a_?}: Iterator_? (TakeWhile_c1m29_78 i_c1m29_74 a_5) a_5 with
+//     next_7 tw_8 =
+//         match next_7 tw_8.iter
+//         | Some_td (,_b iter_9 new_10) -> 
+//         | None_td -> None_td
 // 
 // // id = c1m29_74
-// i_? = TakeWhile_c1m29_78 8_U64 (>=_? __? 5)
+// i_c1m29_74 = TakeWhile_c1m29_78 8_U64 (>=_? __? 5)
 
 // expected stderr:
 // examples/regressions/130_lambda_int_defaulting.an:1:17	error: `Iterator` is not defined, was it a typo?
@@ -54,9 +54,6 @@ iter i print
 // examples/regressions/130_lambda_int_defaulting.an:11:40	error: `Iterator` is not defined, was it a typo?
 // impl iter_take_while {_: Iterator i a}: Iterator (TakeWhile i a) a with
 // 
-// examples/regressions/130_lambda_int_defaulting.an:13:14	error: `next` is not defined, was it a typo?
-//         match next tw.iter
-// 
 // examples/regressions/130_lambda_int_defaulting.an:16:0	error: Expected an unindent but found a newline
 //             then Some (TakeWhile iter tw.pred, new)
 // 
@@ -66,6 +63,6 @@ iter i print
 // examples/regressions/130_lambda_int_defaulting.an:20:22	error: `>=` is not defined, was it a typo?
 // i = TakeWhile 8u64 (_ >= 5)
 // 
-// examples/regressions/130_lambda_int_defaulting.an:23:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
+// examples/regressions/130_lambda_int_defaulting.an:21:5	error: Expected `=` to begin the function body but found `i`
+// iter i print
 

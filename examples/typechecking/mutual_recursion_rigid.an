@@ -31,35 +31,35 @@ ex2c (a: v) b =
 // args: --check --show-types
 // expected stdout:
 // // id = c1m13_7
-// ex1a_? (a_1: t_2) b_3 =
+// ex1a_c1m13_7 (a_1: t_2) b_3 =
 //     ex1b_c1m13_46 a_1 b_3
 //     0_U32
 // 
 // // id = c1m13_46
-// ex1b_? (a_1: u_2) b_3 =
+// ex1b_c1m13_46 (a_1: u_2) b_3 =
 //     ex1a_c1m13_7 a_1 b_3
 //     1_U32
 // 
 // // id = c1m13_89
-// trait T1_? a_1 with
+// trait T1_c1m13_89 a_1 with
 //     trait1_2: fn a_1 -> Unit_b
 // 
 // // id = c1m13_89
-// trait T2_? a_1 with
+// trait T2_c1m13_89 a_1 with
 //     trait2_2: fn a_1 -> Unit_b
 // 
 // // id = c1m13_14
-// ex2a_? (a_1: t_2) b_3 =
+// ex2a_c1m13_14 (a_1: t_2) b_3 =
 //     ex2b_c1m13_59 a_1 b_3
 //     trait1_? a_1
 // 
 // // id = c1m13_59
-// ex2b_? (a_1: u_2) b_3 =
+// ex2b_c1m13_59 (a_1: u_2) b_3 =
 //     ex2c_c1m13_76 a_1 b_3
 //     trait2_? a_1
 // 
 // // id = c1m13_76
-// ex2c_? (a_1: v_2) b_3 =
+// ex2c_c1m13_76 (a_1: v_2) b_3 =
 //     ex2a_c1m13_14 a_1 b_3
 
 // expected stderr:

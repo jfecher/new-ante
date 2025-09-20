@@ -9,7 +9,7 @@ print y
 // args: --delete-binary
 // expected stdout:
 // // id = c1m64_89
-// y_? = x_?
+// y_c1m64_89 = x_?
 
 // expected stderr:
 // examples/regressions/201_mutable_variables_copy.an:1:1	error: Expected a top-level item but found `mut`
@@ -18,12 +18,12 @@ print y
 // examples/regressions/201_mutable_variables_copy.an:2:4	error: `x` is not defined, was it a typo?
 // y = x
 // 
-// examples/regressions/201_mutable_variables_copy.an:4:0	error: Expected `=` to begin the function body but found a newline
-// x := 5
+// examples/regressions/201_mutable_variables_copy.an:3:6	error: Expected `=` to begin the function body but found `y`
+// print y
 // 
 // examples/regressions/201_mutable_variables_copy.an:4:2	error: Expected `=` to begin the function body but found `:=`
 // x := 5
 // 
-// examples/regressions/201_mutable_variables_copy.an:7:0	error: Expected `=` to begin the function body but found a newline
-// // This used to print 4, 5
+// examples/regressions/201_mutable_variables_copy.an:5:6	error: Expected `=` to begin the function body but found `y`
+// print y
 

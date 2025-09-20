@@ -15,31 +15,31 @@ double x = x * 2
 // args: --delete-binary
 // expected stdout:
 // // id = c1m46_24
-// mutate_? (n_9: ! I32) =
+// mutate_c1m46_24 (n_14: ! I32) =
 //     x_? = double_? (@_? n_?)
-//     n_9
+//     n_14
 // 
 // // id = c1m46_73
-// double_? x_1 = *_? x_1 2
+// double_c1m46_73 x_1 = *_? x_1 2
 
 // expected stderr:
 // examples/codegen/mutability.an:1:1	error: Expected a top-level item but found `mut`
 // mut num = 32
 // 
-// examples/codegen/mutability.an:3:0	error: Expected `=` to begin the function body but found a newline
-// num := 7
+// examples/codegen/mutability.an:2:6	error: Expected `=` to begin the function body but found `num`
+// print num
 // 
 // examples/codegen/mutability.an:3:4	error: Expected `=` to begin the function body but found `:=`
 // num := 7
 // 
-// examples/codegen/mutability.an:6:0	error: Expected `=` to begin the function body but found a newline
-// mutate !num
+// examples/codegen/mutability.an:4:6	error: Expected `=` to begin the function body but found `num`
+// print num
 // 
 // examples/codegen/mutability.an:6:7	error: Expected `=` to begin the function body but found `!`
 // mutate !num
 // 
-// examples/codegen/mutability.an:9:0	error: Expected `=` to begin the function body but found a newline
-// mutate (n: !I32) =
+// examples/codegen/mutability.an:7:6	error: Expected `=` to begin the function body but found `num`
+// print num
 // 
 // examples/codegen/mutability.an:11:6	error: Expected an unindent but found `:=`
 //     n := x

@@ -16,16 +16,16 @@ handle_count foo
 // args: --check --show-types
 // expected stdout:
 // // id = c1m49_3
-// effect Count_? with
+// effect Count_c1m49_3 with
 //     count_1: fn Unit_b -> Unit_b
 // 
 // // id = c1m49_32
-// foo_? () =
+// foo_c1m49_32 () =
 //     count_? ()
 //     repeat_? 10
 // 
 // // id = c1m49_95
-// handle_count_? f_1 =
+// handle_count_c1m49_95 f_1 =
 //     handle 
 //         f_? ()
 //         0
@@ -41,6 +41,6 @@ handle_count foo
 // examples/typechecking/count_effect.an:6:14	error: Expected an unindent but found `fn`
 //     repeat 10 fn _ -> count ()
 // 
-// examples/typechecking/count_effect.an:16:0	error: Expected `=` to begin the function body but found a newline
-// // args: --check --show-types
+// examples/typechecking/count_effect.an:14:13	error: Expected `=` to begin the function body but found `foo`
+// handle_count foo
 

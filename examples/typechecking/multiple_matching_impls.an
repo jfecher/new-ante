@@ -10,8 +10,9 @@ trait Bar a with
 trait Baz a with
     baz: fn a -> Unit
 
-// The call from which the `Foo a` constraint arises
-foo (Thing ())
+main () =
+    // The call from which the `Foo a` constraint arises
+    foo (Thing ())
 
 // Candidate 1
 impl candidate1 {_: Bar a}: Foo a with
@@ -36,48 +37,46 @@ impl candidate2: Foo Thing with
 // args: --check
 // expected stdout:
 // // id = c1m19_31
-// type Thing_? =
+// type Thing_c1m19_31 =
 //     nothing_?: Unit_b
 // 
 // // id = c1m19_37
-// trait Foo_? a_1 with
+// trait Foo_c1m19_37 a_1 with
 //     foo_2: fn a_1 -> Unit_b
 // 
 // // id = c1m19_44
-// trait Bar_? a_1 with
+// trait Bar_c1m19_44 a_1 with
 //     bar_2: fn a_1 -> Unit_b
 // 
 // // id = c1m19_51
-// trait Baz_? a_1 with
+// trait Baz_c1m19_51 a_1 with
 //     baz_2: fn a_1 -> Unit_b
 // 
-// // id = c1m19_66
-// impl candidate1_? {__?: Bar_? a_?}: Foo_c1m19_37 a_4 with
-//     foo_? a_6 = bar_? a_6
+// // id = c1m19_44
+// main_c1m19_44 () =
+//     foo_? (Thing_c1m19_31 ())
 // 
-// // id = c1m19_73
-// impl bar_? {__?: Baz_? a_?}: Bar_c1m19_44 a_3 with
-//     bar_? a_5 = baz_? a_5
+// // id = c1m19_27
+// impl candidate1_c1m19_27 {__?: Bar_? a_?}: Foo_c1m19_37 a_3 with
+//     foo_4 a_5 = bar_c1m19_28 a_5
 // 
-// // id = c1m19_0
-// impl baz_?: Baz_c1m19_51 Thing_c1m19_31 with
-//     baz_? __2 = ()
+// // id = c1m19_28
+// impl bar_c1m19_28 {__?: Baz_? a_?}: Bar_c1m19_44 a_3 with
+//     bar_4 a_5 = baz_c1m19_71 a_5
 // 
-// // id = c1m19_65
-// impl does_not_match_? {__?: Print_? a_?}: Foo_c1m19_37 a_3 with
-//     foo_? __5 = ()
+// // id = c1m19_71
+// impl baz_c1m19_71: Baz_c1m19_51 Thing_c1m19_31 with
+//     baz_1 __2 = ()
 // 
-// // id = c1m19_90
-// impl candidate2_?: Foo_c1m19_37 Thing_c1m19_31 with
-//     foo_? __2 = ()
+// // id = c1m19_43
+// impl does_not_match_c1m19_43 {__?: Print_? a_?}: Foo_c1m19_37 a_3 with
+//     foo_4 __5 = ()
+// 
+// // id = c1m19_63
+// impl candidate2_c1m19_63: Foo_c1m19_37 Thing_c1m19_31 with
+//     foo_1 __2 = ()
 
 // expected stderr:
-// examples/typechecking/multiple_matching_impls.an:16:0	error: Expected `=` to begin the function body but found a newline
-// // Candidate 1
-// 
-// examples/typechecking/multiple_matching_impls.an:18:12	error: `bar` is not defined, was it a typo?
-//     foo a = bar a
-// 
-// examples/typechecking/multiple_matching_impls.an:21:12	error: `baz` is not defined, was it a typo?
-//     bar a = baz a
+// examples/typechecking/multiple_matching_impls.an:15:4	error: `foo` is not defined, was it a typo?
+//     foo (Thing ())
 

@@ -4,11 +4,18 @@ use std::{
     sync::Arc,
 };
 
-use crate::{incremental::{Db, Resolve}, name_resolution::{namespace::SourceFileId, Origin}, parser::{cst::{Handle, HandlePattern}, ids::{NameId, PathId}}};
+use crate::{
+    incremental::{Db, Resolve},
+    name_resolution::{namespace::SourceFileId, Origin},
+    parser::ids::{NameId, PathId},
+};
 
 use super::{
     cst::{
-        Call, Comptime, Cst, Declaration, Definition, DefinitionName, EffectDefinition, EffectType, Expr, Extern, FunctionType, If, Import, Index, Lambda, Literal, Match, MemberAccess, Mutability, OwnershipMode, Parameter, Path, Pattern, Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition, TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody
+        Call, Comptime, Cst, Declaration, Definition, EffectDefinition, EffectType, Expr, Extern, FunctionType, Handle,
+        HandlePattern, If, Import, Index, Lambda, Literal, Match, MemberAccess, Mutability, OwnershipMode, Parameter,
+        Path, Pattern, Quoted, Reference, SequenceItem, Sharedness, TopLevelItem, TopLevelItemKind, TraitDefinition,
+        TraitImpl, Type, TypeAnnotation, TypeDefinition, TypeDefinitionBody,
     },
     ids::{ExprId, PatternId, TopLevelId},
     TopLevelContext,
@@ -35,9 +42,10 @@ impl Cst {
 
     /// Display this Cst, annotating each name with a number pointing to its
     /// resolved definition
-    pub fn display_resolved<'a>(&'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>, compiler: &'a Db) -> CstDisplayContext<'a> {
-        let mut config = CstDisplayConfig::default();
-        config.show_resolved = Some(compiler);
+    pub fn display_resolved<'a>(
+        &'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>, compiler: &'a Db,
+    ) -> CstDisplayContext<'a> {
+        let config = CstDisplayConfig { show_resolved: Some(compiler), ..Default::default() };
         CstDisplayContext { cst: self, context, config }
     }
 }
@@ -65,7 +73,7 @@ struct CstDisplay<'a> {
 impl<'a> Display for CstDisplayContext<'a> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         CstDisplay { context: self.context, indent_level: 0, current_item: None, config: self.config }
-            .fmt_cst(&self.cst, f)
+            .fmt_cst(self.cst, f)
     }
 }
 
@@ -151,12 +159,7 @@ impl<'a> CstDisplay<'a> {
             write!(f, "mut ")?;
         }
 
-        self.fmt_definition_name(definition.name, f)?;
-
-        if let Some(typ) = &definition.typ {
-            write!(f, ": ")?;
-            self.fmt_type(typ, f)?;
-        }
+        self.fmt_pattern(definition.pattern, f)?;
 
         write!(f, " =")?;
         if !matches!(self.context().exprs[definition.rhs], Expr::Sequence(_)) {
@@ -164,17 +167,6 @@ impl<'a> CstDisplay<'a> {
         }
 
         self.fmt_expr(definition.rhs, f)
-    }
-
-    fn fmt_definition_name(&mut self, name: DefinitionName, f: &mut Formatter) -> std::fmt::Result {
-        match name {
-            DefinitionName::Single(name_id) => self.fmt_name(name_id, f),
-            DefinitionName::Method { type_name, item_name } => {
-                self.fmt_name(type_name, f)?;
-                write!(f, ".")?;
-                self.fmt_name(item_name, f)
-            },
-        }
     }
 
     fn fmt_name(&self, name: NameId, f: &mut Formatter) -> std::fmt::Result {
@@ -204,7 +196,7 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_function(&mut self, definition: &Definition, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
-        self.fmt_definition_name(definition.name, f)?;
+        self.fmt_pattern(definition.pattern, f)?;
         self.fmt_lambda_inner(lambda, f)
     }
 
@@ -255,7 +247,7 @@ impl<'a> CstDisplay<'a> {
 
     /// Formats type arguments with a leading space in front of each (including the first)
     fn fmt_type_args(&self, args: &[Type], f: &mut Formatter) -> std::fmt::Result {
-        let requires_parens = |typ: &Type| matches!(typ, Type::Function(_) | Type::TypeApplication(..));
+        let requires_parens = |typ: &Type| matches!(typ, Type::Function(_) | Type::Application(..));
 
         for arg in args {
             if requires_parens(arg) {
@@ -332,7 +324,7 @@ impl<'a> CstDisplay<'a> {
             Type::Integer(kind) => write!(f, "{kind}"),
             Type::Float(kind) => write!(f, "{kind}"),
             Type::Function(function_type) => self.fmt_function_type(function_type, f),
-            Type::TypeApplication(constructor, args) => self.fmt_type_application(constructor, args, f),
+            Type::Application(constructor, args) => self.fmt_type_application(constructor, args, f),
             Type::String => write!(f, "String"),
             Type::Char => write!(f, "Char"),
             Type::Reference(mutable, shared) => self.fmt_reference_type(*mutable, *shared, f),
@@ -344,7 +336,7 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_type_application(&self, constructor: &Type, args: &[Type], f: &mut Formatter) -> std::fmt::Result {
-        let requires_parens = |typ: &Type| matches!(typ, Type::Function(_) | Type::TypeApplication(..));
+        let requires_parens = |typ: &Type| matches!(typ, Type::Function(_) | Type::Application(..));
 
         if requires_parens(constructor) {
             write!(f, "(")?;
@@ -513,9 +505,7 @@ impl<'a> CstDisplay<'a> {
         Ok(())
     }
 
-    fn fmt_effect_definition(
-        &mut self, effect_definition: &EffectDefinition, f: &mut Formatter,
-    ) -> std::fmt::Result {
+    fn fmt_effect_definition(&mut self, effect_definition: &EffectDefinition, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "effect ")?;
         self.fmt_name(effect_definition.name, f)?;
 
@@ -626,6 +616,11 @@ impl<'a> CstDisplay<'a> {
                 write!(f, ": ")?;
                 self.fmt_type(typ, f)
             },
+            Pattern::MethodName { type_name, item_name } => {
+                self.fmt_name(*type_name, f)?;
+                write!(f, ".")?;
+                self.fmt_name(*item_name, f)
+            },
         }
     }
 
@@ -676,12 +671,11 @@ impl<'a> CstDisplay<'a> {
 
     /// True if this pattern never requires parenthesis
     fn is_pattern_atom(&self, pattern: PatternId) -> bool {
+        use Pattern::*;
         match &self.context().patterns[pattern] {
-            Pattern::Error => true,
-            Pattern::Variable(_) => true,
-            Pattern::Literal(_) => true,
-            Pattern::Constructor(_, args) => args.is_empty(),
-            Pattern::TypeAnnotation(_, _) => false,
+            Error | Variable(_) | Literal(_) | MethodName { .. } => true,
+            Constructor(_, args) => args.is_empty(),
+            TypeAnnotation(_, _) => false,
         }
     }
 

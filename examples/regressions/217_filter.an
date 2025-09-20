@@ -33,18 +33,18 @@ for filtered print
 // args: --delete-binary
 // expected stdout:
 // // id = c1m59_9
-// effect Emit_? a_1 with
+// effect Emit_c1m59_9 a_1 with
 //     emit_2: a_1
 // 
 // // id = c1m59_99
-// iota_? (n_1: U32) = (error)
+// iota_c1m59_99 (n_1: U32) = (error)
 // 
 // // id = c1m59_37
-// zero_to_nine_? () =
+// zero_to_nine_c1m59_37 () =
 //     iota_c1m59_99 10
 // 
 // // id = c1m59_19
-// filtered_? () =
+// filtered_c1m59_19 () =
 //     filter_? zero_to_nine_c1m59_37 (error)
 
 // expected stderr:
@@ -54,10 +54,10 @@ for filtered print
 // examples/regressions/217_filter.an:4:16	error: Expected an expression but found `loop`
 // iota (n: U32) = loop (i = 0) ->
 // 
-// examples/regressions/217_filter.an:10:21	error: Expected `=` to begin the function body but found `->`
+// examples/regressions/217_filter.an:10:7	error: Expected `=` to begin the function body but found `(`
 // filter (stream: Unit -> Unit) (f: a -> Bool pure) =
 // 
-// examples/regressions/217_filter.an:18:18	error: Expected `=` to begin the function body but found `->`
+// examples/regressions/217_filter.an:18:4	error: Expected `=` to begin the function body but found `(`
 // for (stream: Unit -> Unit can Emit a) (f: a -> Unit pure) =
 // 
 // examples/regressions/217_filter.an:29:4	error: `filter` is not defined, was it a typo?
@@ -69,6 +69,6 @@ for filtered print
 // examples/regressions/217_filter.an:29:25	error: Expected an expression but found `fn`
 //     filter zero_to_nine (fn x -> x % 2 == 0)
 // 
-// examples/regressions/217_filter.an:33:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
+// examples/regressions/217_filter.an:31:4	error: Expected `=` to begin the function body but found `filtered`
+// for filtered print
 

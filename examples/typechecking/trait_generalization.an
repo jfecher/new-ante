@@ -3,5 +3,5 @@ a = "test".c_string
 // args: --check --show-types
 // expected stdout:
 // // id = c1m80_65
-// a_? = "test".c_string
+// a_c1m80_65 = "test".c_string
 

@@ -1,7 +1,10 @@
 use std::{cell::Cell, collections::BTreeMap, path::PathBuf, sync::Arc};
 
 use inc_complete::{
-    accumulate::Accumulator, define_input, define_intermediate, storage::{HashMapStorage, SingletonStorage}, Storage
+    accumulate::Accumulator,
+    define_input, define_intermediate,
+    storage::{HashMapStorage, SingletonStorage},
+    Storage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -60,7 +63,7 @@ pub struct DbStorage {
 
 std::thread_local! {
     // This is a helper to show us how many queries deep we are for our print outs
-    static QUERY_NESTING: Cell<usize> = Cell::new(0);
+    static QUERY_NESTING: Cell<usize> = const { Cell::new(0) };
 }
 
 pub fn enter_query() {
@@ -229,8 +232,8 @@ define_intermediate!(100, Resolve -> ResolutionResult, DbStorage, name_resolutio
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// To go from queries which resolve entire files like `Parse` to queries that resolve only a
-/// single top-level item like `Resolve` we need a way to split a large `Ast` result into smaller items
-/// - in this case individual top-level items. This being cached means we check if the resulting
+/// single top-level item like `Resolve` we need a way to split a large `Ast` result into smaller items,
+/// in this case individual top-level items. This being cached means we check if the resulting
 /// `TopLevelItem` has changed, and if not, we don't need to re-run any computations that
 /// depend on that item.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]

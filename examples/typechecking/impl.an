@@ -16,17 +16,17 @@ c = foo "one" "two"
 // args: --check --show-types
 // expected stdout:
 // // id = c1m40_37
-// trait Foo_? a_1 with
+// trait Foo_c1m40_37 a_1 with
 //     foo_2: fn a_1 a_1 -> a_1
 // 
 // // id = c1m40_65
-// a_? = foo_? 1 2_I32
+// a_c1m40_65 = foo_? 1 2_I32
 // 
 // // id = c1m40_84
-// b_? = foo_? 1 2
+// b_c1m40_84 = foo_? 1 2
 // 
 // // id = c1m40_37
-// c_? = foo_? "one" "two"
+// c_c1m40_37 = foo_? "one" "two"
 
 // expected stderr:
 // examples/typechecking/impl.an:5:5	error: Expected an identifier but found `Foo`

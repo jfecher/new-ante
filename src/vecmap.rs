@@ -26,6 +26,10 @@ impl<K, V> VecMap<K, V> {
         self.items.push(item);
         key
     }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
 }
 
 impl<K, V> Index<K> for VecMap<K, V>

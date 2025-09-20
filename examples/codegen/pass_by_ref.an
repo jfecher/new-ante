@@ -22,15 +22,15 @@ foo x x
 // args: --delete-binary
 // expected stdout:
 // // id = c1m51_77
-// type S_? =
+// type S_c1m51_77 =
 //     message_?: String_b
 // 
-// // id = c1m51_6
-// impl print_s_?: Print_? S_c1m51_77 with
-//     printne_? s_2 = printne_? s_2.message
+// // id = c1m51_52
+// impl print_s_c1m51_52: Print_? S_c1m51_77 with
+//     printne_1 s_2 = printne_1 s_2.message
 // 
 // // id = c1m51_32
-// foo_? (x_1: S_c1m51_77) (y_2: S_c1m51_77) =
+// foo_c1m51_32 (x_1: S_c1m51_77) (y_2: S_c1m51_77) =
 //     printne_? "x before: "
 //     print_? x_1
 //     mut z_? = y_?
@@ -39,9 +39,6 @@ foo x x
 // expected stderr:
 // examples/codegen/pass_by_ref.an:3:14	error: `Print` is not defined, was it a typo?
 // impl print_s: Print S with
-// 
-// examples/codegen/pass_by_ref.an:4:16	error: `printne` is not defined, was it a typo?
-//     printne s = printne s.message
 // 
 // examples/codegen/pass_by_ref.an:12:4	error: `printne` is not defined, was it a typo?
 //     printne "x before: "
@@ -58,6 +55,6 @@ foo x x
 // examples/codegen/pass_by_ref.an:19:0	error: Expected a top-level item but found `mut`
 // mut x = S "original x string"
 // 
-// examples/codegen/pass_by_ref.an:22:0	error: Expected `=` to begin the function body but found a newline
-// // args: --delete-binary
+// examples/codegen/pass_by_ref.an:20:4	error: Expected `=` to begin the function body but found `x`
+// foo x x
 

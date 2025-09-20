@@ -19,21 +19,21 @@ print <| read_or_zero foo
 // args: --delete-binary
 // expected stdout:
 // // id = c1m91_51
-// effect Fail_? with
+// effect Fail_c1m91_51 with
 //     fail_1: Unit_b
 // 
 // // id = c1m91_52
-// effect Read_? a_1 with
+// effect Read_c1m91_52 a_1 with
 //     read_2: Unit_b
 // 
 // // id = c1m91_10
-// read_or_zero_? f_1 =
+// read_or_zero_c1m91_10 f_1 =
 //     handle <|_? Some_? (f_? ())
 //     | fail_? () -> None_?
 //     | read_? () -> resume_? 5_U32
 // 
 // // id = c1m91_32
-// foo_? () =
+// foo_c1m91_32 () =
 //     if false then fail_? ()
 
 // expected stderr:

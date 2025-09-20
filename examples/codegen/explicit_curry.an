@@ -13,14 +13,14 @@ print <| plus2 38 2
 // args: --delete-binary
 // expected stdout:
 // // id = c1m45_32
-// foo_? a_1 b_2 c_3 =
+// foo_c1m45_32 a_1 b_2 c_3 =
 //     +_? (+_? a_1 b_2) c_3
 // 
 // // id = c1m45_13
-// plus2_? = foo_c1m45_32 __? 2 __?
+// plus2_c1m45_13 = foo_c1m45_32 __? 2 __?
 // 
 // // id = c1m45_0
-// plus4_? = foo_c1m45_32 2 2 __?
+// plus4_c1m45_0 = foo_c1m45_32 2 2 __?
 
 // expected stderr:
 // examples/codegen/explicit_curry.an:3:6	error: `+` is not defined, was it a typo?

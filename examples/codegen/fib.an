@@ -7,7 +7,7 @@ print (fib 10)
 // args: --delete-binary
 // expected stdout:
 // // id = c1m43_87
-// fib_? n_1 =
+// fib_c1m43_87 n_1 =
 //     if <_? n_1 2 then n_1 else +_? (fib_c1m43_87 (-_? n_1 2)) (fib_c1m43_87 (-_? n_1 1))
 
 // expected stderr:
@@ -23,6 +23,6 @@ print (fib 10)
 // examples/codegen/fib.an:3:30	error: `-` is not defined, was it a typo?
 //     else fib (n - 2) + fib (n - 1)
 // 
-// examples/codegen/fib.an:5:11	error: Expected `=` to begin the function body but found `10`
+// examples/codegen/fib.an:5:6	error: Expected `=` to begin the function body but found `(`
 // print (fib 10)
 

@@ -7,7 +7,7 @@ foo a =
 // args: --check --show-types
 // expected stdout:
 // // id = c1m0_32
-// foo_? a_1 =
+// foo_c1m0_32 a_1 =
 //     print_? a_1
 //     print_? a_1
 

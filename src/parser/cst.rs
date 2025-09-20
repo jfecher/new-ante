@@ -1,4 +1,4 @@
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -44,42 +44,22 @@ pub enum TopLevelItemKind {
 impl TopLevelItemKind {
     pub fn name(&self) -> ItemName {
         match self {
-            TopLevelItemKind::Definition(definition) => match definition.name {
-                DefinitionName::Single(name_id) => ItemName::Single(name_id),
-                DefinitionName::Method { type_name, item_name } => ItemName::Method { type_name, item_name },
-            },
+            TopLevelItemKind::Definition(definition) => ItemName::Pattern(definition.pattern),
             TopLevelItemKind::TypeDefinition(type_definition) => ItemName::Single(type_definition.name),
             TopLevelItemKind::TraitDefinition(trait_definition) => ItemName::Single(trait_definition.name),
-            TopLevelItemKind::TraitImpl(_) => ItemName::None,
+            TopLevelItemKind::TraitImpl(trait_impl) => ItemName::Single(trait_impl.name),
             TopLevelItemKind::EffectDefinition(effect_definition) => ItemName::Single(effect_definition.name),
             TopLevelItemKind::Extern(extern_) => ItemName::Single(extern_.declaration.name),
             TopLevelItemKind::Comptime(_) => ItemName::None,
         }
     }
-
-    pub fn name_string<'ctx>(&self, context: &'ctx super::TopLevelContext) -> Cow<'ctx, str> {
-        self.name().to_string(context)
-    }
 }
 
+#[derive(Debug)]
 pub enum ItemName {
     Single(NameId),
-    Method { type_name: NameId, item_name: NameId },
+    Pattern(PatternId),
     None,
-}
-
-impl ItemName {
-    pub fn to_string<'ctx>(&self, context: &'ctx super::TopLevelContext) -> Cow<'ctx, str> {
-        match self {
-            ItemName::Single(name) => Cow::Borrowed(&context.names[*name]),
-            ItemName::Method { type_name, item_name } => {
-                let type_name = &context.names[*type_name];
-                let item_name = &context.names[*item_name];
-                Cow::Owned(format!("{type_name}.{item_name}"))
-            },
-            ItemName::None => Cow::Borrowed("impl"),
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -93,7 +73,7 @@ pub enum Type {
     Integer(IntegerKind),
     Float(FloatKind),
     Function(FunctionType),
-    TypeApplication(Box<Type>, Vec<Type>),
+    Application(Box<Type>, Vec<Type>),
     Reference(Mutability, Sharedness),
 }
 
@@ -170,15 +150,15 @@ impl ErrorDefault for Expr {
 impl Expr {
     /// Are parenthesis not required when printing this Expr within another?
     pub fn is_atom(&self) -> bool {
-        match self {
-            Expr::Error => true,
-            Expr::Literal(_) => true,
-            Expr::Variable(_) => true,
-            Expr::MemberAccess(_) => true,
-            Expr::Index(_) => true,
-            Expr::Reference(_) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Expr::Error
+                | Expr::Literal(_)
+                | Expr::Variable(_)
+                | Expr::MemberAccess(_)
+                | Expr::Index(_)
+                | Expr::Reference(_)
+        )
     }
 }
 
@@ -235,25 +215,8 @@ pub enum Literal {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Definition {
     pub mutable: bool,
-    pub name: DefinitionName,
-    pub typ: Option<Type>,
+    pub pattern: PatternId,
     pub rhs: ExprId,
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum DefinitionName {
-    Single(NameId),
-    Method { type_name: NameId, item_name: NameId },
-}
-
-impl DefinitionName {
-    /// Returns the name of this item. If this is a method, the type name is ignored.
-    pub fn item_name(self) -> NameId {
-        match self {
-            DefinitionName::Single(name_id) => name_id,
-            DefinitionName::Method { item_name, .. } => item_name,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -356,6 +319,7 @@ pub enum Pattern {
     Literal(Literal),
     Constructor(PathId, Vec<PatternId>),
     TypeAnnotation(PatternId, Type),
+    MethodName { type_name: NameId, item_name: NameId },
 }
 
 impl ErrorDefault for Pattern {
@@ -369,7 +333,6 @@ pub struct HandlePattern {
     pub function: NameId,
     pub args: Vec<PatternId>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TypeAnnotation {

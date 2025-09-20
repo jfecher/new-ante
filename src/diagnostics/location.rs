@@ -27,7 +27,7 @@ impl LocationData {
     /// Merge two locations
     pub fn to(&self, end: &LocationData) -> Location {
         assert_eq!(self.file_id, end.file_id);
-        Arc::new(LocationData { file_id: self.file_id.clone(), span: self.span.to(&end.span) })
+        Arc::new(LocationData { file_id: self.file_id, span: self.span.to(&end.span) })
     }
 
     /// An invalid location used only as a temporary placeholder
@@ -56,7 +56,7 @@ impl Span {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, Hash, Eq)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Position {
     pub byte_index: usize,
     pub line_number: u32,
@@ -84,5 +84,11 @@ impl Ord for Position {
 impl PartialEq for Position {
     fn eq(&self, other: &Self) -> bool {
         self.byte_index == other.byte_index
+    }
+}
+
+impl std::hash::Hash for Position {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.byte_index.hash(state)
     }
 }

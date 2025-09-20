@@ -4,9 +4,9 @@ print (a ++ "，世界")
 // args: --delete-binary
 // expected stdout:
 // // id = c1m14_65
-// a_? = "你好"
+// a_c1m14_65 = "你好"
 
 // expected stderr:
-// examples/codegen/string_append.an:2:9	error: Expected `=` to begin the function body but found `++`
+// examples/codegen/string_append.an:2:6	error: Expected `=` to begin the function body but found `(`
 // print (a ++ "，世界")
 

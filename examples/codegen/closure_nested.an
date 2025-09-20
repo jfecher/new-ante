@@ -11,7 +11,7 @@ print (foo ())
 // args: --delete-binary
 // expected stdout:
 // // id = c1m1_32
-// foo_? () =
+// foo_c1m1_32 () =
 //     x_? = "test"
 //     bar_? () =
 //         baz_? () = x_?
@@ -22,6 +22,6 @@ print (foo ())
 // examples/codegen/closure_nested.an:7:4	error: `bar` is not defined, was it a typo?
 //     bar ()
 // 
-// examples/codegen/closure_nested.an:9:11	error: Expected `=` to begin the function body but found `()`
+// examples/codegen/closure_nested.an:9:6	error: Expected `=` to begin the function body but found `(`
 // print (foo ())
 

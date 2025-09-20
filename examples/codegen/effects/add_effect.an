@@ -28,17 +28,23 @@ sum_all () |> print
 // args: --delete-binary
 // expected stdout:
 // // id = c1m71_40
-// effect Add_? with
+// effect Add_c1m71_40 with
 //     add_1: U32
 // 
+// // id = c1m71_32
+// foo_c1m71_32 () =
+//     print_? "foo"
+//     add_? 1
+//     add_? 2
+// 
 // // id = c1m71_70
-// bar_? () =
+// bar_c1m71_70 () =
 //     print_? "bar"
 //     add_? 3
 //     add_? 4
 // 
 // // id = c1m71_56
-// sum_all_? () =
+// sum_all_c1m71_56 () =
 //     handle 
 //         foo_? ()
 //         bar_? ()
@@ -53,8 +59,14 @@ sum_all () |> print
 // examples/codegen/effects/add_effect.an:2:13	error: Expected an unindent but found `->`
 //     add: U32 -> Unit
 // 
-// examples/codegen/effects/add_effect.an:4:7	error: Expected `=` to begin the function body but found `can`
-// foo () can Add =
+// examples/codegen/effects/add_effect.an:5:4	error: `print` is not defined, was it a typo?
+//     print "foo"
+// 
+// examples/codegen/effects/add_effect.an:6:4	error: `add` is not defined, was it a typo?
+//     add 1
+// 
+// examples/codegen/effects/add_effect.an:7:4	error: `add` is not defined, was it a typo?
+//     add 2
 // 
 // examples/codegen/effects/add_effect.an:10:4	error: `print` is not defined, was it a typo?
 //     print "bar"
@@ -65,6 +77,6 @@ sum_all () |> print
 // examples/codegen/effects/add_effect.an:12:4	error: `add` is not defined, was it a typo?
 //     add 4
 // 
-// examples/codegen/effects/add_effect.an:26:11	error: Expected `=` to begin the function body but found `|>`
+// examples/codegen/effects/add_effect.an:26:8	error: Expected `=` to begin the function body but found `()`
 // sum_all () |> print
 
