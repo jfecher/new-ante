@@ -15,9 +15,31 @@ for stream f =
 for (fn () -> iota 10) print
 
 // args: --delete-binary
-// expected exit status: 101
+// expected stdout:
+// // id = c1m87_9
+// effect Emit_? a_1 with
+//     emit_2: a_1
+// 
+// // id = c1m87_99
+// iota_? (n_1: U32) = (error)
+// 
+// // id = c1m87_64
+// for_? stream_1 f_2 =
+//     handle stream_? ()
+//     | emit_? x_? -> 
+//         f_? x_?
+//         resume_? ()
+
 // expected stderr:
-// thread 'main' panicked at src/name_resolution/mod.rs:331:38:
-// not yet implemented
-// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+// examples/codegen/effects/generators_basic.an:2:12	error: Expected an unindent but found `->`
+//     emit: a -> Unit
+// 
+// examples/codegen/effects/generators_basic.an:4:16	error: Expected an expression but found `loop`
+// iota (n: U32) = loop (i = 0) ->
+// 
+// examples/codegen/effects/generators_basic.an:15:5	error: Expected a parameter but found `fn`
+// for (fn () -> iota 10) print
+// 
+// examples/codegen/effects/generators_basic.an:17:0	error: Expected `=` to begin the function body but found a newline
+// // args: --delete-binary
 

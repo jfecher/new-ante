@@ -17,9 +17,38 @@ foo () =
 print <| read_or_zero foo
 
 // args: --delete-binary
-// expected exit status: 101
+// expected stdout:
+// // id = c1m91_51
+// effect Fail_? with
+//     fail_1: Unit_b
+// 
+// // id = c1m91_52
+// effect Read_? a_1 with
+//     read_2: Unit_b
+// 
+// // id = c1m91_10
+// read_or_zero_? f_1 =
+//     handle <|_? Some_? (f_? ())
+//     | fail_? () -> None_?
+//     | read_? () -> resume_? 5_U32
+// 
+// // id = c1m91_32
+// foo_? () =
+//     if false then fail_? ()
+
 // expected stderr:
-// thread 'main' panicked at src/name_resolution/mod.rs:331:38:
-// not yet implemented
-// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+// examples/codegen/effects/handle_multiple_effects.an:3:15	error: Expected an unindent but found `->`
+//     fail: Unit -> a
+// 
+// examples/codegen/effects/handle_multiple_effects.an:6:15	error: Expected an unindent but found `->`
+//     read: Unit -> a
+// 
+// examples/codegen/effects/handle_multiple_effects.an:14:18	error: `fail` is not defined, was it a typo?
+//     if false then fail ()
+// 
+// examples/codegen/effects/handle_multiple_effects.an:15:4	error: Expected an unindent but found `read`
+//     read ()
+// 
+// examples/codegen/effects/handle_multiple_effects.an:17:6	error: Expected `=` to begin the function body but found `<|`
+// print <| read_or_zero foo
 

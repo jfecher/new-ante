@@ -14,9 +14,36 @@ handle_count f =
 handle_count foo |> print
 
 // args: --delete-binary
-// expected exit status: 101
+// expected stdout:
+// // id = c1m2_3
+// effect Count_? with
+//     count_1: Unit_b
+// 
+// // id = c1m2_32
+// foo_? () =
+//     count_? ()
+//     repeat_? 10
+// 
+// // id = c1m2_95
+// handle_count_? f_1 =
+//     handle 
+//         f_? ()
+//         0
+//     | count_? () -> +_? 1 (resume_? ())
+
 // expected stderr:
-// thread 'main' panicked at src/name_resolution/mod.rs:331:38:
-// not yet implemented
-// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+// examples/codegen/effects/count_effect.an:2:16	error: Expected an unindent but found `->`
+//     count: Unit -> Unit
+// 
+// examples/codegen/effects/count_effect.an:5:4	error: `count` is not defined, was it a typo?
+//     count ()
+// 
+// examples/codegen/effects/count_effect.an:6:4	error: `repeat` is not defined, was it a typo?
+//     repeat 10 fn _ -> count ()
+// 
+// examples/codegen/effects/count_effect.an:6:14	error: Expected an unindent but found `fn`
+//     repeat 10 fn _ -> count ()
+// 
+// examples/codegen/effects/count_effect.an:14:17	error: Expected `=` to begin the function body but found `|>`
+// handle_count foo |> print
 

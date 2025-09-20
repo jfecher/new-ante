@@ -26,9 +26,45 @@ sum_all () =
 sum_all () |> print
 
 // args: --delete-binary
-// expected exit status: 101
+// expected stdout:
+// // id = c1m71_40
+// effect Add_? with
+//     add_1: U32
+// 
+// // id = c1m71_70
+// bar_? () =
+//     print_? "bar"
+//     add_? 3
+//     add_? 4
+// 
+// // id = c1m71_56
+// sum_all_? () =
+//     handle 
+//         foo_? ()
+//         bar_? ()
+//         0
+//     | add_? y_? -> 
+//         print_? "add called"
+//         r_? = resume_? ()
+//         print_? "add resume finished"
+//         +_? y_? r_?
+
 // expected stderr:
-// thread 'main' panicked at src/name_resolution/mod.rs:331:38:
-// not yet implemented
-// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+// examples/codegen/effects/add_effect.an:2:13	error: Expected an unindent but found `->`
+//     add: U32 -> Unit
+// 
+// examples/codegen/effects/add_effect.an:4:7	error: Expected `=` to begin the function body but found `can`
+// foo () can Add =
+// 
+// examples/codegen/effects/add_effect.an:10:4	error: `print` is not defined, was it a typo?
+//     print "bar"
+// 
+// examples/codegen/effects/add_effect.an:11:4	error: `add` is not defined, was it a typo?
+//     add 3
+// 
+// examples/codegen/effects/add_effect.an:12:4	error: `add` is not defined, was it a typo?
+//     add 4
+// 
+// examples/codegen/effects/add_effect.an:26:11	error: Expected `=` to begin the function body but found `|>`
+// sum_all () |> print
 
