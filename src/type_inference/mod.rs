@@ -11,12 +11,12 @@ use crate::{
     }, type_inference::{errors::{Locateable, TypeErrorKind}, type_context::TypeContext, type_id::TypeId, types::{GeneralizedType, TypeVariableId}}
 };
 
+pub mod errors;
 pub mod type_context;
 pub mod type_id;
 pub mod types;
 mod get_type;
 mod cst_traversal;
-pub mod errors;
 
 pub use get_type::get_type_impl;
 

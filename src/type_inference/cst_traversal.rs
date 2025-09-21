@@ -42,6 +42,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
                 let expected = self.types.convert_ast_type(&type_annotation.rhs);
                 self.check_expr(type_annotation.lhs, Some(expected))
             },
+            Expr::Handle(handle) => self.check_handle(handle, expected),
             Expr::Quoted(_) => todo!("type check Expr::Quoted"),
             Expr::Error => TypeId::ERROR,
         };
@@ -148,19 +149,19 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
         }
     }
 
-    fn check_call(&mut self, call: &cst::Call, expected: Option<TypeId>) -> TypeId {
+    fn check_call(&mut self, _call: &cst::Call, _expected: Option<TypeId>) -> TypeId {
         todo!()
     }
 
-    fn check_lambda(&mut self, lambda: &cst::Lambda, expected: Option<TypeId>) -> TypeId {
+    fn check_lambda(&mut self, _lambda: &cst::Lambda, _expected: Option<TypeId>) -> TypeId {
         todo!()
     }
 
-    fn check_member_access(&mut self, member_access: &cst::MemberAccess, expected: Option<TypeId>) -> TypeId {
+    fn check_member_access(&mut self, _member_access: &cst::MemberAccess, _expected: Option<TypeId>) -> TypeId {
         todo!()
     }
 
-    fn check_index(&mut self, index: &cst::Index, expected: Option<TypeId>) -> TypeId {
+    fn check_index(&mut self, _index: &cst::Index, _expected: Option<TypeId>) -> TypeId {
         todo!()
     }
 
@@ -195,5 +196,9 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
         }
 
         result_type
+    }
+
+    fn check_handle(&mut self, _handle: &cst::Handle, _expected: Option<TypeId>) -> TypeId {
+        todo!("check_handle")
     }
 }

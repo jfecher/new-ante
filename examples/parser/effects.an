@@ -43,6 +43,10 @@ map4 (l: List a) (f: fn a -> b) : List b can Log = ()
 //     set: fn a I32 -> Unit
 // 
 // main () =
+//     handle log "test1"
+//     | log s -> print s
+//     handle 
+//         log "test2"
 // 
 // map1 (l: List a) (f: fn a -> b can Log) : List b = ()
 // 
@@ -53,36 +57,6 @@ map4 (l: List a) (f: fn a -> b) : List b can Log = ()
 // map4 (l: List a) (f: fn a -> b) : List b can Log = ()
 
 // expected stderr:
-// examples/parser/effects.an:9:4	error: Expected an unindent but found `handle`
-//     handle log "test1"
-// 
-// examples/parser/effects.an:15:4	error: Expected a top-level item but found `|`
+// examples/parser/effects.an:15:10	error: Expected an unindent but found `"a"`
 //     | log "a" -> print "case 1"
-// 
-// examples/parser/effects.an:16:4	error: Expected a top-level item but found `|`
-//     | log "b" -> print "case 2"
-// 
-// examples/parser/effects.an:17:4	error: Expected a top-level item but found `|`
-//     | log _   -> print "case 3"
-// 
-// examples/parser/effects.an:19:4	error: Expected a top-level item but found `handle`
-//     handle foo + bar
-// 
-// examples/parser/effects.an:20:4	error: Expected a top-level item but found `|`
-//     | set 0 a -> resume ()
-// 
-// examples/parser/effects.an:21:4	error: Expected a top-level item but found `|`
-//     | get () -> foo resume 1 // test 'resume' is parsed as a normal identifier
-// 
-// examples/parser/effects.an:22:4	error: Expected a top-level item but found `|`
-//     | set _ b -> resume ()
-// 
-// examples/parser/effects.an:24:4	error: Expected a top-level item but found `handle`
-//     handle ()
-// 
-// examples/parser/effects.an:25:4	error: Expected a top-level item but found `|`
-//     | return _ -> "foo"
-// 
-// examples/parser/effects.an:26:4	error: Expected a top-level item but found `|`
-//     | log _ -> "impossible"
 

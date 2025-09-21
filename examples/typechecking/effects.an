@@ -34,9 +34,12 @@ does_use x =
 // 
 // // id = c1m14_47
 // handle_basic_c1m14_47 () =
+//     handle log_? "test1"
+//     | log_? v_? -> set_? v_?
 // 
 // // id = c1m14_23
 // use_resume_c1m14_23 () =
+//     handle ()
 // 
 // // id = c1m14_99
 // does_use_c1m14_99 x_1 =
@@ -44,11 +47,8 @@ does_use x =
 //     set_? (+_? y_? x_1)
 
 // expected stderr:
-// examples/typechecking/effects.an:10:4	error: Expected an unindent but found `handle`
-//     handle log "test1"
-// 
-// examples/typechecking/effects.an:14:4	error: Expected an unindent but found `handle`
-//     handle ()
+// examples/typechecking/effects.an:17:4	error: Expected an unindent but found `|`
+//     | get () -> resume 3i32
 // 
 // examples/typechecking/effects.an:22:4	error: `set` is not defined, was it a typo?
 //     set (y + x)

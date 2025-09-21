@@ -35,28 +35,24 @@ iota 10
 // 
 // // id = c1m72_79
 // filter_c1m72_79 stream_1 predicate_2 =
+//     handle stream_? ()
+//     | emit_? x_? -> 
+//         if predicate_? x_? then 
+//             emit_? x_?
 // 
 // // id = c1m72_64
-// for_c1m72_64 stream_3 f_4 =
+// for_c1m72_64 stream_1 f_2 =
+//     handle stream_? ()
+//     | emit_? x_? -> 
+//         f_? x_?
+//         resume_? ()
 
 // expected stderr:
 // examples/typechecking/effects_subset.an:5:16	error: Expected an expression but found `loop`
 // iota (n: U32) = loop (i = 0) ->
 // 
-// examples/typechecking/effects_subset.an:11:4	error: Expected an unindent but found `handle`
-//     handle stream ()
-// 
-// examples/typechecking/effects_subset.an:15:15	error: Expected `=` to begin the function body but found `()`
+// examples/typechecking/effects_subset.an:15:8	error: Expected an unindent but found `resume`
 //         resume ()
-// 
-// examples/typechecking/effects_subset.an:17:0	error: Expected a top-level item but found an unindent
-// for stream f =
-// 
-// examples/typechecking/effects_subset.an:18:4	error: Expected an unindent but found `handle`
-//     handle stream ()
-// 
-// examples/typechecking/effects_subset.an:23:0	error: Expected a top-level item but found an unindent
-// iota 10
 // 
 // examples/typechecking/effects_subset.an:23:5	error: Expected `=` to begin the function body but found `10`
 // iota 10

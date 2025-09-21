@@ -7,7 +7,10 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    iterator_extensions::vecmap, lexer::token::{FloatKind, IntegerKind}, name_resolution::ResolutionResult, parser::{
+    iterator_extensions::vecmap,
+    lexer::token::{FloatKind, IntegerKind},
+    name_resolution::ResolutionResult,
+    parser::{
         cst::{self, Mutability, Sharedness},
         ids::NameId,
     }, type_inference::{type_context::TypeContext, type_id::TypeId}, vecmap::VecMap
@@ -116,17 +119,13 @@ impl TopLevelType {
         match self {
             TopLevelType::Primitive(_) => Vec::new(),
             TopLevelType::Generic(generic) => vec![*generic],
-            TopLevelType::Function { parameters, return_type } => {
-                parameters.iter()
-                    .chain(std::iter::once(return_type.as_ref()))
-                    .flat_map(|typ| typ.find_generics())
-                    .collect()
-            },
+            TopLevelType::Function { parameters, return_type } => parameters
+                .iter()
+                .chain(std::iter::once(return_type.as_ref()))
+                .flat_map(|typ| typ.find_generics())
+                .collect(),
             TopLevelType::TypeApplication(constructor, args) => {
-                std::iter::once(constructor.as_ref())
-                    .chain(args)
-                    .flat_map(|typ| typ.find_generics())
-                    .collect()
+                std::iter::once(constructor.as_ref()).chain(args).flat_map(|typ| typ.find_generics()).collect()
             },
         }
     }
