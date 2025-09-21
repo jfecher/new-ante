@@ -5,9 +5,15 @@ foo x =
 // type should be a -> (b -> a)
 
 // args: --show-types
-// expected exit status: 101
+// expected stdout:
+// (foo: _0) (x: _1) =
+//     (y: _5) = (error)
+//     (y: (error))
+
 // expected stderr:
-// thread 'main' panicked at src/type_inference/mod.rs:113:9:
-// not yet implemented: Generalize
-// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+// examples/typechecking/generalization.an:2:8	error: Expected an expression but found `fn`
+//     y = fn _ -> x
+// 
+// examples/typechecking/generalization.an:3:4	error: `y` is not defined, was it a typo?
+//     y
 

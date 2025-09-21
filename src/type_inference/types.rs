@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     sync::Arc,
 };
 
@@ -13,7 +13,7 @@ use crate::{
     parser::{
         cst::{self, Mutability, Sharedness},
         ids::NameId,
-    }, type_inference::{type_context::TypeContext, type_id::TypeId}, vecmap::VecMap
+    }, type_inference::{generics::Generic, type_context::TypeContext, type_id::TypeId}, vecmap::VecMap
 };
 
 /// A top-level type is a type which may be in a top-level signature.
@@ -24,7 +24,7 @@ pub enum TopLevelType {
     /// Any primitive type which can be compared for unification via primitive equality
     Primitive(PrimitiveType),
     /// A user-supplied generic type. We don't want to bind over these like we do with type variables.
-    Generic(NameId),
+    Generic(Generic),
     Function {
         parameters: Vec<TopLevelType>,
         return_type: Box<TopLevelType>,
@@ -38,7 +38,7 @@ pub enum Type {
     Primitive(PrimitiveType),
 
     /// A user-supplied generic type. We don't want to bind over these like we do with type variables.
-    Generic(NameId),
+    Generic(Generic),
 
     /// We represent type variables with unique ids and an external bindings map instead of a
     /// `Arc<RwLock<..>>` or similar because these need to be compared for equality, serialized, and
@@ -97,7 +97,7 @@ impl TopLevelType {
                 let _origin = resolve.path_origins[path_id];
                 todo!("resolve named type")
             },
-            cst::Type::Variable(name_id) => TopLevelType::Generic(*name_id),
+            cst::Type::Variable(name_id) => TopLevelType::Generic(Generic::Name(*name_id)),
             cst::Type::Integer(kind) => TopLevelType::Primitive(PrimitiveType::Int(*kind)),
             cst::Type::Float(kind) => TopLevelType::Primitive(PrimitiveType::Float(*kind)),
             cst::Type::Function(function_type) => {
@@ -115,19 +115,29 @@ impl TopLevelType {
         }
     }
 
-    fn find_generics(&self) -> Vec<NameId> {
-        match self {
-            TopLevelType::Primitive(_) => Vec::new(),
-            TopLevelType::Generic(generic) => vec![*generic],
-            TopLevelType::Function { parameters, return_type } => parameters
-                .iter()
-                .chain(std::iter::once(return_type.as_ref()))
-                .flat_map(|typ| typ.find_generics())
-                .collect(),
-            TopLevelType::TypeApplication(constructor, args) => {
-                std::iter::once(constructor.as_ref()).chain(args).flat_map(|typ| typ.find_generics()).collect()
-            },
+    fn find_generics(&self) -> Vec<Generic> {
+        fn find_generics_helper(typ: &TopLevelType, generics: &mut Vec<Generic>) {
+            match typ {
+                TopLevelType::Primitive(_) => (),
+                TopLevelType::Generic(generic) => {
+                    if !generics.contains(generic) {
+                        generics.push(*generic);
+                    }
+                },
+                TopLevelType::Function { parameters, return_type } => {
+                    parameters.iter().for_each(|typ| find_generics_helper(typ, generics));
+                    find_generics_helper(return_type, generics);
+                }
+                TopLevelType::TypeApplication(constructor, args) => {
+                    find_generics_helper(constructor, generics);
+                    args.iter().for_each(|typ| find_generics_helper(typ, generics));
+                },
+            }
         }
+
+        let mut generics = Vec::new();
+        find_generics_helper(self, &mut generics);
+        generics
     }
 
     /// Convert this `TopLevelType` into a `Type` without instantiating it
@@ -151,12 +161,12 @@ impl TopLevelType {
         context.get_or_insert_type(typ)
     }
 
-    pub fn substitute(&self, types: &mut TypeContext, substitutions: &Substitutions) -> TypeId {
+    pub fn substitute(&self, types: &mut TypeContext, substitutions: &GenericSubstitutions) -> TypeId {
         match self {
             TopLevelType::Primitive(primitive) => TypeId::primitive(*primitive),
-            TopLevelType::Generic(name_id) => {
-                substitutions.get(name_id).copied().unwrap_or_else(|| {
-                    types.get_or_insert_type(Type::Generic(*name_id))
+            TopLevelType::Generic(generic) => {
+                substitutions.get(generic).copied().unwrap_or_else(|| {
+                    types.get_or_insert_type(Type::Generic(*generic))
                 })
             },
             TopLevelType::Function { parameters, return_type } => {
@@ -174,17 +184,17 @@ impl TopLevelType {
             },
         }
     }
+
+    /// Convert this into a GeneralizedType
+    pub fn generalize(self) -> GeneralizedType {
+        GeneralizedType::from_top_level_type(self)
+    }
 }
 
-pub type Substitutions = FxHashMap<NameId, TypeId>;
+pub type GenericSubstitutions = FxHashMap<Generic, TypeId>;
 
 #[allow(unused)]
 impl Type {
-    /// Substitutes any generics with the given names with the corresponding type in the map
-    pub fn substitute(&self, _substitutions: &Substitutions, _bindings: &TypeBindings) -> Type {
-        todo!()
-    }
-
     pub fn display<'a, 'b>(
         &'a self,
         bindings: &'b TypeBindings,
@@ -192,16 +202,6 @@ impl Type {
         names: &'b VecMap<NameId, Arc<String>>,
     ) -> TypePrinter<'a, 'b> {
         TypePrinter { typ: self, bindings, context, names }
-    }
-
-    pub fn find_all_generics(&self) -> Vec<Arc<String>> {
-        let mut found = BTreeSet::new();
-        self.find_all_generics_helper(&mut found);
-        found.into_iter().collect()
-    }
-
-    fn find_all_generics_helper(&self, _found: &mut BTreeSet<Arc<String>>) {
-        todo!()
     }
 
     pub fn unit() -> Self {
@@ -234,12 +234,13 @@ impl TypePrinter<'_, '_> {
     fn fmt_type(&self, typ: &Type, parenthesize: bool, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match typ {
             Type::Primitive(primitive_type) => write!(f, "{primitive_type}"),
-            Type::Generic(id) => write!(f, "{}", self.names[*id]),
+            Type::Generic(Generic::Name(name)) => write!(f, "{}", self.names[*name]),
+            Type::Generic(Generic::Inferred(id)) => write!(f, "{id}"),
             Type::Variable(id) => {
                 if let Some(binding) = self.bindings.get(id) {
                     self.fmt_type_id(*binding, parenthesize, f)
                 } else {
-                    write!(f, "_{id}")
+                    write!(f, "{id}")
                 }
             },
             Type::Function(function) => {
@@ -298,13 +299,6 @@ impl std::fmt::Display for PrimitiveType {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TypeVariableId(pub u32);
 
-impl TypeVariableId {
-    #[allow(unused)]
-    pub(crate) fn occurs_in(self, _other: &Type, _bindings: &TypeBindings) -> bool {
-        todo!()
-    }
-}
-
 impl std::fmt::Display for TypeVariableId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "_{}", self.0)
@@ -315,21 +309,17 @@ impl std::fmt::Display for TypeVariableId {
 /// Other definitions like parameters are never generic.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GeneralizedType {
-    pub generics: Vec<NameId>,
+    pub generics: Vec<Generic>,
     pub typ: TopLevelType,
 }
 
 impl GeneralizedType {
-    fn new(generics: Vec<NameId>, typ: TopLevelType) -> Self {
+    fn new(generics: Vec<Generic>, typ: TopLevelType) -> Self {
         Self { typ, generics }
     }
 
     pub fn unit() -> GeneralizedType {
         Self::new(Vec::new(), TopLevelType::Primitive(PrimitiveType::Unit))
-    }
-
-    pub fn display<'a, 'b>(&'a self, bindings: &'b TypeBindings) -> TopLevelTypePrinter<'a, 'b> {
-        TopLevelTypePrinter { typ: self, bindings }
     }
 
     pub fn from_ast_type(typ: &cst::Type, resolve: &ResolutionResult) -> Self {
@@ -347,23 +337,5 @@ impl GeneralizedType {
     /// Convert this `GeneralizedType` into a `Type` without instantiating it
     pub fn as_type(&self, context: &mut TypeContext) -> TypeId {
         self.typ.as_type(context)
-    }
-}
-
-pub struct TopLevelTypePrinter<'typ, 'bindings> {
-    typ: &'typ GeneralizedType,
-    bindings: &'bindings TypeBindings,
-}
-
-impl std::fmt::Display for TopLevelTypePrinter<'_, '_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if !self.typ.generics.is_empty() {
-            write!(f, "forall")?;
-            for id in self.typ.generics.iter() {
-                write!(f, " {}", id)?;
-            }
-            write!(f, ". ")?;
-        }
-        write!(f, "{}", self.typ.display(self.bindings))
     }
 }

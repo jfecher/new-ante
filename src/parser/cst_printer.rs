@@ -196,6 +196,18 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_name(&self, name: NameId, f: &mut Formatter) -> std::fmt::Result {
+        self.fmt_name_helper(name, f, true)
+    }
+
+    fn fmt_type_name(&self, name: NameId, f: &mut Formatter) -> std::fmt::Result {
+        self.fmt_name_helper(name, f, false)
+    }
+
+    fn fmt_name_helper(&self, name: NameId, f: &mut Formatter, show_type: bool) -> std::fmt::Result {
+        if self.config.show_types && show_type {
+            write!(f, "(")?;
+        }
+
         write!(f, "{}", &self.context().names[name])?;
 
         if let Some(db) = self.db_resolve() {
@@ -206,19 +218,21 @@ impl<'a> CstDisplay<'a> {
         }
 
         if let Some(db) = self.db_type_check() {
-            let check = TypeCheck(self.current_item.unwrap()).get(db);
-            let typ = check.name_types.get(&name).copied().unwrap_or(TypeId::ERROR);
-            write!(f, ": {}", typ.to_string(&check.types, &check.bindings, &self.context().names))?
+            if show_type {
+                let check = TypeCheck(self.current_item.unwrap()).get(db);
+                let typ = check.name_types.get(&name).copied().unwrap_or(TypeId::ERROR);
+                write!(f, ": {})", typ.to_string(&check.types, &check.bindings, &self.context().names))?
+            }
         }
 
         Ok(())
     }
 
-    fn id_requires_parens(&self) -> bool {
-        self.config.show_types
-    }
-
     fn fmt_path(&self, path: PathId, f: &mut Formatter) -> std::fmt::Result {
+        if self.config.show_types {
+            write!(f, "(")?;
+        }
+
         write!(f, "{}", &self.context().paths[path])?;
 
         if let Some(db) = self.db_resolve() {
@@ -231,7 +245,7 @@ impl<'a> CstDisplay<'a> {
         if let Some(db) = self.db_type_check() {
             let check = TypeCheck(self.current_item.unwrap()).get(db);
             let typ = check.path_types.get(&path).copied().unwrap_or(TypeId::ERROR);
-            write!(f, ": {}", typ.to_string(&check.types, &check.bindings, &self.context().names))?
+            write!(f, ": {})", typ.to_string(&check.types, &check.bindings, &self.context().names))?
         }
 
         Ok(())
@@ -283,7 +297,7 @@ impl<'a> CstDisplay<'a> {
                 self.fmt_path(*path_id, f)?;
                 self.fmt_type_args(args, f)
             },
-            EffectType::Variable(name_id) => self.fmt_name(*name_id, f),
+            EffectType::Variable(name_id) => self.fmt_type_name(*name_id, f),
         }
     }
 
@@ -322,7 +336,7 @@ impl<'a> CstDisplay<'a> {
         }
 
         write!(f, "type ")?;
-        self.fmt_name(type_definition.name, f)?;
+        self.fmt_type_name(type_definition.name, f)?;
         write!(f, " =")?;
 
         match &type_definition.body {
@@ -333,7 +347,7 @@ impl<'a> CstDisplay<'a> {
                 self.indent_level += 1;
                 for (name, typ) in fields {
                     self.newline(f)?;
-                    self.fmt_name(*name, f)?;
+                    self.fmt_type_name(*name, f)?;
                     write!(f, ": ")?;
                     self.fmt_type(typ, f)?;
                 }
@@ -344,7 +358,7 @@ impl<'a> CstDisplay<'a> {
                 for (name, params) in variants {
                     self.newline(f)?;
                     write!(f, "| ")?;
-                    self.fmt_name(*name, f)?;
+                    self.fmt_type_name(*name, f)?;
                     self.fmt_type_args(params, f)?;
                 }
                 self.indent_level -= 1;
@@ -361,7 +375,7 @@ impl<'a> CstDisplay<'a> {
         match typ {
             Type::Error => write!(f, "(error)"),
             Type::Named(path) => self.fmt_path(*path, f),
-            Type::Variable(name) => self.fmt_name(*name, f),
+            Type::Variable(name) => self.fmt_type_name(*name, f),
             Type::Unit => write!(f, "Unit"),
             Type::Integer(kind) => write!(f, "{kind}"),
             Type::Float(kind) => write!(f, "{kind}"),
@@ -503,18 +517,18 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_trait_definition(&mut self, trait_definition: &TraitDefinition, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "trait ")?;
-        self.fmt_name(trait_definition.name, f)?;
+        self.fmt_type_name(trait_definition.name, f)?;
 
         for generic in &trait_definition.generics {
             write!(f, " ")?;
-            self.fmt_name(*generic, f)?;
+            self.fmt_type_name(*generic, f)?;
         }
 
         if !trait_definition.functional_dependencies.is_empty() {
             write!(f, " ->")?;
             for generic in &trait_definition.functional_dependencies {
                 write!(f, " ")?;
-                self.fmt_name(*generic, f)?;
+                self.fmt_type_name(*generic, f)?;
             }
         }
 
@@ -530,7 +544,7 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_trait_impl(&mut self, trait_impl: &TraitImpl, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "impl ")?;
-        self.fmt_name(trait_impl.name, f)?;
+        self.fmt_type_name(trait_impl.name, f)?;
         self.fmt_parameters(&trait_impl.parameters, f)?;
 
         write!(f, ": ")?;
@@ -549,11 +563,11 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_effect_definition(&mut self, effect_definition: &EffectDefinition, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "effect ")?;
-        self.fmt_name(effect_definition.name, f)?;
+        self.fmt_type_name(effect_definition.name, f)?;
 
         for generic in &effect_definition.generics {
             write!(f, " ")?;
-            self.fmt_name(*generic, f)?;
+            self.fmt_type_name(*generic, f)?;
         }
 
         write!(f, " with")?;
@@ -659,7 +673,7 @@ impl<'a> CstDisplay<'a> {
                 self.fmt_type(typ, f)
             },
             Pattern::MethodName { type_name, item_name } => {
-                self.fmt_name(*type_name, f)?;
+                self.fmt_type_name(*type_name, f)?;
                 write!(f, ".")?;
                 self.fmt_name(*item_name, f)
             },

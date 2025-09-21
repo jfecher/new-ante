@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 use types::{Type, TypeBindings};
 
 use crate::{
-    diagnostics::Diagnostic, incremental::{self, DbHandle, GetItem, Resolve, TypeCheck}, name_resolution::ResolutionResult, parser::{
+    diagnostics::Diagnostic, incremental::{self, DbHandle, GetItem, Resolve, TypeCheck}, iterator_extensions::vecmap, name_resolution::ResolutionResult, parser::{
         cst::TopLevelItemKind,
-        ids::{ExprId, NameId, PathId, TopLevelId},
+        ids::{ExprId, NameId, PathId},
         TopLevelContext,
-    }, type_inference::{errors::{Locateable, TypeErrorKind}, type_context::TypeContext, type_id::TypeId, types::{GeneralizedType, TypeVariableId}}
+    }, type_inference::{errors::{Locateable, TypeErrorKind}, generics::Generic, type_context::TypeContext, type_id::TypeId, types::{GeneralizedType, TopLevelType, TypeVariableId}}
 };
 
 pub mod errors;
@@ -16,6 +16,7 @@ pub mod type_context;
 pub mod type_id;
 pub mod types;
 mod get_type;
+mod generics;
 mod cst_traversal;
 
 pub use get_type::get_type_impl;
@@ -29,7 +30,7 @@ pub fn type_check_impl(context: &TypeCheck, compiler: &DbHandle) -> TypeCheckRes
     incremental::println(format!("Type checking {:?}", item.id));
 
     let resolve = Resolve(context.0).get(compiler);
-    let mut checker = TypeChecker::new(context.0, resolve, &item_context, compiler);
+    let mut checker = TypeChecker::new(resolve, &item_context, compiler);
 
     let typ = match &item.kind {
         TopLevelItemKind::Definition(definition) => checker.check_definition(definition),
@@ -65,18 +66,16 @@ struct TypeChecker<'local, 'inner> {
     path_types: BTreeMap<PathId, TypeId>,
     expr_types: BTreeMap<ExprId, TypeId>,
     bindings: TypeBindings,
-    item: TopLevelId,
     next_id: u32,
 }
 
 impl<'local, 'inner> TypeChecker<'local, 'inner> {
     fn new(
-        item: TopLevelId, resolve: ResolutionResult, context: &'local TopLevelContext,
+        resolve: ResolutionResult, context: &'local TopLevelContext,
         compiler: &'local DbHandle<'inner>,
     ) -> Self {
         Self {
             compiler,
-            item,
             context,
             types: TypeContext::new(),
             bindings: Default::default(),
@@ -106,11 +105,98 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     }
 
     /// Generalize a type, making it generic. Any holes in the type become generic types.
-    fn generalize(&mut self, _typ: TypeId) -> GeneralizedType {
-        // The `generics` list in `TopLevelDefinitionType` can only map `Type::Generic` so
-        // we have to manually replace type variables here with generics with somewhat arbitrary
-        // names.
-        todo!("Generalize")
+    fn generalize(&mut self, typ: TypeId) -> GeneralizedType {
+        let free_vars = self.free_vars(typ); 
+        let substitutions = free_vars.into_iter().map(|var| {
+            (var, self.types.get_or_insert_type(Type::Generic(Generic::Inferred(var))))
+        }).collect();
+
+        let typ = self.substitute(typ, &substitutions);
+        self.promote_to_top_level_type(typ).generalize()
+    }
+
+    fn substitute(&mut self, typ: TypeId, bindings: &TypeBindings) -> TypeId {
+        match self.follow_type(typ) {
+            Type::Primitive(_) | Type::Generic(_) | Type::Reference(..) => typ,
+            Type::Variable(id) => {
+                match bindings.get(id) {
+                    Some(binding) => *binding,
+                    None => typ,
+                }
+            },
+            Type::Function(function) => {
+                let function = function.clone();
+                let parameters = vecmap(&function.parameters, |param| self.substitute(*param, bindings));
+                let return_type = self.substitute(function.return_type, bindings);
+                let effects = self.substitute(function.effects, bindings);
+                let function = Type::Function(types::FunctionType { parameters, return_type, effects });
+                self.types.get_or_insert_type(function)
+            },
+            Type::Application(constructor, args) => {
+                let (constructor, args) = (*constructor, args.clone());
+                let constructor = self.substitute(constructor, bindings);
+                let args = vecmap(args, |arg| self.substitute(arg, bindings));
+                self.types.get_or_insert_type(Type::Application(constructor, args))
+            },
+        }
+    }
+
+    /// Promotes a type to a top-level type.
+    /// Panics if the typ contains an unbound type variable.
+    fn promote_to_top_level_type(&self, typ: TypeId) -> TopLevelType {
+        match self.follow_type(typ) {
+            Type::Primitive(primitive) => TopLevelType::Primitive(*primitive),
+            Type::Generic(name) => TopLevelType::Generic(*name),
+            Type::Variable(_) => panic!("promote_to_top_level_type called with type containing an unbound type variable"),
+            Type::Function(function_type) => {
+                let parameters = vecmap(&function_type.parameters, |typ| self.promote_to_top_level_type(*typ));
+                let return_type = Box::new(self.promote_to_top_level_type(function_type.return_type));
+                TopLevelType::Function { parameters, return_type }
+            },
+            Type::Application(constructor, args) => {
+                let constructor = Box::new(self.promote_to_top_level_type(*constructor));
+                let args = vecmap(args, |arg| self.promote_to_top_level_type(*arg));
+                TopLevelType::TypeApplication(constructor, args)
+            },
+            Type::Reference(..) => {
+                todo!("convert Type::Reference to TopLevelType")
+            },
+        }
+    }
+
+    /// Return the list of unbound type variables within this type
+    fn free_vars(&self, typ: TypeId) -> Vec<TypeVariableId> {
+        fn free_vars_helper(this: &TypeChecker, typ: TypeId, free_vars: &mut Vec<TypeVariableId>) {
+            match this.follow_type(typ) {
+                Type::Primitive(_) | Type::Reference(..) => (),
+                Type::Generic(_) => (),
+                Type::Variable(id) => {
+                    // The number of free vars is expected to remain too small so we're
+                    // not too worried about asymptotic behavior. It is more important we
+                    // maintain the ordering of insertion.
+                    if !free_vars.contains(id) {
+                        free_vars.push(*id);
+                    }
+                },
+                Type::Function(function) => {
+                    for parameter in &function.parameters {
+                        free_vars_helper(this, *parameter, free_vars);
+                    }
+                    free_vars_helper(this, function.return_type, free_vars);
+                    free_vars_helper(this, function.effects, free_vars);
+                },
+                Type::Application(constructor, args) => {
+                    free_vars_helper(this, *constructor, free_vars);
+                    for arg in args {
+                        free_vars_helper(this, *arg, free_vars);
+                    }
+                },
+            }
+        }
+
+        let mut free_vars = Vec::new();
+        free_vars_helper(self, typ, &mut free_vars);
+        free_vars
     }
 
     fn instantiate(&mut self, typ: &GeneralizedType) -> TypeId {

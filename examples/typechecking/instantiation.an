@@ -14,9 +14,28 @@ main () =
 id x = x
 
 // args: --show-types
-// expected exit status: 101
+// expected stdout:
+// (add: _0) (m: _1) (n: _2) = (error)
+// 
+// (one: _0) (f: fn _5 -> _3) (x: _5) = (f: fn _5 -> _3) (x: _5)
+// 
+// (two1: _0) (f: fn _7 -> _7) (x: _7) = (f: fn _7 -> _7) ((f: fn _7 -> _7) (x: _7))
+// 
+// (two2: _0) = (add: fn _3 _4 -> _1) (one: _3) (one: _4)
+// 
+// (main: _0) () =
+//     (id: fn I32 -> _4) 3
+//     (id: fn String -> _2) "four"
+// 
+// (id: _0) (x: _2) = (x: _2)
+
 // expected stderr:
-// thread 'main' panicked at src/type_inference/mod.rs:113:9:
-// not yet implemented: Generalize
-// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+// examples/typechecking/instantiation.an:2:10	error: Expected an expression but found `fn`
+// add m n = fn f -> fn x -> m f (n f x)  // (a -> b -> c) -> (a -> d -> b) -> a -> d -> c
+// 
+// examples/typechecking/instantiation.an:4:15	error: Expected a newline after the top level item but found //// (a -> b) -> a -> b
+// one f x = f x  // (a -> b) -> a -> b
+// 
+// examples/typechecking/instantiation.an:5:19	error: Expected a newline after the top level item but found //// (a -> a) -> a -> a
+// two1 f x = f (f x) // (a -> a) -> a -> a
 

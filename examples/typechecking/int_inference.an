@@ -12,9 +12,11 @@ main () =
 // them before other trait constraints.
 
 // args: --show-types
-// expected exit status: 101
+// expected stdout:
+// (main: _0) () =
+//     (print: (error)) 2
+
 // expected stderr:
-// thread 'main' panicked at src/type_inference/cst_traversal.rs:111:53:
-// no entry found for key
-// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+// examples/typechecking/int_inference.an:2:4	error: `print` is not defined, was it a typo?
+//     print 2
 
