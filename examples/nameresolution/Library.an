@@ -3,7 +3,7 @@ library_int = 5
 
 library_fn _ = 2
 
-// args: --check
+// args: --show-resolved
 // expected stdout:
 // // id = c1m53_73
 // library_int_c1m53_73 = 5

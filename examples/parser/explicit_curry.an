@@ -9,7 +9,7 @@ main () =
 
     2 + _
 
-// args: --parse
+// args: --show-parse
 // expected stdout:
 // main () =
 //     foo _ a

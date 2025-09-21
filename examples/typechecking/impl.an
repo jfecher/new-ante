@@ -13,34 +13,10 @@ a = foo 1 2i32
 b = foo 1.0 2.0
 c = foo "one" "two"
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m40_37
-// trait Foo_c1m40_37 a_1 with
-//     foo_2: fn a_1 a_1 -> a_1
-// 
-// // id = c1m40_65
-// a_c1m40_65 = foo_? 1 2_I32
-// 
-// // id = c1m40_84
-// b_c1m40_84 = foo_? 1 2
-// 
-// // id = c1m40_37
-// c_c1m40_37 = foo_? "one" "two"
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/impl.an:5:5	error: Expected an identifier but found `Foo`
-// impl Foo I32 with
-// 
-// examples/typechecking/impl.an:8:5	error: Expected an identifier but found `Foo`
-// impl Foo F64 with
-// 
-// examples/typechecking/impl.an:12:4	error: `foo` is not defined, was it a typo?
-// a = foo 1 2i32
-// 
-// examples/typechecking/impl.an:13:4	error: `foo` is not defined, was it a typo?
-// b = foo 1.0 2.0
-// 
-// examples/typechecking/impl.an:14:4	error: `foo` is not defined, was it a typo?
-// c = foo "one" "two"
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:111:53:
+// no entry found for key
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

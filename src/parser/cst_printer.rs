@@ -5,9 +5,9 @@ use std::{
 };
 
 use crate::{
-    incremental::{Db, Resolve},
+    incremental::{Db, Resolve, TypeCheck},
     name_resolution::{namespace::SourceFileId, Origin},
-    parser::ids::{NameId, PathId},
+    parser::ids::{NameId, PathId}, type_inference::type_id::TypeId,
 };
 
 use super::{
@@ -31,8 +31,14 @@ pub struct CstDisplayContext<'a> {
 pub struct CstDisplayConfig<'db> {
     pub show_comments: bool,
 
-    /// Set to `Some(db)` to show resolved definitions for each name
-    pub show_resolved: Option<&'db Db>,
+    /// This field is required if `show_resolved` or `show_types` are set
+    pub db: Option<&'db Db>,
+
+    /// Show resolved definitions for each name. Requires `db` to bet set.
+    pub show_resolved: bool,
+
+    /// Show types for each name. Requires `db` to bet set.
+    pub show_types: bool,
 }
 
 impl Cst {
@@ -45,7 +51,15 @@ impl Cst {
     pub fn display_resolved<'a>(
         &'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>, compiler: &'a Db,
     ) -> CstDisplayContext<'a> {
-        let config = CstDisplayConfig { show_resolved: Some(compiler), ..Default::default() };
+        let config = CstDisplayConfig { show_resolved: true, db: Some(compiler), ..Default::default() };
+        CstDisplayContext { cst: self, context, config }
+    }
+
+    /// Display this Cst, annotating each name with its type
+    pub fn display_typed<'a>(
+        &'a self, context: &'a BTreeMap<TopLevelId, Arc<TopLevelContext>>, compiler: &'a Db,
+    ) -> CstDisplayContext<'a> {
+        let config = CstDisplayConfig { show_types: true, db: Some(compiler), ..Default::default() };
         CstDisplayContext { cst: self, context, config }
     }
 }
@@ -123,7 +137,7 @@ impl<'a> CstDisplay<'a> {
     fn fmt_top_level_item(&mut self, item: &TopLevelItem, f: &mut Formatter) -> std::fmt::Result {
         self.fmt_comments(&item.comments, f)?;
 
-        if self.config.show_resolved.is_some() {
+        if self.config.show_resolved {
             writeln!(f, "// id = {}", self.current_item.unwrap())?;
             self.indent(f)?;
         }
@@ -169,30 +183,58 @@ impl<'a> CstDisplay<'a> {
         self.fmt_expr(definition.rhs, f)
     }
 
+    fn db_resolve(&self) -> Option<&'a Db> {
+        self.config.show_resolved.then(|| {
+            self.config.db.expect("Expected `CstDisplayConfig::db` to be set when `show_resolved` is set")
+        })
+    }
+
+    fn db_type_check(&self) -> Option<&'a Db> {
+        self.config.show_types.then(|| {
+            self.config.db.expect("Expected `CstDisplayConfig::db` to be set when `show_types` is set")
+        })
+    }
+
     fn fmt_name(&self, name: NameId, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "{}", &self.context().names[name])?;
 
-        if let Some(db) = self.config.show_resolved {
+        if let Some(db) = self.db_resolve() {
             let resolved = Resolve(self.current_item.unwrap()).get(db);
             let origin = resolved.name_origins.get(&name);
             let id = origin.map(ToString::to_string).unwrap_or_else(|| "?".into());
-            write!(f, "_{id}")
-        } else {
-            Ok(())
+            write!(f, "_{id}")?;
         }
+
+        if let Some(db) = self.db_type_check() {
+            let check = TypeCheck(self.current_item.unwrap()).get(db);
+            let typ = check.name_types.get(&name).copied().unwrap_or(TypeId::ERROR);
+            write!(f, ": {}", typ.to_string(&check.types, &check.bindings, &self.context().names))?
+        }
+
+        Ok(())
+    }
+
+    fn id_requires_parens(&self) -> bool {
+        self.config.show_types
     }
 
     fn fmt_path(&self, path: PathId, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "{}", &self.context().paths[path])?;
 
-        if let Some(db) = self.config.show_resolved {
+        if let Some(db) = self.db_resolve() {
             let resolved = Resolve(self.current_item.unwrap()).get(db);
             let origin = resolved.path_origins.get(&path);
             let id = origin.map(ToString::to_string).unwrap_or_else(|| "?".into());
-            write!(f, "_{id}")
-        } else {
-            Ok(())
+            write!(f, "_{id}")?;
         }
+
+        if let Some(db) = self.db_type_check() {
+            let check = TypeCheck(self.current_item.unwrap()).get(db);
+            let typ = check.path_types.get(&path).copied().unwrap_or(TypeId::ERROR);
+            write!(f, ": {}", typ.to_string(&check.types, &check.bindings, &self.context().names))?
+        }
+
+        Ok(())
     }
 
     fn fmt_function(&mut self, definition: &Definition, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {

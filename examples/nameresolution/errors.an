@@ -15,7 +15,7 @@ foo a b =
 a = 2
 a = 3 // already declared
 
-// args: --check
+// args: --show-resolved
 // expected stdout:
 // // id = c1m16_23
 // not_an_error_c1m16_23 = 1

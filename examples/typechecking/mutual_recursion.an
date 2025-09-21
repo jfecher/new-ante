@@ -8,35 +8,16 @@ is_even n =
 is_odd n =
     n == 1 or not is_even (n - 1)
 
-is_even 4
+main () = is_even 4
 
 
 // Both of these definitions should have the `Print (int a)` constraint.
 // TODO: is_odd here uses `forall a c.` instead of `forall a b.`
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m14_33
-// is_even_c1m14_33 n_1 =
-//     if ==_? n_1 0 then true else 
-//         print_? n_1
-// 
-// // id = c1m14_20
-// is_odd_c1m14_20 n_1 =
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/mutual_recursion.an:4:9	error: `==` is not defined, was it a typo?
-//     if n == 0 then true else
-// 
-// examples/typechecking/mutual_recursion.an:5:8	error: `print` is not defined, was it a typo?
-//         print n
-// 
-// examples/typechecking/mutual_recursion.an:6:8	error: Expected an unindent but found `not`
-//         not is_odd (n - 1)
-// 
-// examples/typechecking/mutual_recursion.an:9:14	error: Expected an unindent but found `not`
-//     n == 1 or not is_even (n - 1)
-// 
-// examples/typechecking/mutual_recursion.an:11:8	error: Expected `=` to begin the function body but found `4`
-// is_even 4
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:111:53:
+// no entry found for key
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

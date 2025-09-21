@@ -1,4 +1,8 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
+
+use crate::{parser::ids::NameId, type_inference::{type_context::TypeContext, types::TypeBindings}, vecmap::VecMap};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TypeId(u32);
@@ -25,7 +29,7 @@ impl TypeId {
     pub const PAIR: TypeId = TypeId(6);
 
     pub const I8: TypeId = TypeId(7);
-    pub const I16: TypeId = TypeId(9);
+    pub const I16: TypeId = TypeId(8);
     pub const I32: TypeId = TypeId(9);
     pub const I64: TypeId = TypeId(10);
     pub const ISZ: TypeId = TypeId(11);
@@ -73,5 +77,10 @@ impl TypeId {
             super::types::PrimitiveType::Int(kind) => Self::integer(kind),
             super::types::PrimitiveType::Float(kind) => Self::float(kind),
         }
+    }
+
+    /// Convert this type to a string (without any coloring)
+    pub fn to_string(self, context: &TypeContext, bindings: &TypeBindings, names: &VecMap<NameId, Arc<String>>) -> String {
+        context.get_type(self).display(bindings, context, names).to_string()
     }
 }

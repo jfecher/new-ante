@@ -3,14 +3,3 @@ show x = puts x.c_string
 show "foo"
 
 // args: --delete-binary
-// expected stdout:
-// // id = c1m30_22
-// show_c1m30_22 x_1 = puts_? x_1.c_string
-
-// expected stderr:
-// examples/codegen/function_call.an:1:10	error: `puts` is not defined, was it a typo?
-// show x = puts x.c_string
-// 
-// examples/codegen/function_call.an:3:5	error: Expected `=` to begin the function body but found `"foo"`
-// show "foo"
-

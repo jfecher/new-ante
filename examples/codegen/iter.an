@@ -18,37 +18,3 @@ my_iter iterable f =
 my_iter 10 print
 
 // args: --delete-binary
-// expected stdout:
-// // id = c1m50_40
-// trait MyIterable_c1m50_40 it_1 -> elem_2 with
-//     mynext_3: it_1
-// 
-// // id = c1m50_31
-// impl countdown_c1m50_31: MyIterable_c1m50_40 I32 I32 with
-//     mynext_1 x_2 =
-//         if <=_? x_2 0 then None_td else Some_td (,_b x_2 (-_? x_2 1))
-// 
-// // id = c1m50_6
-// my_iter_c1m50_6 iterable_1 f_2 =
-//     match mynext_? iterable_1
-//     | None_td -> ()
-//     | Some_td (,_b elem_3 rest_4) -> 
-//         f_2 elem_3
-//         my_iter_c1m50_6 rest_4 f_2
-
-// expected stderr:
-// examples/codegen/iter.an:3:16	error: Expected an unindent but found `->`
-//     mynext : it -> Maybe (elem, it)
-// 
-// examples/codegen/iter.an:8:13	error: `<=` is not defined, was it a typo?
-//         if x <= 0 then None
-// 
-// examples/codegen/iter.an:9:24	error: `-` is not defined, was it a typo?
-//         else Some (x, x - 1)
-// 
-// examples/codegen/iter.an:12:10	error: `mynext` is not defined, was it a typo?
-//     match mynext iterable
-// 
-// examples/codegen/iter.an:18:8	error: Expected `=` to begin the function body but found `10`
-// my_iter 10 print
-

@@ -1,4 +1,5 @@
-print 2
+main () =
+    print 2
 
 // This example is actually more problematic than it initially appears.
 // Because integer literals with no suffix have the polymorphic type
@@ -10,4 +11,10 @@ print 2
 // The current solution of this is to sort out Int trait constraints to solve
 // them before other trait constraints.
 
-// args: --check
+// args: --show-types
+// expected exit status: 101
+// expected stderr:
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:111:53:
+// no entry found for key
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+

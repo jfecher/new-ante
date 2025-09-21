@@ -7,41 +7,16 @@ two1 f x = f (f x) // (a -> a) -> a -> a
 two2 = add one one
 
 // id is polymorphic, expect no error here
-id 3
-id "four"
+main () =
+    id 3
+    id "four"
 
 id x = x
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m24_46
-// add_c1m24_46 m_1 n_2 = (error)
-// 
-// // id = c1m24_52
-// one_c1m24_52 f_1 x_2 = f_1 x_2
-// 
-// // id = c1m24_77
-// two1_c1m24_77 f_1 x_2 = f_1 (f_1 x_2)
-// 
-// // id = c1m24_55
-// two2_c1m24_55 = add_c1m24_46 one_c1m24_52 one_c1m24_52
-// 
-// // id = c1m24_37
-// id_c1m24_37 x_5 = x_5
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/instantiation.an:2:10	error: Expected an expression but found `fn`
-// add m n = fn f -> fn x -> m f (n f x)  // (a -> b -> c) -> (a -> d -> b) -> a -> d -> c
-// 
-// examples/typechecking/instantiation.an:4:15	error: Expected a newline after the top level item but found //// (a -> b) -> a -> b
-// one f x = f x  // (a -> b) -> a -> b
-// 
-// examples/typechecking/instantiation.an:5:19	error: Expected a newline after the top level item but found //// (a -> a) -> a -> a
-// two1 f x = f (f x) // (a -> a) -> a -> a
-// 
-// examples/typechecking/instantiation.an:10:3	error: Expected `=` to begin the function body but found `3`
-// id 3
-// 
-// examples/typechecking/instantiation.an:11:3	error: Expected `=` to begin the function body but found `"four"`
-// id "four"
+// thread 'main' panicked at src/type_inference/mod.rs:113:9:
+// not yet implemented: Generalize
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

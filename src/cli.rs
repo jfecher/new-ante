@@ -21,12 +21,20 @@ pub struct Cli {
     pub show_lifetimes: bool,
 
     /// Lex the file and output the resulting list of tokens
-    #[arg(long, short, group = "compile_mode")]
-    pub lex: bool,
+    #[arg(long, group = "compile_mode")]
+    pub show_tokens: bool,
 
     /// Parse the file and output the resulting Ast
+    #[arg(long, group = "compile_mode")]
+    pub show_parse: bool,
+
+    /// Resolve the file and show the resulting resolved Ast
     #[arg(long, short, group = "compile_mode")]
-    pub parse: bool,
+    pub show_resolved: bool,
+
+    /// Type check the file and show the resulting typed Ast
+    #[arg(long, group = "compile_mode")]
+    pub show_types: bool,
 
     /// Check the file for errors without compiling
     #[arg(long, short, group = "compile_mode")]
@@ -62,10 +70,6 @@ pub struct Cli {
     /// Print out the time each compiler pass takes for the given program
     #[arg(long)]
     pub show_time: bool,
-
-    /// Print out the type of each definition
-    #[arg(long, short = 't')]
-    pub show_types: bool,
 
     /// Enable incremental compilation by reading from and writing to metadata for the current program
     #[arg(long, short = 'i')]

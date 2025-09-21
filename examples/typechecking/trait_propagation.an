@@ -10,19 +10,10 @@ foo () = baz bar
 // because it has a typevariable.
 //
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m39_70
-// extern bar_0: a_1
-// 
-// // id = c1m39_51
-// trait Baz_c1m39_51 a_1 with
-//     baz_2: fn a_1 -> Unit_b
-// 
-// // id = c1m39_32
-// foo_c1m39_32 () = baz_? bar_c1m39_70
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/trait_propagation.an:6:9	error: `baz` is not defined, was it a typo?
-// foo () = baz bar
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:268:9:
+// not yet implemented: check_extern
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

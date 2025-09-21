@@ -20,7 +20,7 @@ main () =
     | put () -> ()
     | three 0 1 -> ()
 
-// args: --check
+// args: --show-resolved
 // expected stdout:
 // // id = c1m85_62
 // effect Three_c1m85_62 with

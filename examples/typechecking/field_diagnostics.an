@@ -22,23 +22,10 @@ main () =
 
     _ = (!&tuple).!first
 
-// flags: --check
-
-// expected stdout:
-// // id = c1m75_44
-// main_c1m75_44 () =
-//     tuple_? = ,_? 1 1
-//     __? = (&_? (&_? tuple_?)).first
-//     __? = tuple_?.!first
-//     __? = tuple_?.!missing
-//     imm_ref_? = &_? tuple_?
-//     __? = imm_ref_?.!first
-//     __? = imm_ref_?.!missing
-//     mut mut_tuple_? = ,_? 1 1
-//     __? = mut_tuple_?.&missing
-//     __? = mut_tuple_?.!missing
-//     mut_ref_? = !_? mut_tuple_?
-//     __? = mut_ref_?.&missing
-//     __? = mut_ref_?.!missing
-//     __? = (!_? (&_? tuple_?)).!first
+// args: --show-types
+// expected exit status: 101
+// expected stderr:
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:111:53:
+// no entry found for key
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

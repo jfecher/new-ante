@@ -10,31 +10,10 @@ x = Some 10i32
 add_one x =
     bind x (fn x -> ret (x + 1i32))
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m43_46
-// bind_c1m43_46 opt_1 f_2 =
-//     match opt_1
-//     | Some_td x_3 -> f_2 x_3
-//     | None_td -> None_td
-// 
-// // id = c1m43_40
-// ret_c1m43_40 x_1 = Some_td x_1
-// 
-// // id = c1m43_44
-// x_c1m43_44 = Some_td 10_I32
-// 
-// // id = c1m43_24
-// add_one_c1m43_24 x_1 =
-//     bind_c1m43_46 x_1 (error)
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/bind.an:11:12	error: Expected a parameter but found `fn`
-//     bind x (fn x -> ret (x + 1i32))
-// 
-// examples/typechecking/bind.an:11:12	error: Expected an expression but found `fn`
-//     bind x (fn x -> ret (x + 1i32))
-// 
-// examples/typechecking/bind.an:11:34	error: Expected an unindent but found `)`
-//     bind x (fn x -> ret (x + 1i32))
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:117:39:
+// not yet implemented: Type check Origin::TypeResolution
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

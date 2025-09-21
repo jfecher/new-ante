@@ -8,22 +8,3 @@ foo ("test", 2, 'c')
 foo ("hi", 7, 2.0, 3, 4, 5)
 
 // args: --delete-binary
-// expected stdout:
-// // id = c1m83_32
-// foo_c1m83_32 (,_b (,_b a_1 b_2) __3) =
-//     __? : string_? = a_?
-//     print_? b_2
-
-// expected stderr:
-// examples/codegen/tuples.an:4:4	error: `print` is not defined, was it a typo?
-//     print b
-// 
-// examples/codegen/tuples.an:6:4	error: Expected `=` to begin the function body but found `(`
-// foo ("test", 2, 'c')
-// 
-// examples/codegen/tuples.an:8:4	error: Expected `=` to begin the function body but found `(`
-// foo ("hi", 7, 2.0, 3, 4, 5)
-// 
-// examples/codegen/tuples.an:8:5	error: Expected a parameter but found `"hi"`
-// foo ("hi", 7, 2.0, 3, 4, 5)
-

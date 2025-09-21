@@ -1,7 +1,7 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
-use crate::{diagnostics::Location, parser::ids::{ExprId, PatternId}, type_inference::TypeChecker};
+use crate::{diagnostics::Location, parser::ids::{ExprId, PathId, PatternId}, type_inference::TypeChecker};
 
 /// Different kinds of type errors.
 /// All of these boil down to "expected {expected}, but found {actual}" but each
@@ -17,6 +17,8 @@ pub enum TypeErrorKind {
     Else,
     /// match branch type (actual) does not match the type of the first branch (expected)
     MatchBranch,
+    /// `if` is used without an `else` so it always returns Unit, but a non-Unit return was expected
+    IfStatement,
 }
 
 impl TypeErrorKind {
@@ -28,6 +30,7 @@ impl TypeErrorKind {
             TypeErrorKind::TypeAnnotationMismatch => format!("Type annotation {expected} does not match the inferred type {actual}"),
             TypeErrorKind::Else => format!("Then branch's type of {expected} does not match the else branch's type {actual}"),
             TypeErrorKind::MatchBranch => format!("This match branch has type {actual} which does not match the first branch's type of {expected}"),
+            TypeErrorKind::IfStatement => format!("This `if` has no `else` so it always returns {expected}, but {actual} was expected instead"),
         }
     }
 }
@@ -45,5 +48,11 @@ impl Locateable for ExprId {
 impl Locateable for PatternId {
     fn locate(self, context: &TypeChecker) -> Location {
         context.context.pattern_locations[self].clone()
+    }
+}
+
+impl Locateable for PathId {
+    fn locate(self, context: &TypeChecker) -> Location {
+        context.context.path_locations[self].clone()
     }
 }

@@ -15,20 +15,11 @@ second b + 2i64
 // e : (U64, I64)
 
 // args: --check --show-types
-// expected stdout:
-// // id = c1m70_65
-// a_c1m70_65 = ,_b 1 2
-// 
-// // id = c1m70_84
-// b_c1m70_84 = a_c1m70_65
-// 
-// // id = c1m70_37
-// c_c1m70_37 = b_c1m70_84
-
+// expected exit status: 2
 // expected stderr:
-// examples/regressions/129_int_defaulting_generalization.an:9:6	error: Expected `=` to begin the function body but found `b`
-// first b + 2u64
+// error: the argument '--check' cannot be used with '--show-types'
 // 
-// examples/regressions/129_int_defaulting_generalization.an:10:7	error: Expected `=` to begin the function body but found `b`
-// second b + 2i64
+// Usage: new-ante --check <FILES>...
+// 
+// For more information, try '--help'.
 

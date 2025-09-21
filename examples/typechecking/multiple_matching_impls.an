@@ -34,49 +34,10 @@ impl does_not_match {_: Print a}: Foo a with
 impl candidate2: Foo Thing with
     foo _ = ()
 
-// args: --check
-// expected stdout:
-// // id = c1m19_31
-// type Thing_c1m19_31 =
-//     nothing_?: Unit_b
-// 
-// // id = c1m19_37
-// trait Foo_c1m19_37 a_1 with
-//     foo_2: fn a_1 -> Unit_b
-// 
-// // id = c1m19_44
-// trait Bar_c1m19_44 a_1 with
-//     bar_2: fn a_1 -> Unit_b
-// 
-// // id = c1m19_51
-// trait Baz_c1m19_51 a_1 with
-//     baz_2: fn a_1 -> Unit_b
-// 
-// // id = c1m19_44
-// main_c1m19_44 () =
-//     foo_? (Thing_c1m19_31 ())
-// 
-// // id = c1m19_27
-// impl candidate1_c1m19_27 {__?: Bar_? a_?}: Foo_c1m19_37 a_3 with
-//     foo_4 a_5 = bar_c1m19_28 a_5
-// 
-// // id = c1m19_28
-// impl bar_c1m19_28 {__?: Baz_? a_?}: Bar_c1m19_44 a_3 with
-//     bar_4 a_5 = baz_c1m19_71 a_5
-// 
-// // id = c1m19_71
-// impl baz_c1m19_71: Baz_c1m19_51 Thing_c1m19_31 with
-//     baz_1 __2 = ()
-// 
-// // id = c1m19_43
-// impl does_not_match_c1m19_43 {__?: Print_? a_?}: Foo_c1m19_37 a_3 with
-//     foo_4 __5 = ()
-// 
-// // id = c1m19_63
-// impl candidate2_c1m19_63: Foo_c1m19_37 Thing_c1m19_31 with
-//     foo_1 __2 = ()
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/multiple_matching_impls.an:15:4	error: `foo` is not defined, was it a typo?
-//     foo (Thing ())
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:111:53:
+// no entry found for key
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

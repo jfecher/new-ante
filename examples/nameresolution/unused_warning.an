@@ -3,7 +3,7 @@ id x = x
 
 id x = error
 
-// args: --check
+// args: --show-resolved
 // expected stdout:
 // // id = c1m76_37
 // id_c1m76_37 x_1 = x_1

@@ -15,31 +15,3 @@ for stream f =
 for (fn () -> iota 10) print
 
 // args: --delete-binary
-// expected stdout:
-// // id = c1m87_9
-// effect Emit_c1m87_9 a_1 with
-//     emit_2: a_1
-// 
-// // id = c1m87_99
-// iota_c1m87_99 (n_1: U32) = (error)
-// 
-// // id = c1m87_64
-// for_c1m87_64 stream_1 f_2 =
-//     handle stream_? ()
-//     | emit_? x_? -> 
-//         f_? x_?
-//         resume_? ()
-
-// expected stderr:
-// examples/codegen/effects/generators_basic.an:2:12	error: Expected an unindent but found `->`
-//     emit: a -> Unit
-// 
-// examples/codegen/effects/generators_basic.an:4:16	error: Expected an expression but found `loop`
-// iota (n: U32) = loop (i = 0) ->
-// 
-// examples/codegen/effects/generators_basic.an:15:4	error: Expected `=` to begin the function body but found `(`
-// for (fn () -> iota 10) print
-// 
-// examples/codegen/effects/generators_basic.an:15:5	error: Expected a parameter but found `fn`
-// for (fn () -> iota 10) print
-

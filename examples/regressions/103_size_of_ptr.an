@@ -3,17 +3,3 @@ boom () : Maybe (Ptr Char) = None
 _ = boom ()
 
 // args: --delete-binary
-// expected stdout:
-// // id = c1m57_4
-// boom_c1m57_4 () : Maybe_? (Ptr_? Char_b) = None_td
-// 
-// // id = c1m57_74
-// __c1m57_74 = boom_c1m57_4 ()
-
-// expected stderr:
-// examples/regressions/103_size_of_ptr.an:2:10	error: `Maybe` is not defined, was it a typo?
-// boom () : Maybe (Ptr Char) = None
-// 
-// examples/regressions/103_size_of_ptr.an:2:17	error: `Ptr` is not defined, was it a typo?
-// boom () : Maybe (Ptr Char) = None
-

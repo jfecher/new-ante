@@ -37,7 +37,7 @@ main () =
             )
         bar = "bar"
 
-// args: --parse
+// args: --show-parse
 // expected stdout:
 // main () =
 //     T
@@ -71,5 +71,5 @@ main () =
 //     T with
 // 
 // examples/parser/named_constructor.an:40:0	error: Expected a top-level item but found an unindent
-// // args: --parse
+// // args: --show-parse
 

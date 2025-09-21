@@ -6,7 +6,7 @@ use types::{Type, TypeBindings};
 use crate::{
     diagnostics::Diagnostic, incremental::{self, DbHandle, GetItem, Resolve, TypeCheck}, name_resolution::ResolutionResult, parser::{
         cst::TopLevelItemKind,
-        ids::{ExprId, NameId, TopLevelId},
+        ids::{ExprId, NameId, PathId, TopLevelId},
         TopLevelContext,
     }, type_inference::{errors::{Locateable, TypeErrorKind}, type_context::TypeContext, type_id::TypeId, types::{GeneralizedType, TypeVariableId}}
 };
@@ -35,10 +35,10 @@ pub fn type_check_impl(context: &TypeCheck, compiler: &DbHandle) -> TypeCheckRes
         TopLevelItemKind::Definition(definition) => checker.check_definition(definition),
         TopLevelItemKind::TypeDefinition(_) => GeneralizedType::unit(),
         TopLevelItemKind::TraitDefinition(_) => GeneralizedType::unit(),
-        TopLevelItemKind::TraitImpl(_) => todo!(),
+        TopLevelItemKind::TraitImpl(trait_impl) => checker.check_impl(trait_impl),
         TopLevelItemKind::EffectDefinition(_) => GeneralizedType::unit(),
-        TopLevelItemKind::Extern(_) => todo!(),
-        TopLevelItemKind::Comptime(_) => todo!(),
+        TopLevelItemKind::Extern(extern_) => checker.check_extern(extern_),
+        TopLevelItemKind::Comptime(comptime) => checker.check_comptime(comptime),
     };
 
     incremental::exit_query();
@@ -49,8 +49,10 @@ pub fn type_check_impl(context: &TypeCheck, compiler: &DbHandle) -> TypeCheckRes
 pub struct TypeCheckResult {
     pub typ: GeneralizedType,
     pub name_types: BTreeMap<NameId, TypeId>,
+    pub path_types: BTreeMap<PathId, TypeId>,
     pub expr_types: BTreeMap<ExprId, TypeId>,
     pub types: TypeContext,
+    pub bindings: TypeBindings,
 }
 
 #[allow(unused)]
@@ -60,6 +62,7 @@ struct TypeChecker<'local, 'inner> {
     types: TypeContext,
     resolve: ResolutionResult,
     name_types: BTreeMap<NameId, TypeId>,
+    path_types: BTreeMap<PathId, TypeId>,
     expr_types: BTreeMap<ExprId, TypeId>,
     bindings: TypeBindings,
     item: TopLevelId,
@@ -80,6 +83,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             resolve,
             next_id: 0,
             name_types: Default::default(),
+            path_types: Default::default(),
             expr_types: Default::default(),
         }
     }
@@ -88,8 +92,10 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
         TypeCheckResult {
             expr_types: self.expr_types,
             name_types: self.name_types,
+            path_types: self.path_types,
             types: self.types,
             typ,
+            bindings: self.bindings,
         }
     }
 
@@ -125,7 +131,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     }
 
     fn type_to_string(&self, typ: TypeId) -> String {
-        self.types.get_type(typ).display(&self.bindings, &self.types, &self.context.names).to_string()
+        typ.to_string(&self.types, &self.bindings, &self.context.names)
     }
 
     /// Try to unify the given types, returning `Err(())` on error without pushing a Diagnostic.
@@ -224,6 +230,21 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
                 self.occurs(*constructor, variable)
                     || args.iter().any(|arg| self.occurs(*arg, variable))
             },
+        }
+    }
+
+    /// Retrieve a Type then follow all its type variable bindings so that we only return
+    /// `Type::Variable` if the type variable is unbound. Note that this may still return
+    /// a composite type such as `Type::Application` with bound type variables within.
+    fn follow_type(&self, id: TypeId) -> &Type {
+        match self.types.get_type(id) {
+            typ @ Type::Variable(id) => {
+                match self.bindings.get(&id) {
+                    Some(binding) => self.follow_type(*binding),
+                    None => typ,
+                }
+            },
+            other => other,
         }
     }
 }

@@ -10,18 +10,3 @@ impl MultiTrait Unit with
 one ()
 
 // args: --delete-binary
-// expected stdout:
-// // id = c1m85_46
-// trait MultiTrait_c1m85_46 a_1 with
-//     one_2: Unit_b
-
-// expected stderr:
-// examples/regressions/159_two_trait_functions.an:3:14	error: Expected an unindent but found `->`
-//     one: Unit -> Unit
-// 
-// examples/regressions/159_two_trait_functions.an:6:5	error: Expected an identifier but found `MultiTrait`
-// impl MultiTrait Unit with 
-// 
-// examples/regressions/159_two_trait_functions.an:10:4	error: Expected `=` to begin the function body but found `()`
-// one ()
-

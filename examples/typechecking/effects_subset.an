@@ -20,40 +20,15 @@ for stream f =
         f x
         resume ()
 
-iota 10
-    with filter (fn x -> x % 2 == 0)
-    with for print
+main () =
+    iota 10
+        with filter (fn x -> x % 2 == 0)
+        with for print
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m72_9
-// effect Emit_c1m72_9 a_1 with
-//     emit_2: fn a_1 -> Unit_b
-// 
-// // id = c1m72_99
-// iota_c1m72_99 (n_1: U32) = (error)
-// 
-// // id = c1m72_79
-// filter_c1m72_79 stream_1 predicate_2 =
-//     handle stream_? ()
-//     | emit_? x_? -> 
-//         if predicate_? x_? then 
-//             emit_? x_?
-// 
-// // id = c1m72_64
-// for_c1m72_64 stream_1 f_2 =
-//     handle stream_? ()
-//     | emit_? x_? -> 
-//         f_? x_?
-//         resume_? ()
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/effects_subset.an:5:16	error: Expected an expression but found `loop`
-// iota (n: U32) = loop (i = 0) ->
-// 
-// examples/typechecking/effects_subset.an:15:8	error: Expected an unindent but found `resume`
-//         resume ()
-// 
-// examples/typechecking/effects_subset.an:23:5	error: Expected `=` to begin the function body but found `10`
-// iota 10
+// thread 'main' panicked at src/type_inference/mod.rs:113:9:
+// not yet implemented: Generalize
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

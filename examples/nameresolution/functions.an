@@ -11,7 +11,7 @@ map l f =
     | Nil -> Nil
     | Cons x xs -> Cons (f x) (map xs f)
 
-// args: --check
+// args: --show-resolved
 // expected stdout:
 // // id = c1m43_86
 // recursion_c1m43_86 n_1 f_2 =

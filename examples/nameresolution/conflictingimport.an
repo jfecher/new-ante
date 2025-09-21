@@ -4,7 +4,7 @@ library_int = 1
 
 library_fn _ = 3
 
-// args: --check examples/nameresolution/Library.an
+// args: --show-resolved examples/nameresolution/Library.an
 // expected stdout:
 // // id = c1m53_73
 // library_int_c1m53_73 = 5

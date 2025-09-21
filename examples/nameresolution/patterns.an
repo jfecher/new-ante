@@ -10,7 +10,7 @@ bar (x, y) = ()
 
 qux (x: U32, y) = ()
 
-// args: --check
+// args: --show-resolved
 // expected stdout:
 // // id = c1m6_37
 // type Foo_c1m6_37 =

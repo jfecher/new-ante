@@ -3,7 +3,7 @@ import T.t
 // Module imports can form a cycle!
 u x = t x
 
-// args: --check examples/nameresolution/T.an
+// args: --show-resolved examples/nameresolution/T.an
 // expected stdout:
 // import U.u
 // 

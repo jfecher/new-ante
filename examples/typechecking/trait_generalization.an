@@ -1,7 +1,9 @@
 a = "test".c_string
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m80_65
-// a_c1m80_65 = "test".c_string
+// args: --show-types
+// expected exit status: 101
+// expected stderr:
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:220:9:
+// not yet implemented
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

@@ -37,7 +37,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{diagnostics::Errors, incremental::DbStorage};
+use crate::{diagnostics::Errors, incremental::{DbStorage, TypeCheck}};
 
 // All the compiler passes:
 // (listed out of order because `cargo fmt` alphabetizes them)
@@ -89,13 +89,17 @@ fn compile(args: Cli) {
     // files that are no longer used are never cleared.
     populate_crates_and_files(&mut compiler, &args.files);
 
-    let errors = if args.lex {
+    let errors = if args.show_tokens {
         display_tokens(&compiler);
         BTreeSet::new()
-    } else if args.parse {
+    } else if args.show_parse {
         display_parse_tree(&compiler)
-    } else {
+    } else if args.show_resolved {
         display_name_resolution(&compiler)
+    } else if args.show_types {
+        display_type_checking(&compiler)
+    } else {
+        BTreeSet::new()
     };
 
     for error in errors {
@@ -151,6 +155,24 @@ fn display_name_resolution(compiler: &Db) -> BTreeSet<Diagnostic> {
         }
 
         println!("{}", parse.cst.display_resolved(&parse.top_level_data, compiler))
+    }
+    diagnostics
+}
+
+fn display_type_checking(compiler: &Db) -> BTreeSet<Diagnostic> {
+    let crates = GetCrateGraph.get(compiler);
+    let local_crate = &crates[&LOCAL_CRATE];
+    let mut diagnostics = BTreeSet::new();
+
+    for file in local_crate.source_files.values() {
+        let parse = Parse(*file).get(compiler);
+
+        for item in &parse.cst.top_level_items {
+            let resolve_diagnostics: BTreeSet<_> = compiler.get_accumulated(TypeCheck(item.id));
+            diagnostics.extend(resolve_diagnostics);
+        }
+
+        println!("{}", parse.cst.display_typed(&parse.top_level_data, compiler))
     }
     diagnostics
 }

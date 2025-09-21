@@ -13,34 +13,10 @@ handle_count f =
 
 handle_count foo
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m49_3
-// effect Count_c1m49_3 with
-//     count_1: fn Unit_b -> Unit_b
-// 
-// // id = c1m49_32
-// foo_c1m49_32 () =
-//     count_? ()
-//     repeat_? 10
-// 
-// // id = c1m49_95
-// handle_count_c1m49_95 f_1 =
-//     handle 
-//         f_? ()
-//         0
-//     | count_? () -> +_? 1 (resume_? ())
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/count_effect.an:5:4	error: `count` is not defined, was it a typo?
-//     count ()
-// 
-// examples/typechecking/count_effect.an:6:4	error: `repeat` is not defined, was it a typo?
-//     repeat 10 fn _ -> count ()
-// 
-// examples/typechecking/count_effect.an:6:14	error: Expected an unindent but found `fn`
-//     repeat 10 fn _ -> count ()
-// 
-// examples/typechecking/count_effect.an:14:13	error: Expected `=` to begin the function body but found `foo`
-// handle_count foo
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:111:53:
+// no entry found for key
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

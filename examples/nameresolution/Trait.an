@@ -11,7 +11,7 @@ main () =
     foo 3
     bar : Unit
 
-// args: --check
+// args: --show-resolved
 // expected stdout:
 // // id = c1m88_37
 // trait Foo_c1m88_37 a_1 b_2 with

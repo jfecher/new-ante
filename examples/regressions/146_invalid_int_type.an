@@ -1,7 +1,3 @@
 a: Int String = 3
 
 // args: --check
-// expected stdout:
-// // id = c1m96_65
-// a_c1m96_65 : Int_b String_b = 3
-

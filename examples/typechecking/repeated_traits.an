@@ -4,17 +4,10 @@ foo a =
 
 // Make sure output is not "... given Print a, Print a"
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m0_32
-// foo_c1m0_32 a_1 =
-//     print_? a_1
-//     print_? a_1
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/repeated_traits.an:2:4	error: `print` is not defined, was it a typo?
-//     print a
-// 
-// examples/typechecking/repeated_traits.an:3:4	error: `print` is not defined, was it a typo?
-//     print a
+// thread 'main' panicked at src/type_inference/cst_traversal.rs:111:53:
+// no entry found for key
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

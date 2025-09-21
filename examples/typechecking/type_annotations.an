@@ -15,43 +15,10 @@ puts2
 
 // TODO: This first error is duplicated
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m78_32
-// foo_c1m78_32 (__1: I32) (__2: String_b) : Char_b = (error)
-// 
-// // id = c1m78_67
-// baz_c1m78_67 (a_1: Usz) : Ptr_? a_1 =
-//     transmute_? a_1
-// 
-// // id = c1m78_48
-// exit2_c1m78_48 = exit_?
-// 
-// // id = c1m78_90
-// puts2_c1m78_90 : fn (Ptr_? Char_b) -> I32 = puts_?
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/type_annotations.an:2:34	error: Expected an expression but found `'a`
-// foo (_: I32) (_: String) : Char = 'a'
-// 
-// examples/typechecking/type_annotations.an:7:14	error: `Ptr` is not defined, was it a typo?
-// baz (a: Usz): Ptr a =
-// 
-// examples/typechecking/type_annotations.an:8:4	error: `transmute` is not defined, was it a typo?
-//     transmute a
-// 
-// examples/typechecking/type_annotations.an:10:8	error: `exit` is not defined, was it a typo?
-// exit2 = exit
-// 
-// examples/typechecking/type_annotations.an:11:11	error: `Ptr` is not defined, was it a typo?
-// puts2: fn (Ptr Char) -> I32 = puts
-// 
-// examples/typechecking/type_annotations.an:11:30	error: `puts` is not defined, was it a typo?
-// puts2: fn (Ptr Char) -> I32 = puts
-// 
-// examples/typechecking/type_annotations.an:13:6	error: Expected `=` to begin the function body but found `"test"`
-// exit2 "test"
-// 
-// examples/typechecking/type_annotations.an:16:0	error: Expected `=` to begin the function body but found a newline
-// // TODO: This first error is duplicated
+// thread 'main' panicked at src/type_inference/types.rs:98:17:
+// not yet implemented: resolve named type
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

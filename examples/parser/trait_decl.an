@@ -24,7 +24,7 @@ impl _: Collection (fn a -> a) Unit with
     pop c = ()
     empty = fn a -> a
 
-// args: --parse
+// args: --show-parse
 // expected stdout:
 // trait Show a with
 //     show: fn a -> String
@@ -52,6 +52,6 @@ impl _: Collection (fn a -> a) Unit with
 // examples/parser/trait_decl.an:25:12	error: Expected an expression but found `fn`
 //     empty = fn a -> a
 // 
-// examples/parser/trait_decl.an:27:0	error: Expected an unindent but found //// args: --parse
-// // args: --parse
+// examples/parser/trait_decl.an:27:0	error: Expected an unindent but found //// args: --show-parse
+// // args: --show-parse
 

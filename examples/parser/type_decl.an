@@ -18,7 +18,7 @@ type UniquePtr a = &a
 
 t = 3 : I32
 
-// args: --parse
+// args: --show-parse
 // expected stdout:
 // type Struct1 =
 //     a: I32

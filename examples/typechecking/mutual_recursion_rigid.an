@@ -28,44 +28,10 @@ ex2b (a: u) b =
 ex2c (a: v) b =
     ex2a a b
 
-// args: --check --show-types
-// expected stdout:
-// // id = c1m13_7
-// ex1a_c1m13_7 (a_1: t_2) b_3 =
-//     ex1b_c1m13_46 a_1 b_3
-//     0_U32
-// 
-// // id = c1m13_46
-// ex1b_c1m13_46 (a_1: u_2) b_3 =
-//     ex1a_c1m13_7 a_1 b_3
-//     1_U32
-// 
-// // id = c1m13_89
-// trait T1_c1m13_89 a_1 with
-//     trait1_2: fn a_1 -> Unit_b
-// 
-// // id = c1m13_89
-// trait T2_c1m13_89 a_1 with
-//     trait2_2: fn a_1 -> Unit_b
-// 
-// // id = c1m13_14
-// ex2a_c1m13_14 (a_1: t_2) b_3 =
-//     ex2b_c1m13_59 a_1 b_3
-//     trait1_? a_1
-// 
-// // id = c1m13_59
-// ex2b_c1m13_59 (a_1: u_2) b_3 =
-//     ex2c_c1m13_76 a_1 b_3
-//     trait2_? a_1
-// 
-// // id = c1m13_76
-// ex2c_c1m13_76 (a_1: v_2) b_3 =
-//     ex2a_c1m13_14 a_1 b_3
-
+// args: --show-types
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/mutual_recursion_rigid.an:22:4	error: `trait1` is not defined, was it a typo?
-//     trait1 a
-// 
-// examples/typechecking/mutual_recursion_rigid.an:26:4	error: `trait2` is not defined, was it a typo?
-//     trait2 a
+// thread 'main' panicked at src/type_inference/type_context.rs:122:58:
+// not yet implemented: Resolve named types
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

@@ -19,7 +19,7 @@ t = Option.Just 1
 
 type MyRef a = &a
 
-// args: --check
+// args: --show-resolved
 // expected stdout:
 // // id = c1m29_67
 // type Struct1_c1m29_67 =
