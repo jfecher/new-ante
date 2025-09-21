@@ -3,13 +3,14 @@ use std::{
     sync::Arc,
 };
 
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     iterator_extensions::vecmap, lexer::token::{FloatKind, IntegerKind}, name_resolution::ResolutionResult, parser::{
         cst::{self, Mutability, Sharedness},
         ids::NameId,
-    }, type_inference::type_id::TypeId
+    }, type_inference::{type_context::TypeContext, type_id::TypeId}, vecmap::VecMap
 };
 
 /// A top-level type is a type which may be in a top-level signature.
@@ -28,7 +29,7 @@ pub enum TopLevelType {
     TypeApplication(Box<TopLevelType>, Vec<TopLevelType>),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Type {
     /// Any primitive type which can be compared for unification via primitive equality
     Primitive(PrimitiveType),
@@ -47,32 +48,31 @@ pub enum Type {
     Reference(Mutability, Sharedness),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct FunctionType {
     pub parameters: Vec<TypeId>,
     pub return_type: TypeId,
     pub effects: TypeId,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum PrimitiveType {
     Error,
     Unit,
     Bool,
+    // * -> *
     Pointer,
     Char,
     /// TODO: This should be a struct type
     String,
+    // * -> * -> *
+    Pair,
     Int(IntegerKind),
     Float(FloatKind),
 }
 
 /// Maps type variables to their bindings
-pub type TypeBindings = BTreeMap<TypeVariableId, Type>;
-
-/// Maps generics to new types to instantiate them with
-#[allow(unused)]
-pub type Substitutions = BTreeMap<Arc<String>, Type>;
+pub type TypeBindings = BTreeMap<TypeVariableId, TypeId>;
 
 #[allow(unused)]
 impl TopLevelType {
@@ -130,7 +130,54 @@ impl TopLevelType {
             },
         }
     }
+
+    /// Convert this `TopLevelType` into a `Type` without instantiating it
+    fn as_type(&self, context: &mut TypeContext) -> TypeId {
+        let typ = match self {
+            TopLevelType::Primitive(primitive_type) => return TypeId::primitive(*primitive_type),
+            TopLevelType::Generic(name) => Type::Generic(*name),
+            TopLevelType::Function { parameters, return_type } => {
+                Type::Function(FunctionType {
+                    parameters: vecmap(parameters, |typ| typ.as_type(context)),
+                    return_type: return_type.as_type(context),
+                    effects: TypeId::UNIT, // TODO: Effects
+                })
+            },
+            TopLevelType::TypeApplication(constructor, args) => {
+                let constructor = constructor.as_type(context);
+                let args = vecmap(args, |arg| arg.as_type(context));
+                Type::Application(constructor, args)
+            },
+        };
+        context.get_or_insert_type(typ)
+    }
+
+    pub fn substitute(&self, types: &mut TypeContext, substitutions: &Substitutions) -> TypeId {
+        match self {
+            TopLevelType::Primitive(primitive) => TypeId::primitive(*primitive),
+            TopLevelType::Generic(name_id) => {
+                substitutions.get(name_id).copied().unwrap_or_else(|| {
+                    types.get_or_insert_type(Type::Generic(*name_id))
+                })
+            },
+            TopLevelType::Function { parameters, return_type } => {
+                let typ = Type::Function(FunctionType {
+                    parameters: vecmap(parameters, |typ| typ.substitute(types, substitutions)),
+                    return_type: return_type.substitute(types, substitutions),
+                    effects: TypeId::UNIT, // TODO: Effects
+                });
+                types.get_or_insert_type(typ)
+            },
+            TopLevelType::TypeApplication(constructor, args) => {
+                let constructor = constructor.substitute(types, substitutions);
+                let args = vecmap(args, |arg| arg.substitute(types, substitutions));
+                types.get_or_insert_type(Type::Application(constructor, args))
+            },
+        }
+    }
 }
+
+pub type Substitutions = FxHashMap<NameId, TypeId>;
 
 #[allow(unused)]
 impl Type {
@@ -139,8 +186,13 @@ impl Type {
         todo!()
     }
 
-    pub fn display<'a, 'b>(&'a self, bindings: &'b TypeBindings) -> TypePrinter<'a, 'b> {
-        TypePrinter { typ: self, bindings }
+    pub fn display<'a, 'b>(
+        &'a self,
+        bindings: &'b TypeBindings,
+        context: &'b TypeContext,
+        names: &'b VecMap<NameId, Arc<String>>,
+    ) -> TypePrinter<'a, 'b> {
+        TypePrinter { typ: self, bindings, context, names }
     }
 
     pub fn find_all_generics(&self) -> Vec<Arc<String>> {
@@ -165,30 +217,64 @@ impl Type {
 pub struct TypePrinter<'typ, 'bindings> {
     typ: &'typ Type,
     bindings: &'bindings TypeBindings,
+    context: &'bindings TypeContext,
+    names: &'bindings VecMap<NameId, Arc<String>>,
 }
 
 impl std::fmt::Display for TypePrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.fmt_type(self.typ, f)
+        self.fmt_type(self.typ, false, f)
     }
 }
 
 impl TypePrinter<'_, '_> {
-    fn fmt_type(&self, typ: &Type, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt_type_id(&self, id: TypeId, parenthesize: bool, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.fmt_type(self.context.get_type(id), parenthesize, f)
+    }
+
+    fn fmt_type(&self, typ: &Type, parenthesize: bool, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match typ {
             Type::Primitive(primitive_type) => write!(f, "{primitive_type}"),
-            Type::Generic(_) => todo!("format generic type"),
+            Type::Generic(id) => write!(f, "{}", self.names[*id]),
             Type::Variable(id) => {
                 if let Some(binding) = self.bindings.get(id) {
-                    self.fmt_type(binding, f)
+                    self.fmt_type_id(*binding, parenthesize, f)
                 } else {
-                    write!(f, "{id}")
+                    write!(f, "_{id}")
                 }
             },
-            Type::Function(_function) => {
-                todo!("format function type")
+            Type::Function(function) => {
+                if parenthesize {
+                    write!(f, "(")?;
+                }
+
+                write!(f, "fn")?;
+                for parameter in &function.parameters {
+                    write!(f, " ")?;
+                    self.fmt_type_id(*parameter, true, f)?;
+                }
+                write!(f, " -> ")?;
+                self.fmt_type_id(function.return_type, false, f)?;
+
+                if parenthesize {
+                    write!(f, ")")?;
+                }
+                Ok(())
             },
-            Type::Application(_, _) => todo!("format type application"),
+            Type::Application(constructor, args) => {
+                if parenthesize {
+                    write!(f, "(")?;
+                }
+                self.fmt_type_id(*constructor, true, f)?;
+                for arg in args {
+                    write!(f, " ")?;
+                    self.fmt_type_id(*arg, true, f)?;
+                }
+                if parenthesize {
+                    write!(f, ")")?;
+                }
+                Ok(())
+            },
             Type::Reference(mutability, sharedness) => write!(f, "{mutability}{sharedness}"),
         }
     }
@@ -205,6 +291,7 @@ impl std::fmt::Display for PrimitiveType {
             PrimitiveType::Float(kind) => write!(f, "{kind}"),
             PrimitiveType::String => write!(f, "String"),
             PrimitiveType::Char => write!(f, "Char"),
+            PrimitiveType::Pair => write!(f, ","),
         }
     }
 }
@@ -256,6 +343,11 @@ impl GeneralizedType {
     pub fn from_top_level_type(typ: TopLevelType) -> GeneralizedType {
         let generics = typ.find_generics();
         GeneralizedType { generics, typ }
+    }
+
+    /// Convert this `GeneralizedType` into a `Type` without instantiating it
+    pub fn as_type(&self, context: &mut TypeContext) -> TypeId {
+        self.typ.as_type(context)
     }
 }
 

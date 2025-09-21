@@ -3,7 +3,7 @@ use std::{cmp::Ordering, path::PathBuf, sync::Arc};
 use colored::{ColoredString, Colorize};
 use serde::{Deserialize, Serialize};
 
-use crate::{incremental::Db, lexer::token::Token};
+use crate::{incremental::Db, lexer::token::Token, type_inference::errors::TypeErrorKind};
 
 mod location;
 
@@ -27,6 +27,8 @@ pub enum Diagnostic {
     NameNotFound { name: Arc<String>, location: Location },
     MethodDeclaredOnUnknownType { name: Arc<String>, location: Location },
     LiteralUsedAsName { location: Location },
+    ValueExpected { location: Location, typ: Arc<String>, },
+    TypeError { actual: String, expected: String, kind: TypeErrorKind, location: Location },
 }
 
 impl Ord for Diagnostic {
@@ -101,6 +103,12 @@ impl Diagnostic {
             Diagnostic::LiteralUsedAsName { location: _ } => {
                 "Expected a definition name but found a literal".to_string()
             },
+            Diagnostic::ValueExpected { location: _, typ } => {
+                format!("Expected a value but `{}` is a type", typ)
+            },
+            Diagnostic::TypeError { actual, expected, kind, location: _ } => {
+                kind.message(actual, expected)
+            },
         }
     }
 
@@ -118,6 +126,8 @@ impl Diagnostic {
             | Diagnostic::NamespaceNotFound { location, .. }
             | Diagnostic::MethodDeclaredOnUnknownType { location, .. }
             | Diagnostic::LiteralUsedAsName { location }
+            | Diagnostic::ValueExpected { location, .. }
+            | Diagnostic::TypeError { location, .. }
             | Diagnostic::NameNotFound { location, .. } => location,
         }
     }

@@ -285,13 +285,13 @@ pub struct Reference {
     pub rhs: ExprId,
 }
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Mutability {
     Immutable,
     Mutable,
 }
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Sharedness {
     Shared,
     Owned,

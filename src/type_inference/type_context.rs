@@ -1,4 +1,7 @@
+use std::collections::BTreeMap;
+
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     iterator_extensions::vecmap,
@@ -10,9 +13,16 @@ use crate::{
     vecmap::VecMap,
 };
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct TypeContext {
     id_to_type: VecMap<TypeId, Type>,
-    type_to_id: FxHashMap<Type, TypeId>,
+    type_to_id: BTreeMap<Type, TypeId>,
+}
+
+impl Default for TypeContext {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TypeContext {
@@ -34,6 +44,7 @@ impl TypeContext {
         let pointer = insert(PrimitiveType::Pointer);
         let char = insert(PrimitiveType::Char);
         let string = insert(PrimitiveType::String);
+        let pair = insert(PrimitiveType::Pair);
         let i8 = insert(PrimitiveType::Int(IntegerKind::I8));
         let i16 = insert(PrimitiveType::Int(IntegerKind::I16));
         let i32 = insert(PrimitiveType::Int(IntegerKind::I32));
@@ -53,6 +64,7 @@ impl TypeContext {
         assert_eq!(pointer, TypeId::POINTER);
         assert_eq!(char, TypeId::CHAR);
         assert_eq!(string, TypeId::STRING);
+        assert_eq!(pair, TypeId::PAIR);
         assert_eq!(i8, TypeId::I8);
         assert_eq!(i16, TypeId::I16);
         assert_eq!(i32, TypeId::I32);

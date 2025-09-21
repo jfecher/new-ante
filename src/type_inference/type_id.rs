@@ -1,4 +1,6 @@
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TypeId(u32);
 
 impl From<TypeId> for usize {
@@ -20,21 +22,22 @@ impl TypeId {
     pub const POINTER: TypeId = TypeId(3);
     pub const CHAR: TypeId = TypeId(4);
     pub const STRING: TypeId = TypeId(5);
+    pub const PAIR: TypeId = TypeId(6);
 
-    pub const I8: TypeId = TypeId(6);
-    pub const I16: TypeId = TypeId(7);
-    pub const I32: TypeId = TypeId(8);
-    pub const I64: TypeId = TypeId(9);
-    pub const ISZ: TypeId = TypeId(10);
+    pub const I8: TypeId = TypeId(7);
+    pub const I16: TypeId = TypeId(9);
+    pub const I32: TypeId = TypeId(9);
+    pub const I64: TypeId = TypeId(10);
+    pub const ISZ: TypeId = TypeId(11);
 
-    pub const U8: TypeId = TypeId(11);
-    pub const U16: TypeId = TypeId(12);
-    pub const U32: TypeId = TypeId(13);
-    pub const U64: TypeId = TypeId(14);
-    pub const USZ: TypeId = TypeId(15);
+    pub const U8: TypeId = TypeId(12);
+    pub const U16: TypeId = TypeId(13);
+    pub const U32: TypeId = TypeId(14);
+    pub const U64: TypeId = TypeId(15);
+    pub const USZ: TypeId = TypeId(16);
 
-    pub const F32: TypeId = TypeId(16);
-    pub const F64: TypeId = TypeId(17);
+    pub const F32: TypeId = TypeId(17);
+    pub const F64: TypeId = TypeId(18);
 
     pub fn integer(kind: crate::lexer::token::IntegerKind) -> TypeId {
         match kind {
@@ -55,6 +58,20 @@ impl TypeId {
         match kind {
             crate::lexer::token::FloatKind::F32 => TypeId::F32,
             crate::lexer::token::FloatKind::F64 => TypeId::F64,
+        }
+    }
+
+    pub(crate) fn primitive(primitive_type: super::types::PrimitiveType) -> TypeId {
+        match primitive_type {
+            super::types::PrimitiveType::Error => TypeId::ERROR,
+            super::types::PrimitiveType::Unit => TypeId::UNIT,
+            super::types::PrimitiveType::Bool => TypeId::BOOL,
+            super::types::PrimitiveType::Pointer => TypeId::POINTER,
+            super::types::PrimitiveType::Char => TypeId::CHAR,
+            super::types::PrimitiveType::String => TypeId::STRING,
+            super::types::PrimitiveType::Pair => TypeId::PAIR,
+            super::types::PrimitiveType::Int(kind) => Self::integer(kind),
+            super::types::PrimitiveType::Float(kind) => Self::float(kind),
         }
     }
 }

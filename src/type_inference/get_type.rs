@@ -26,7 +26,10 @@ pub fn get_type_impl(context: &GetType, compiler: &DbHandle) -> GeneralizedType 
         TopLevelItemKind::TraitDefinition(_) => GeneralizedType::unit(),
         TopLevelItemKind::TraitImpl(_) => todo!(),
         TopLevelItemKind::EffectDefinition(_) => GeneralizedType::unit(),
-        TopLevelItemKind::Extern(_) => todo!(),
+        TopLevelItemKind::Extern(item) => {
+            let resolution = Resolve(context.0).get(compiler);
+            GeneralizedType::from_ast_type(&item.declaration.typ, &resolution)
+        },
         TopLevelItemKind::Comptime(_) => todo!(),
     };
     incremental::exit_query();
@@ -37,7 +40,7 @@ pub fn get_type_impl(context: &GetType, compiler: &DbHandle) -> GeneralizedType 
 /// If the type is successfully found then this definition will not be dependent on the
 /// types of its contents to get its type. Put another way, if the type is known then
 /// we don't need to re-type check this definition when its contents change.
-fn try_get_type(definition: &Definition, context: &TopLevelContext, resolve: &ResolutionResult) -> Option<GeneralizedType> {
+pub(super) fn try_get_type(definition: &Definition, context: &TopLevelContext, resolve: &ResolutionResult) -> Option<GeneralizedType> {
     if let Pattern::TypeAnnotation(_, typ) = &context.patterns[definition.pattern] {
         return Some(GeneralizedType::from_ast_type(typ, resolve));
     }

@@ -31,3 +31,17 @@ impl Builtin {
         }
     }
 }
+
+impl std::fmt::Display for Builtin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Builtin::Unit => write!(f, "Unit"),
+            Builtin::Int => write!(f, "Int"),
+            Builtin::Char => write!(f, "Char"),
+            Builtin::Float => write!(f, "Float"),
+            Builtin::String => write!(f, "String"),
+            Builtin::PairType => write!(f, ","),
+            Builtin::PairConstructor => write!(f, ","),
+        }
+    }
+}
