@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::{BTreeMap, BTreeSet}, sync::Arc};
 
 use namespace::{Namespace, SourceFileId, LOCAL_CRATE};
 use serde::{Deserialize, Serialize};
@@ -28,6 +28,10 @@ pub struct ResolutionResult {
     /// context of that id.
     pub path_origins: BTreeMap<PathId, Origin>,
     pub name_origins: BTreeMap<NameId, Origin>,
+
+    /// Each other top-level item this item referenced. Used to build a dependency graph for type
+    /// inference.
+    pub referenced_items: BTreeSet<TopLevelId>,
 }
 
 struct Resolver<'local, 'inner> {
@@ -38,10 +42,11 @@ struct Resolver<'local, 'inner> {
     names_in_local_scope: Vec<BTreeMap<Arc<String>, NameId>>,
     context: &'local TopLevelContext,
     compiler: &'local DbHandle<'inner>,
+    referenced_items: BTreeSet<TopLevelId>,
 }
 
 /// Where was this variable defined?
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, PartialOrd, Ord)]
 pub enum Origin {
     /// This name comes from this top level definition
     TopLevelDefinition(TopLevelId),
@@ -51,6 +56,21 @@ pub enum Origin {
     TypeResolution,
     /// This name refers to a builtin item such as `String`, `Int`, `Unit`, `,` etc.
     Builtin(Builtin),
+}
+
+impl Origin {
+    /// True if this Origin _may_ be a type. This does not have the proper context to check whether
+    /// any internal IDs actually refer to types.
+    pub fn is_type(self) -> bool {
+        match self {
+            Origin::TopLevelDefinition(_) | Origin::Local(_) => true,
+            Origin::TypeResolution => false,
+            Origin::Builtin(builtin) => matches!(
+                builtin,
+                Builtin::Unit | Builtin::Int | Builtin::Char | Builtin::Float | Builtin::String | Builtin::PairType
+            ),
+        }
+    }
 }
 
 pub fn resolve_impl(context: &Resolve, compiler: &DbHandle) -> ResolutionResult {
@@ -98,12 +118,13 @@ impl<'local, 'inner> Resolver<'local, 'inner> {
             path_links: Default::default(),
             name_links: Default::default(),
             names_in_local_scope: vec![Default::default()],
+            referenced_items: Default::default(),
             context,
         }
     }
 
     fn result(self) -> ResolutionResult {
-        ResolutionResult { path_origins: self.path_links, name_origins: self.name_links }
+        ResolutionResult { path_origins: self.path_links, name_origins: self.name_links, referenced_items: self.referenced_items }
     }
 
     #[allow(unused)]

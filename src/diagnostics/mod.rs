@@ -27,7 +27,7 @@ pub enum Diagnostic {
     NameNotFound { name: Arc<String>, location: Location },
     MethodDeclaredOnUnknownType { name: Arc<String>, location: Location },
     LiteralUsedAsName { location: Location },
-    ValueExpected { location: Location, typ: Arc<String>, },
+    ValueExpected { location: Location, typ: Arc<String> },
     TypeError { actual: String, expected: String, kind: TypeErrorKind, location: Location },
     FunctionArgCountMismatch { actual: usize, expected: usize, location: Location },
 }
@@ -107,9 +107,7 @@ impl Diagnostic {
             Diagnostic::ValueExpected { location: _, typ } => {
                 format!("Expected a value but `{}` is a type", typ)
             },
-            Diagnostic::TypeError { actual, expected, kind, location: _ } => {
-                kind.message(actual, expected)
-            },
+            Diagnostic::TypeError { actual, expected, kind, location: _ } => kind.message(actual, expected),
             Diagnostic::FunctionArgCountMismatch { actual, expected, location: _ } => {
                 let s = if *actual == 1 { "" } else { "s" };
                 let was = if *expected == 1 { "was" } else { "were" };

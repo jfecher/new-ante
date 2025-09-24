@@ -5,9 +5,10 @@ use std::{
 };
 
 use crate::{
-    incremental::{Db, Resolve, TypeCheck},
+    incremental::{Db, Resolve, TypeCheckSCC},
     name_resolution::{namespace::SourceFileId, Origin},
-    parser::ids::{NameId, PathId}, type_inference::type_id::TypeId,
+    parser::ids::{NameId, PathId},
+    type_inference::type_id::TypeId,
 };
 
 use super::{
@@ -184,15 +185,15 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn db_resolve(&self) -> Option<&'a Db> {
-        self.config.show_resolved.then(|| {
-            self.config.db.expect("Expected `CstDisplayConfig::db` to be set when `show_resolved` is set")
-        })
+        self.config
+            .show_resolved
+            .then(|| self.config.db.expect("Expected `CstDisplayConfig::db` to be set when `show_resolved` is set"))
     }
 
     fn db_type_check(&self) -> Option<&'a Db> {
-        self.config.show_types.then(|| {
-            self.config.db.expect("Expected `CstDisplayConfig::db` to be set when `show_types` is set")
-        })
+        self.config
+            .show_types
+            .then(|| self.config.db.expect("Expected `CstDisplayConfig::db` to be set when `show_types` is set"))
     }
 
     fn fmt_name(&self, name: NameId, f: &mut Formatter) -> std::fmt::Result {
@@ -219,9 +220,9 @@ impl<'a> CstDisplay<'a> {
 
         if let Some(db) = self.db_type_check() {
             if show_type {
-                let check = TypeCheck(self.current_item.unwrap()).get(db);
+                let check = TypeCheckSCC(self.current_item.unwrap()).get(db);
                 let typ = check.name_types.get(&name).copied().unwrap_or(TypeId::ERROR);
-                write!(f, ": {})", typ.to_string(&check.types, &check.bindings, &self.context().names))?
+                write!(f, ": {})", typ.to_string(&check.types, &check.bindings, &self.context().names, db))?
             }
         }
 
@@ -229,7 +230,15 @@ impl<'a> CstDisplay<'a> {
     }
 
     fn fmt_path(&self, path: PathId, f: &mut Formatter) -> std::fmt::Result {
-        if self.config.show_types {
+        self.fmt_path_helper(path, f, true)
+    }
+
+    fn fmt_type_path(&self, path: PathId, f: &mut Formatter) -> std::fmt::Result {
+        self.fmt_path_helper(path, f, false)
+    }
+
+    fn fmt_path_helper(&self, path: PathId, f: &mut Formatter, show_type: bool) -> std::fmt::Result {
+        if self.config.show_types && show_type {
             write!(f, "(")?;
         }
 
@@ -242,10 +251,12 @@ impl<'a> CstDisplay<'a> {
             write!(f, "_{id}")?;
         }
 
-        if let Some(db) = self.db_type_check() {
-            let check = TypeCheck(self.current_item.unwrap()).get(db);
-            let typ = check.path_types.get(&path).copied().unwrap_or(TypeId::ERROR);
-            write!(f, ": {})", typ.to_string(&check.types, &check.bindings, &self.context().names))?
+        if show_type {
+            if let Some(db) = self.db_type_check() {
+                let check = TypeCheckSCC(self.current_item.unwrap()).get(db);
+                let typ = check.path_types.get(&path).copied().unwrap_or(TypeId::ERROR);
+                write!(f, ": {})", typ.to_string(&check.types, &check.bindings, &self.context().names, db))?
+            }
         }
 
         Ok(())
@@ -253,11 +264,13 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_function(&mut self, definition: &Definition, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
         self.fmt_pattern(definition.pattern, f)?;
-        self.fmt_lambda_inner(lambda, f)
+        self.fmt_lambda_inner(lambda, f, false)
     }
 
     /// Format each part of a lambda except the leading `fn`
-    fn fmt_lambda_inner(&mut self, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
+    ///
+    /// If `write_arrow` is true, `->` will be used as the body separator. Otherwise `=` is used.
+    fn fmt_lambda_inner(&mut self, lambda: &Lambda, f: &mut Formatter, write_arrow: bool) -> std::fmt::Result {
         self.fmt_parameters(&lambda.parameters, f)?;
 
         if let Some(typ) = &lambda.return_type {
@@ -266,7 +279,7 @@ impl<'a> CstDisplay<'a> {
             self.fmt_effect_clause(&lambda.effects, f)?;
         }
 
-        write!(f, " =")?;
+        write!(f, " {}", if write_arrow { "->" } else { "=" })?;
         if !matches!(self.context().exprs[lambda.body], Expr::Sequence(_)) {
             write!(f, " ")?;
         }
@@ -374,7 +387,7 @@ impl<'a> CstDisplay<'a> {
     fn fmt_type(&self, typ: &Type, f: &mut Formatter) -> std::fmt::Result {
         match typ {
             Type::Error => write!(f, "(error)"),
-            Type::Named(path) => self.fmt_path(*path, f),
+            Type::Named(path) => self.fmt_type_path(*path, f),
             Type::Variable(name) => self.fmt_type_name(*name, f),
             Type::Unit => write!(f, "Unit"),
             Type::Integer(kind) => write!(f, "{kind}"),
@@ -587,7 +600,7 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_lambda(&mut self, lambda: &Lambda, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "fn")?;
-        self.fmt_lambda_inner(lambda, f)
+        self.fmt_lambda_inner(lambda, f, true)
     }
 
     fn fmt_if(&mut self, if_: &If, f: &mut Formatter) -> std::fmt::Result {

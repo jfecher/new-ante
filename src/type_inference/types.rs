@@ -1,16 +1,11 @@
-use std::{
-    collections::BTreeMap,
-    sync::Arc,
-};
+use std::{collections::BTreeMap, sync::Arc};
 
+use inc_complete::DbGet;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    iterator_extensions::vecmap,
-    lexer::token::{FloatKind, IntegerKind},
-    name_resolution::ResolutionResult,
-    parser::{
+    incremental::GetItem, iterator_extensions::vecmap, lexer::token::{FloatKind, IntegerKind}, name_resolution::{Origin, ResolutionResult}, parser::{
         cst::{self, Mutability, Sharedness},
         ids::NameId,
     }, type_inference::{generics::Generic, type_context::TypeContext, type_id::TypeId}, vecmap::VecMap
@@ -30,6 +25,7 @@ pub enum TopLevelType {
         return_type: Box<TopLevelType>,
     },
     TypeApplication(Box<TopLevelType>, Vec<TopLevelType>),
+    UserDefined(Origin),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -49,6 +45,7 @@ pub enum Type {
     Function(FunctionType),
     Application(TypeId, Vec<TypeId>),
     Reference(Mutability, Sharedness),
+    UserDefined(Origin),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -93,9 +90,16 @@ impl TopLevelType {
             cst::Type::Unit => TopLevelType::unit(),
             cst::Type::Char => TopLevelType::Primitive(PrimitiveType::Char),
             cst::Type::String => TopLevelType::Primitive(PrimitiveType::String),
-            cst::Type::Named(path_id) => {
-                let _origin = resolve.path_origins[path_id];
-                todo!("resolve named type")
+            cst::Type::Named(path) => {
+                match resolve.path_origins.get(path) {
+                    Some(origin) => {
+                        if !origin.is_type() {
+                            // TODO: Error
+                        }
+                        TopLevelType::UserDefined(*origin)
+                    },
+                    None => TopLevelType::error(),
+                }
             },
             cst::Type::Variable(name_id) => TopLevelType::Generic(Generic::Name(*name_id)),
             cst::Type::Integer(kind) => TopLevelType::Primitive(PrimitiveType::Int(*kind)),
@@ -118,7 +122,7 @@ impl TopLevelType {
     fn find_generics(&self) -> Vec<Generic> {
         fn find_generics_helper(typ: &TopLevelType, generics: &mut Vec<Generic>) {
             match typ {
-                TopLevelType::Primitive(_) => (),
+                TopLevelType::Primitive(_) | TopLevelType::UserDefined(_) => (),
                 TopLevelType::Generic(generic) => {
                     if !generics.contains(generic) {
                         generics.push(*generic);
@@ -127,7 +131,7 @@ impl TopLevelType {
                 TopLevelType::Function { parameters, return_type } => {
                     parameters.iter().for_each(|typ| find_generics_helper(typ, generics));
                     find_generics_helper(return_type, generics);
-                }
+                },
                 TopLevelType::TypeApplication(constructor, args) => {
                     find_generics_helper(constructor, generics);
                     args.iter().for_each(|typ| find_generics_helper(typ, generics));
@@ -145,6 +149,7 @@ impl TopLevelType {
         let typ = match self {
             TopLevelType::Primitive(primitive_type) => return TypeId::primitive(*primitive_type),
             TopLevelType::Generic(name) => Type::Generic(*name),
+            TopLevelType::UserDefined(origin) => Type::UserDefined(*origin),
             TopLevelType::Function { parameters, return_type } => {
                 Type::Function(FunctionType {
                     parameters: vecmap(parameters, |typ| typ.as_type(context)),
@@ -164,10 +169,11 @@ impl TopLevelType {
     pub fn substitute(&self, types: &mut TypeContext, substitutions: &GenericSubstitutions) -> TypeId {
         match self {
             TopLevelType::Primitive(primitive) => TypeId::primitive(*primitive),
+            TopLevelType::UserDefined(origin) => {
+                types.get_or_insert_type(Type::UserDefined(*origin))
+            },
             TopLevelType::Generic(generic) => {
-                substitutions.get(generic).copied().unwrap_or_else(|| {
-                    types.get_or_insert_type(Type::Generic(*generic))
-                })
+                substitutions.get(generic).copied().unwrap_or_else(|| types.get_or_insert_type(Type::Generic(*generic)))
             },
             TopLevelType::Function { parameters, return_type } => {
                 let typ = Type::Function(FunctionType {
@@ -195,13 +201,10 @@ pub type GenericSubstitutions = FxHashMap<Generic, TypeId>;
 
 #[allow(unused)]
 impl Type {
-    pub fn display<'a, 'b>(
-        &'a self,
-        bindings: &'b TypeBindings,
-        context: &'b TypeContext,
-        names: &'b VecMap<NameId, Arc<String>>,
-    ) -> TypePrinter<'a, 'b> {
-        TypePrinter { typ: self, bindings, context, names }
+    pub fn display<'local, Db>(
+        &'local self, bindings: &'local TypeBindings, context: &'local TypeContext, names: &'local VecMap<NameId, Arc<String>>, db: &'local Db,
+    ) -> TypePrinter<'local, Db> where Db: DbGet<GetItem> {
+        TypePrinter { typ: self, bindings, context, names, db }
     }
 
     pub fn unit() -> Self {
@@ -213,20 +216,21 @@ impl Type {
     }
 }
 
-pub struct TypePrinter<'typ, 'bindings> {
-    typ: &'typ Type,
-    bindings: &'bindings TypeBindings,
-    context: &'bindings TypeContext,
-    names: &'bindings VecMap<NameId, Arc<String>>,
+pub struct TypePrinter<'a, Db> {
+    typ: &'a Type,
+    bindings: &'a TypeBindings,
+    context: &'a TypeContext,
+    names: &'a VecMap<NameId, Arc<String>>,
+    db: &'a Db,
 }
 
-impl std::fmt::Display for TypePrinter<'_, '_> {
+impl<Db> std::fmt::Display for TypePrinter<'_, Db> where Db: DbGet<GetItem> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.fmt_type(self.typ, false, f)
     }
 }
 
-impl TypePrinter<'_, '_> {
+impl<Db> TypePrinter<'_, Db> where Db: DbGet<GetItem> {
     fn fmt_type_id(&self, id: TypeId, parenthesize: bool, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.fmt_type(self.context.get_type(id), parenthesize, f)
     }
@@ -234,6 +238,7 @@ impl TypePrinter<'_, '_> {
     fn fmt_type(&self, typ: &Type, parenthesize: bool, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match typ {
             Type::Primitive(primitive_type) => write!(f, "{primitive_type}"),
+            Type::UserDefined(origin) => self.fmt_type_origin(*origin, f),
             Type::Generic(Generic::Name(name)) => write!(f, "{}", self.names[*name]),
             Type::Generic(Generic::Inferred(id)) => write!(f, "{id}"),
             Type::Variable(id) => {
@@ -276,6 +281,22 @@ impl TypePrinter<'_, '_> {
                 Ok(())
             },
             Type::Reference(mutability, sharedness) => write!(f, "{mutability}{sharedness}"),
+        }
+    }
+
+    fn fmt_type_origin(&self, origin: Origin, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match origin {
+            Origin::TopLevelDefinition(id) => {
+                let (item, _) = GetItem(id).get(self.db);
+                if let cst::ItemName::Single(name) = item.kind.name() {
+                    write!(f, "{name}")
+                } else {
+                    unreachable!()
+                }
+            },
+            Origin::Local(name) => write!(f, "{}", self.names[name]),
+            Origin::TypeResolution => write!(f, "TypeResolution"),
+            Origin::Builtin(builtin) => write!(f, "{builtin}"),
         }
     }
 }

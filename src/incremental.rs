@@ -18,7 +18,7 @@ use crate::{
         ResolutionResult,
     },
     parser::{self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext},
-    type_inference::{self, types::GeneralizedType, TypeCheckResult},
+    type_inference::{self, dependency_tree::TypeCheckOrder, types::GeneralizedType, TypeCheckResult},
 };
 
 /// A wrapper over inc-complete's database with our specific storage type to hold
@@ -54,7 +54,8 @@ pub struct DbStorage {
     resolves: HashMapStorage<Resolve>,
     top_level_items: HashMapStorage<GetItem>,
     get_types: HashMapStorage<GetType>,
-    type_checks: HashMapStorage<TypeCheck>,
+    type_checks: HashMapStorage<TypeCheckSCC>,
+    type_dependency_tree: SingletonStorage<TypeInferenceDependencyGraph>,
     compiled_files: HashMapStorage<CompileFile>,
 
     #[inc_complete(accumulate)]
@@ -162,7 +163,7 @@ define_intermediate!(30, CrateName -> Arc<String>, DbStorage, |ctx, db| {
 /// changes.
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Parse(pub SourceFileId);
-define_intermediate!(40, Parse -> Arc<ParseResult>, DbStorage, parser::parse_impl);
+define_intermediate!(40, assume_changed Parse -> Arc<ParseResult>, DbStorage, parser::parse_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Collect all the visible definitions within a file. These are the definitions that can be
@@ -267,16 +268,29 @@ pub struct GetType(pub TopLevelId);
 define_intermediate!(120, GetType -> GeneralizedType, DbStorage, type_inference::get_type_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/// Type check the contents of a top-level item. This isn't always necessary just to get the
-/// type of a top-level item but for compiling we also want to ensure the contents of all
-/// expresions are free from type errors.
+/// Type check the contents of one or more top-level items. This isn't always necessary just to get
+/// the type of a top-level item but for compiling we also want to ensure the contents of all
+/// expresions are free from type errors. The "SCC" in the name refers to a strongly-connected
+/// component specifically in regard to the type inference dependency graph which only includes
+/// edges leading to definitions without type annotations. A cycle in the graph represents mutually
+/// recursive definitions without type annotations, which must be inferred and generalized in one
+/// group. Hence the rare case where `TypeCheckSCC` may be given more than one `TopLevelId`.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TypeCheck(pub TopLevelId);
-define_intermediate!(130, TypeCheck -> TypeCheckResult, DbStorage, type_inference::type_check_impl);
+pub struct TypeCheckSCC(pub Vec<TopLevelId>);
+define_intermediate!(130, TypeCheckSCC -> TypeCheckResult, DbStorage, type_inference::type_check_impl);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/// Construct a dependency graph used to determine the order of type inference. This is somewhat
+/// different from a general dependency tree in that the only dependencies we consider are those
+/// which require type inference beforehand. Dependent definitions which are already annotated can
+/// be checked in any order.
+#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TypeInferenceDependencyGraph(pub TopLevelId);
+define_intermediate!(140, assume_changed TypeInferenceDependencyGraph -> TypeCheckOrder, DbStorage, type_inference::dependency_tree::dependency_tree_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Compile a single file to a string representing python source code of that file.
 /// This will also return any errors originating in that file.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompileFile(pub SourceFileId);
-define_intermediate!(140, CompileFile -> String, DbStorage, backend::compile_file_impl);
+define_intermediate!(150, CompileFile -> String, DbStorage, backend::compile_file_impl);

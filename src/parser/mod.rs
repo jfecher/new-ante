@@ -1358,8 +1358,29 @@ impl<'tokens> Parser<'tokens> {
                 self.advance();
                 Ok(self.push_expr(Expr::Literal(Literal::Unit), location))
             },
+            Token::Fn => self.parse_lambda(),
             _ => self.expected("an expression"),
         }
+    }
+
+    fn parse_lambda(&mut self) -> Result<ExprId> {
+        self.with_expr_id_and_location(|this| {
+            this.expect(Token::Fn, "`fn` to start this lambda")?;
+            let parameters = this.parse_function_parameters();
+
+            let return_type = if this.accept(Token::Colon) {
+                Some(this.parse_with_recovery(Self::parse_type, Token::RightArrow, &[Token::Newline, Token::Indent])?)
+            } else {
+                None
+            };
+
+            let effects = this.parse_effects_clause();
+
+            this.expect(Token::RightArrow, "a `->` to separate this lambda's parameters from its body")?;
+            let body = this.parse_expression()?;
+
+            Ok(Expr::Lambda(Lambda { parameters, return_type, effects, body }))
+        })
     }
 
     fn parse_sequence_item(&mut self) -> Result<SequenceItem> {

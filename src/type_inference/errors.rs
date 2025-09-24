@@ -1,7 +1,11 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
-use crate::{diagnostics::Location, parser::ids::{ExprId, PathId, PatternId}, type_inference::TypeChecker};
+use crate::{
+    diagnostics::Location,
+    parser::ids::{ExprId, PathId, PatternId},
+    type_inference::TypeChecker,
+};
 
 /// Different kinds of type errors.
 /// All of these boil down to "expected {expected}, but found {actual}" but each
@@ -27,10 +31,18 @@ impl TypeErrorKind {
         let expected = expected.blue();
         match self {
             TypeErrorKind::General => format!("Expected {expected} but found {actual}"),
-            TypeErrorKind::TypeAnnotationMismatch => format!("Type annotation {expected} does not match the inferred type {actual}"),
-            TypeErrorKind::Else => format!("Then branch's type of {expected} does not match the else branch's type {actual}"),
-            TypeErrorKind::MatchBranch => format!("This match branch has type {actual} which does not match the first branch's type of {expected}"),
-            TypeErrorKind::IfStatement => format!("This `if` has no `else` so it always returns {expected}, but {actual} was expected instead"),
+            TypeErrorKind::TypeAnnotationMismatch => {
+                format!("Type annotation {expected} does not match the inferred type {actual}")
+            },
+            TypeErrorKind::Else => {
+                format!("Then branch's type of {expected} does not match the else branch's type {actual}")
+            },
+            TypeErrorKind::MatchBranch => format!(
+                "This match branch has type {actual} which does not match the first branch's type of {expected}"
+            ),
+            TypeErrorKind::IfStatement => {
+                format!("This `if` has no `else` so it always returns {expected}, but {actual} was expected instead")
+            },
         }
     }
 }

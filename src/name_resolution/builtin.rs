@@ -2,13 +2,14 @@ use serde::{Deserialize, Serialize};
 
 /// Contains only builtin items which can be redefined (are not keywords).
 /// This includes most builtin types except for sized-integer and float types `I8`, `I16`, `U32`, etc.
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Builtin {
     Unit,
     Int,
     Char,
     Float,
     String,
+    Ptr,
     PairType,
     PairConstructor,
 }
@@ -25,6 +26,7 @@ impl Builtin {
             "Char" => Some(Char),
             "Float" => Some(Float),
             "String" => Some(String),
+            "Ptr" => Some(Ptr),
             "," if is_type => Some(PairType),
             "," => Some(PairConstructor),
             _ => None,
@@ -40,6 +42,7 @@ impl std::fmt::Display for Builtin {
             Builtin::Char => write!(f, "Char"),
             Builtin::Float => write!(f, "Float"),
             Builtin::String => write!(f, "String"),
+            Builtin::Ptr => write!(f, "Ptr"),
             Builtin::PairType => write!(f, ","),
             Builtin::PairConstructor => write!(f, ","),
         }

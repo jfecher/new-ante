@@ -4,11 +4,10 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    iterator_extensions::vecmap,
     lexer::token::{FloatKind, IntegerKind},
     type_inference::{
         type_id::TypeId,
-        types::{FunctionType, PrimitiveType, Type},
+        types::{PrimitiveType, Type},
     },
     vecmap::VecMap,
 };
@@ -93,53 +92,5 @@ impl TypeContext {
         let next_id = self.id_to_type.push(typ.clone());
         self.type_to_id.insert(typ, next_id);
         next_id
-    }
-
-    /// Convert an ast type to a TypeId as closely as possible.
-    /// This method does not emit any errors and relies on name resolution
-    /// to emit errors when resolving types.
-    pub fn convert_ast_type(&mut self, typ: &crate::parser::cst::Type) -> TypeId {
-        match typ {
-            crate::parser::cst::Type::Integer(kind) => match kind {
-                IntegerKind::I8 => TypeId::I8,
-                IntegerKind::I16 => TypeId::I16,
-                IntegerKind::I32 => TypeId::I32,
-                IntegerKind::I64 => TypeId::I64,
-                IntegerKind::Isz => TypeId::ISZ,
-                IntegerKind::U8 => TypeId::U8,
-                IntegerKind::U16 => TypeId::U16,
-                IntegerKind::U32 => TypeId::U32,
-                IntegerKind::U64 => TypeId::U64,
-                IntegerKind::Usz => TypeId::USZ,
-            },
-            crate::parser::cst::Type::Float(kind) => match kind {
-                FloatKind::F32 => TypeId::F32,
-                FloatKind::F64 => TypeId::F64,
-            },
-            crate::parser::cst::Type::String => TypeId::STRING,
-            crate::parser::cst::Type::Char => TypeId::CHAR,
-            crate::parser::cst::Type::Named(_path) => todo!("Resolve named types"),
-            crate::parser::cst::Type::Variable(_name) => todo!("Resolve named types"),
-            crate::parser::cst::Type::Function(function) => {
-                let parameters = vecmap(&function.parameters, |typ| self.convert_ast_type(typ));
-                let return_type = self.convert_ast_type(&function.return_type);
-                // TODO: Effects
-                let effects = TypeId::UNIT;
-                let typ = Type::Function(FunctionType { parameters, return_type, effects });
-                self.get_or_insert_type(typ)
-            },
-            crate::parser::cst::Type::Error => TypeId::ERROR,
-            crate::parser::cst::Type::Unit => TypeId::UNIT,
-            crate::parser::cst::Type::Application(f, args) => {
-                let f = self.convert_ast_type(f);
-                let args = vecmap(args, |typ| self.convert_ast_type(typ));
-                let typ = Type::Application(f, args);
-                self.get_or_insert_type(typ)
-            },
-            crate::parser::cst::Type::Reference(mutability, sharedness) => {
-                let typ = Type::Reference(*mutability, *sharedness);
-                self.get_or_insert_type(typ)
-            },
-        }
     }
 }

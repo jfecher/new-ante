@@ -1,7 +1,22 @@
 use std::sync::Arc;
 
-use crate::{diagnostics::Diagnostic, incremental::GetType, iterator_extensions::vecmap, name_resolution::{builtin::Builtin, Origin}, parser::{cst::{self, Definition, Expr, Literal, Pattern}, ids::{ExprId, PathId, PatternId}}, type_inference::{errors::TypeErrorKind, get_type::try_get_type, type_id::TypeId, types::{self, GeneralizedType, Type}, Locateable, TypeChecker}};
-
+use crate::{
+    diagnostics::Diagnostic,
+    incremental::GetType,
+    iterator_extensions::vecmap,
+    name_resolution::{builtin::Builtin, Origin},
+    parser::{
+        cst::{self, Definition, Expr, Literal, Pattern},
+        ids::{ExprId, PathId, PatternId},
+    },
+    type_inference::{
+        errors::TypeErrorKind,
+        get_type::try_get_type,
+        type_id::TypeId,
+        types::{self, GeneralizedType, Type},
+        Locateable, TypeChecker,
+    },
+};
 
 impl<'local, 'inner> TypeChecker<'local, 'inner> {
     pub(super) fn check_definition(&mut self, definition: &Definition) -> GeneralizedType {
@@ -14,9 +29,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
         self.check_expr(definition.rhs, expected_type);
         self.check_pattern(definition.pattern, expected_type);
 
-        expected_generalized_type.unwrap_or_else(|| {
-            self.generalize(expected_type)
-        })
+        expected_generalized_type.unwrap_or_else(|| self.generalize(expected_type))
     }
 
     fn check_expr(&mut self, expr: ExprId, expected: TypeId) {
@@ -27,11 +40,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             Expr::Lambda(lambda) => self.check_lambda(lambda, expected, expr),
             Expr::Sequence(items) => {
                 for (i, item) in items.iter().enumerate() {
-                    let expected_type = if i == items.len() - 1 {
-                        expected
-                    } else {
-                        self.next_type_variable()
-                    };
+                    let expected_type = if i == items.len() - 1 { expected } else { self.next_type_variable() };
                     self.check_expr(item.expr, expected_type);
                 }
             },
@@ -44,7 +53,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             Expr::Match(match_) => self.check_match(match_, expected),
             Expr::Reference(_) => todo!("type check references"),
             Expr::TypeAnnotation(type_annotation) => {
-                let annotation = self.types.convert_ast_type(&type_annotation.rhs);
+                let annotation = self.convert_ast_type(&type_annotation.rhs);
                 self.unify(expected, annotation, TypeErrorKind::TypeAnnotationMismatch, expr);
                 self.check_expr(type_annotation.lhs, annotation);
             },
@@ -62,7 +71,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             Literal::Float(_, Some(kind)) => TypeId::float(*kind),
             Literal::Bool(_) => TypeId::BOOL,
             Literal::Integer(_, None) => TypeId::I32, // TODO: Polymorphic integers
-            Literal::Float(_, None) => TypeId::F64, // TODO: Polymorphic floats
+            Literal::Float(_, None) => TypeId::F64,   // TODO: Polymorphic floats
             Literal::String(_) => TypeId::STRING,
             Literal::Char(_) => TypeId::CHAR,
         };
@@ -100,25 +109,25 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
                 }
             },
             Pattern::TypeAnnotation(inner_pattern, typ) => {
-                let expected = self.types.convert_ast_type(typ);
+                let expected = self.convert_ast_type(typ);
                 self.unify(expected, expected, TypeErrorKind::TypeAnnotationMismatch, pattern);
                 self.check_pattern(*inner_pattern, expected);
             },
         };
     }
-    
+
     fn check_path(&mut self, path: PathId, expected: TypeId) {
         let actual = match self.resolve.path_origins.get(&path).copied() {
             Some(Origin::TopLevelDefinition(top_level_id)) => {
                 let typ = GetType(top_level_id).get(self.compiler);
                 self.instantiate(&typ)
-            }
+            },
             Some(Origin::Local(name)) => self.name_types[&name],
             Some(Origin::TypeResolution) => todo!("Type check Origin::TypeResolution"),
             Some(Origin::Builtin(builtin)) => {
                 self.check_builtin(builtin, expected, path);
                 return;
-            }
+            },
             None => return,
         };
         self.unify(actual, expected, TypeErrorKind::General, path);
@@ -131,7 +140,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     fn check_builtin(&mut self, builtin: Builtin, expected: TypeId, locator: impl Locateable) {
         let actual = match builtin {
             Builtin::Unit => TypeId::UNIT,
-            Builtin::Int | Builtin::Char | Builtin::Float | Builtin::String | Builtin::PairType => {
+            Builtin::Int | Builtin::Char | Builtin::Float | Builtin::String | Builtin::Ptr | Builtin::PairType => {
                 let typ = Arc::new(builtin.to_string());
                 let location = locator.locate(self);
                 self.compiler.accumulate(Diagnostic::ValueExpected { location, typ });
@@ -189,7 +198,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
                 let return_type = self.next_type_variable();
                 let effects = self.next_type_variable();
                 types::FunctionType { parameters, return_type, effects }
-            }
+            },
         };
 
         if lambda.parameters.len() != function_type.parameters.len() {
@@ -207,7 +216,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
 
         // TODO: Check lambda.effects
         let return_type = if let Some(return_type) = lambda.return_type.as_ref() {
-            let return_type = self.types.convert_ast_type(return_type);
+            let return_type = self.convert_ast_type(return_type);
             self.unify(return_type, function_type.return_type, TypeErrorKind::TypeAnnotationMismatch, expr);
             return_type
         } else {

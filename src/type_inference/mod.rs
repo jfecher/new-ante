@@ -4,27 +4,40 @@ use serde::{Deserialize, Serialize};
 use types::{Type, TypeBindings};
 
 use crate::{
-    diagnostics::Diagnostic, incremental::{self, DbHandle, GetItem, Resolve, TypeCheck}, iterator_extensions::vecmap, name_resolution::ResolutionResult, parser::{
+    diagnostics::Diagnostic,
+    incremental::{self, DbHandle, GetItem, Resolve, TypeCheckSCC},
+    iterator_extensions::vecmap,
+    lexer::token::{FloatKind, IntegerKind},
+    name_resolution::ResolutionResult,
+    parser::{
         cst::TopLevelItemKind,
         ids::{ExprId, NameId, PathId},
         TopLevelContext,
-    }, type_inference::{errors::{Locateable, TypeErrorKind}, generics::Generic, type_context::TypeContext, type_id::TypeId, types::{GeneralizedType, TopLevelType, TypeVariableId}}
+    },
+    type_inference::{
+        errors::{Locateable, TypeErrorKind},
+        generics::Generic,
+        type_context::TypeContext,
+        type_id::TypeId,
+        types::{GeneralizedType, TopLevelType, TypeVariableId},
+    },
 };
 
+mod cst_traversal;
 pub mod errors;
+mod generics;
+mod get_type;
 pub mod type_context;
 pub mod type_id;
 pub mod types;
-mod get_type;
-mod generics;
-mod cst_traversal;
+pub mod dependency_tree;
 
 pub use get_type::get_type_impl;
 
 /// Actually type check a statement and its contents.
 /// Unlike `get_type_impl`, this always type checks the expressions inside a statement
 /// to ensure they type check correctly.
-pub fn type_check_impl(context: &TypeCheck, compiler: &DbHandle) -> TypeCheckResult {
+pub fn type_check_impl(context: &TypeCheckSCC, compiler: &DbHandle) -> TypeCheckResult {
     incremental::enter_query();
     let (item, item_context) = GetItem(context.0).get(compiler);
     incremental::println(format!("Type checking {:?}", item.id));
@@ -70,10 +83,7 @@ struct TypeChecker<'local, 'inner> {
 }
 
 impl<'local, 'inner> TypeChecker<'local, 'inner> {
-    fn new(
-        resolve: ResolutionResult, context: &'local TopLevelContext,
-        compiler: &'local DbHandle<'inner>,
-    ) -> Self {
+    fn new(resolve: ResolutionResult, context: &'local TopLevelContext, compiler: &'local DbHandle<'inner>) -> Self {
         Self {
             compiler,
             context,
@@ -106,10 +116,11 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
 
     /// Generalize a type, making it generic. Any holes in the type become generic types.
     fn generalize(&mut self, typ: TypeId) -> GeneralizedType {
-        let free_vars = self.free_vars(typ); 
-        let substitutions = free_vars.into_iter().map(|var| {
-            (var, self.types.get_or_insert_type(Type::Generic(Generic::Inferred(var))))
-        }).collect();
+        let free_vars = self.free_vars(typ);
+        let substitutions = free_vars
+            .into_iter()
+            .map(|var| (var, self.types.get_or_insert_type(Type::Generic(Generic::Inferred(var)))))
+            .collect();
 
         let typ = self.substitute(typ, &substitutions);
         self.promote_to_top_level_type(typ).generalize()
@@ -117,12 +128,10 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
 
     fn substitute(&mut self, typ: TypeId, bindings: &TypeBindings) -> TypeId {
         match self.follow_type(typ) {
-            Type::Primitive(_) | Type::Generic(_) | Type::Reference(..) => typ,
-            Type::Variable(id) => {
-                match bindings.get(id) {
-                    Some(binding) => *binding,
-                    None => typ,
-                }
+            Type::Primitive(_) | Type::Generic(_) | Type::Reference(..) | Type::UserDefined(_) => typ,
+            Type::Variable(id) => match bindings.get(id) {
+                Some(binding) => *binding,
+                None => typ,
             },
             Type::Function(function) => {
                 let function = function.clone();
@@ -147,7 +156,10 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
         match self.follow_type(typ) {
             Type::Primitive(primitive) => TopLevelType::Primitive(*primitive),
             Type::Generic(name) => TopLevelType::Generic(*name),
-            Type::Variable(_) => panic!("promote_to_top_level_type called with type containing an unbound type variable"),
+            Type::UserDefined(origin) => TopLevelType::UserDefined(*origin),
+            Type::Variable(_) => {
+                panic!("promote_to_top_level_type called with type containing an unbound type variable")
+            },
             Type::Function(function_type) => {
                 let parameters = vecmap(&function_type.parameters, |typ| self.promote_to_top_level_type(*typ));
                 let return_type = Box::new(self.promote_to_top_level_type(function_type.return_type));
@@ -168,8 +180,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     fn free_vars(&self, typ: TypeId) -> Vec<TypeVariableId> {
         fn free_vars_helper(this: &TypeChecker, typ: TypeId, free_vars: &mut Vec<TypeVariableId>) {
             match this.follow_type(typ) {
-                Type::Primitive(_) | Type::Reference(..) => (),
-                Type::Generic(_) => (),
+                Type::Primitive(_) | Type::Reference(..) | Type::Generic(_) | Type::UserDefined(_) => (),
                 Type::Variable(id) => {
                     // The number of free vars is expected to remain too small so we're
                     // not too worried about asymptotic behavior. It is more important we
@@ -200,9 +211,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     }
 
     fn instantiate(&mut self, typ: &GeneralizedType) -> TypeId {
-        let substitutions = typ.generics.iter().map(|generic| {
-            (*generic, self.next_type_variable())
-        }).collect();
+        let substitutions = typ.generics.iter().map(|generic| (*generic, self.next_type_variable())).collect();
 
         typ.typ.substitute(&mut self.types, &substitutions)
     }
@@ -217,7 +226,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     }
 
     fn type_to_string(&self, typ: TypeId) -> String {
-        typ.to_string(&self.types, &self.bindings, &self.context.names)
+        typ.to_string(&self.types, &self.bindings, &self.context.names, self.compiler)
     }
 
     /// Try to unify the given types, returning `Err(())` on error without pushing a Diagnostic.
@@ -242,7 +251,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
                 } else {
                     self.try_bind_type_variable(*expected, expected_id, actual_id)
                 }
-            }
+            },
             (Type::Function(actual), Type::Function(expected)) => {
                 if actual.parameters.len() != expected.parameters.len() {
                     return Err(());
@@ -255,7 +264,10 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
                 self.try_unify(actual.effects, expected.effects)?;
                 self.try_unify(actual.return_type, expected.return_type)
             },
-            (Type::Application(actual_constructor, actual_args), Type::Application(expected_constructor, expected_args)) => {
+            (
+                Type::Application(actual_constructor, actual_args),
+                Type::Application(expected_constructor, expected_args),
+            ) => {
                 if actual_args.len() != expected_args.len() {
                     return Err(());
                 }
@@ -267,7 +279,10 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
                 }
                 Ok(())
             },
-            (Type::Reference(actual_mutability, actual_sharedness), Type::Reference(expected_mutability, expected_sharedness)) => {
+            (
+                Type::Reference(actual_mutability, actual_sharedness),
+                Type::Reference(expected_mutability, expected_sharedness),
+            ) => {
                 if actual_mutability == expected_mutability && actual_sharedness == expected_sharedness {
                     Ok(())
                 } else {
@@ -281,7 +296,9 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
 
     /// Try to bind a type variable, possibly erroring instead if the binding would lead
     /// to a recursive type.
-    fn try_bind_type_variable(&mut self, id: TypeVariableId, type_variable_type_id: TypeId, binding: TypeId) -> Result<(), ()> {
+    fn try_bind_type_variable(
+        &mut self, id: TypeVariableId, type_variable_type_id: TypeId, binding: TypeId,
+    ) -> Result<(), ()> {
         // This should be prevented by the `actual_id == expected_id` check in `unify`
         // Otherwise we need to ensure this case would not issue an `occurs` error.
         assert_ne!(type_variable_type_id, binding);
@@ -299,7 +316,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     /// Used to prevent the creation of infinitely recursive types when binding type variables.
     fn occurs(&self, typ: TypeId, variable: TypeVariableId) -> bool {
         match self.types.get_type(typ) {
-            Type::Primitive(_) | Type::Reference(..) | Type::Generic(_) => false,
+            Type::Primitive(_) | Type::Reference(..) | Type::Generic(_) | Type::UserDefined(_) => false,
             Type::Variable(candidate_id) => {
                 if let Some(binding) = self.bindings.get(candidate_id) {
                     self.occurs(*binding, variable)
@@ -313,8 +330,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
                     || self.occurs(function_type.effects, variable)
             },
             Type::Application(constructor, args) => {
-                self.occurs(*constructor, variable)
-                    || args.iter().any(|arg| self.occurs(*arg, variable))
+                self.occurs(*constructor, variable) || args.iter().any(|arg| self.occurs(*arg, variable))
             },
         }
     }
@@ -324,13 +340,72 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     /// a composite type such as `Type::Application` with bound type variables within.
     fn follow_type(&self, id: TypeId) -> &Type {
         match self.types.get_type(id) {
-            typ @ Type::Variable(id) => {
-                match self.bindings.get(&id) {
-                    Some(binding) => self.follow_type(*binding),
-                    None => typ,
-                }
+            typ @ Type::Variable(id) => match self.bindings.get(&id) {
+                Some(binding) => self.follow_type(*binding),
+                None => typ,
             },
             other => other,
+        }
+    }
+
+    /// Convert an ast type to a TypeId as closely as possible.
+    /// This method does not emit any errors and relies on name resolution
+    /// to emit errors when resolving types.
+    pub fn convert_ast_type(&mut self, typ: &crate::parser::cst::Type) -> TypeId {
+        match typ {
+            crate::parser::cst::Type::Integer(kind) => match kind {
+                IntegerKind::I8 => TypeId::I8,
+                IntegerKind::I16 => TypeId::I16,
+                IntegerKind::I32 => TypeId::I32,
+                IntegerKind::I64 => TypeId::I64,
+                IntegerKind::Isz => TypeId::ISZ,
+                IntegerKind::U8 => TypeId::U8,
+                IntegerKind::U16 => TypeId::U16,
+                IntegerKind::U32 => TypeId::U32,
+                IntegerKind::U64 => TypeId::U64,
+                IntegerKind::Usz => TypeId::USZ,
+            },
+            crate::parser::cst::Type::Float(kind) => match kind {
+                FloatKind::F32 => TypeId::F32,
+                FloatKind::F64 => TypeId::F64,
+            },
+            crate::parser::cst::Type::String => TypeId::STRING,
+            crate::parser::cst::Type::Char => TypeId::CHAR,
+            crate::parser::cst::Type::Named(path) => {
+                match self.resolve.path_origins.get(path) {
+                    Some(origin) => {
+                        if !origin.is_type() {
+                            // TODO: Error
+                        }
+                        self.types.get_or_insert_type(Type::UserDefined(*origin))
+                    },
+                    // Assume name resolution has already issued an error for this case
+                    None => TypeId::ERROR,
+                }
+            },
+            crate::parser::cst::Type::Variable(name) => {
+                self.types.get_or_insert_type(Type::Generic(Generic::Name(*name)))
+            },
+            crate::parser::cst::Type::Function(function) => {
+                let parameters = vecmap(&function.parameters, |typ| self.convert_ast_type(typ));
+                let return_type = self.convert_ast_type(&function.return_type);
+                // TODO: Effects
+                let effects = TypeId::UNIT;
+                let typ = Type::Function(types::FunctionType { parameters, return_type, effects });
+                self.types.get_or_insert_type(typ)
+            },
+            crate::parser::cst::Type::Error => TypeId::ERROR,
+            crate::parser::cst::Type::Unit => TypeId::UNIT,
+            crate::parser::cst::Type::Application(f, args) => {
+                let f = self.convert_ast_type(f);
+                let args = vecmap(args, |typ| self.convert_ast_type(typ));
+                let typ = Type::Application(f, args);
+                self.types.get_or_insert_type(typ)
+            },
+            crate::parser::cst::Type::Reference(mutability, sharedness) => {
+                let typ = Type::Reference(*mutability, *sharedness);
+                self.types.get_or_insert_type(typ)
+            },
         }
     }
 }

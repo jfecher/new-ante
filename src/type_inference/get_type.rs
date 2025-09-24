@@ -1,5 +1,5 @@
 use crate::{
-    incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheck},
+    incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheckSCC},
     name_resolution::ResolutionResult,
     parser::{
         cst::{Definition, Expr, Pattern, TopLevelItemKind},
@@ -27,7 +27,7 @@ pub fn get_type_impl(context: &GetType, compiler: &DbHandle) -> GeneralizedType 
             if let Some(typ) = try_get_type(definition, &item_context, &resolve) {
                 typ
             } else {
-                TypeCheck(context.0).get(compiler).typ
+                TypeCheckSCC(context.0).get(compiler).typ
             }
         },
         TopLevelItemKind::TypeDefinition(_) => GeneralizedType::unit(),
@@ -48,7 +48,9 @@ pub fn get_type_impl(context: &GetType, compiler: &DbHandle) -> GeneralizedType 
 /// If the type is successfully found then this definition will not be dependent on the
 /// types of its contents to get its type. Put another way, if the type is known then
 /// we don't need to re-type check this definition when its contents change.
-pub(super) fn try_get_type(definition: &Definition, context: &TopLevelContext, resolve: &ResolutionResult) -> Option<GeneralizedType> {
+pub(super) fn try_get_type(
+    definition: &Definition, context: &TopLevelContext, resolve: &ResolutionResult,
+) -> Option<GeneralizedType> {
     if let Pattern::TypeAnnotation(_, typ) = &context.patterns[definition.pattern] {
         return Some(GeneralizedType::from_ast_type(typ, resolve));
     }

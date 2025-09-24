@@ -37,7 +37,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{diagnostics::Errors, incremental::{DbStorage, TypeCheck}};
+use crate::{
+    diagnostics::Errors,
+    incremental::{DbStorage, TypeCheckSCC},
+};
 
 // All the compiler passes:
 // (listed out of order because `cargo fmt` alphabetizes them)
@@ -168,7 +171,7 @@ fn display_type_checking(compiler: &Db) -> BTreeSet<Diagnostic> {
         let parse = Parse(*file).get(compiler);
 
         for item in &parse.cst.top_level_items {
-            let resolve_diagnostics: BTreeSet<_> = compiler.get_accumulated(TypeCheck(item.id));
+            let resolve_diagnostics: BTreeSet<_> = compiler.get_accumulated(TypeCheckSCC(item.id));
             diagnostics.extend(resolve_diagnostics);
         }
 

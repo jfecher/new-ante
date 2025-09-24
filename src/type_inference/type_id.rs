@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
+use inc_complete::DbGet;
 use serde::{Deserialize, Serialize};
 
-use crate::{parser::ids::NameId, type_inference::{type_context::TypeContext, types::TypeBindings}, vecmap::VecMap};
+use crate::{
+    incremental::GetItem, parser::ids::NameId, type_inference::{type_context::TypeContext, types::TypeBindings}, vecmap::VecMap
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TypeId(u32);
@@ -80,7 +83,9 @@ impl TypeId {
     }
 
     /// Convert this type to a string (without any coloring)
-    pub fn to_string(self, context: &TypeContext, bindings: &TypeBindings, names: &VecMap<NameId, Arc<String>>) -> String {
-        context.get_type(self).display(bindings, context, names).to_string()
+    pub fn to_string<Db>(
+        self, context: &TypeContext, bindings: &TypeBindings, names: &VecMap<NameId, Arc<String>>, db: &Db,
+    ) -> String where Db: DbGet<GetItem> {
+        context.get_type(self).display(bindings, context, names, db).to_string()
     }
 }

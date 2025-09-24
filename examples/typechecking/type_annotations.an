@@ -1,17 +1,18 @@
 
-foo (_: I32) (_: String) : Char = 'a'
+foo (_: I32) (_: String) : Char = c"a"
 
-bar: fn a - a -> I32 =
+bar: fn a a -> I32 =
     fn _ b -> b
 
 baz (a: Usz): Ptr a =
     transmute a
 
-exit2 = exit
-puts2: fn (Ptr Char) -> I32 = puts
+main () =
+    exit2 = exit
+    puts2: fn (Ptr Char) -> I32 = puts
 
-exit2 "test"
-puts2
+    exit2 "test"
+    puts2
 
 // TODO: This first error is duplicated
 

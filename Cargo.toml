@@ -9,6 +9,7 @@ clap_complete = "4"
 colored = "2.0.0"
 deterministic-hash = "1.0.1"
 inc-complete = "0.7.3"
+petgraph = { version = "0.8.2", features = ["serde"] }
 rayon = "1.10.0"
 ron = "0.10.1"
 rustc-hash = "2.1.1"
@@ -16,7 +17,7 @@ scc = { version = "2.3.4", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 
 [dev-dependencies]
-goldentests = "1.4.0"
+goldentests = { path = "../../Rust/golden-tests", default-features = false }
 
 [profile.release]
 debug = true
