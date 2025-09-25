@@ -15,25 +15,9 @@ main () = is_even 4
 // TODO: is_odd here uses `forall a c.` instead of `forall a b.`
 
 // args: --show-types
-// expected stdout:
-// (is_even: _0) (n: _7) =
-//     if (==: (error)) (n: _7) 0 then true else 
-//         (print: (error)) (n: _7)
-// 
-// (is_odd: _0) (n: _1) =
-// 
-// (main: _0) () = (is_even: fn I32 -> _2) 4
-
+// expected exit status: 101
 // expected stderr:
-// examples/typechecking/mutual_recursion.an:4:9	error: `==` is not defined, was it a typo?
-//     if n == 0 then true else
-// 
-// examples/typechecking/mutual_recursion.an:5:8	error: `print` is not defined, was it a typo?
-//         print n
-// 
-// examples/typechecking/mutual_recursion.an:6:8	error: Expected an unindent but found `not`
-//         not is_odd (n - 1)
-// 
-// examples/typechecking/mutual_recursion.an:9:14	error: Expected an unindent but found `not`
-//     n == 1 or not is_even (n - 1)
+// thread 'main' panicked at src/type_inference/get_type.rs:28:17:
+// GetType used on definition without a type annotation that has not yet been inferred. This is likely an issue with the order of type checking determined by the dependency graph.
+// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

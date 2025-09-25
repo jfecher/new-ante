@@ -5,10 +5,9 @@ use std::{
 };
 
 use crate::{
-    incremental::{Db, Resolve, TypeCheckSCC},
+    incremental::{Db, Resolve, TypeCheck},
     name_resolution::{namespace::SourceFileId, Origin},
-    parser::ids::{NameId, PathId},
-    type_inference::type_id::TypeId,
+    parser::ids::{NameId, PathId}, type_inference::type_id::TypeId,
 };
 
 use super::{
@@ -220,8 +219,8 @@ impl<'a> CstDisplay<'a> {
 
         if let Some(db) = self.db_type_check() {
             if show_type {
-                let check = TypeCheckSCC(self.current_item.unwrap()).get(db);
-                let typ = check.name_types.get(&name).copied().unwrap_or(TypeId::ERROR);
+                let check = TypeCheck(self.current_item.unwrap()).get(db);
+                let typ = check.result.name_types.get(&name).copied().unwrap_or(TypeId::ERROR);
                 write!(f, ": {})", typ.to_string(&check.types, &check.bindings, &self.context().names, db))?
             }
         }
@@ -253,8 +252,8 @@ impl<'a> CstDisplay<'a> {
 
         if show_type {
             if let Some(db) = self.db_type_check() {
-                let check = TypeCheckSCC(self.current_item.unwrap()).get(db);
-                let typ = check.path_types.get(&path).copied().unwrap_or(TypeId::ERROR);
+                let check = TypeCheck(self.current_item.unwrap()).get(db);
+                let typ = check.result.path_types.get(&path).copied().unwrap_or(TypeId::ERROR);
                 write!(f, ": {})", typ.to_string(&check.types, &check.bindings, &self.context().names, db))?
             }
         }
@@ -682,8 +681,13 @@ impl<'a> CstDisplay<'a> {
             Pattern::Error => write!(f, "(error)"),
             Pattern::TypeAnnotation(pattern, typ) => {
                 self.fmt_pattern(*pattern, f)?;
-                write!(f, ": ")?;
-                self.fmt_type(typ, f)
+
+                // If show types is set we don't want to print annotations twice
+                if !(matches!(&self.context().patterns[*pattern], Pattern::Variable(_)) && self.config.show_types) {
+                    write!(f, ": ")?;
+                    self.fmt_type(typ, f)?;
+                }
+                Ok(())
             },
             Pattern::MethodName { type_name, item_name } => {
                 self.fmt_type_name(*type_name, f)?;
@@ -703,8 +707,13 @@ impl<'a> CstDisplay<'a> {
 
     fn fmt_type_annotation(&mut self, type_annotation: &TypeAnnotation, f: &mut Formatter) -> std::fmt::Result {
         self.fmt_expr(type_annotation.lhs, f)?;
-        write!(f, ": ")?;
-        self.fmt_type(&type_annotation.rhs, f)
+
+        // If show types is set we don't want to print annotations twice
+        if !(matches!(&self.context().exprs[type_annotation.lhs], Expr::Variable(_)) && self.config.show_types) {
+            write!(f, ": ")?;
+            self.fmt_type(&type_annotation.rhs, f)?;
+        }
+        Ok(())
     }
 
     fn fmt_comptime(&mut self, comptime: &Comptime, f: &mut Formatter) -> std::fmt::Result {
@@ -798,7 +807,7 @@ impl Display for Origin {
 
 impl Display for SourceFileId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // Limit to 2 digits, otherwise it is too long and hurts the debug format
-        write!(f, "c{}m{}", self.crate_id.0, self.local_module_id.0 % 100)
+        // Limit to 3 digits, otherwise it is too long and hurts the debug format
+        write!(f, "c{}m{}", self.crate_id.0, self.local_module_id.0 % 1000)
     }
 }

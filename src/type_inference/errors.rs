@@ -53,18 +53,18 @@ pub(super) trait Locateable {
 
 impl Locateable for ExprId {
     fn locate(self, context: &TypeChecker) -> Location {
-        context.context.expr_locations[self].clone()
+        context.current_context().expr_locations[self].clone()
     }
 }
 
 impl Locateable for PatternId {
     fn locate(self, context: &TypeChecker) -> Location {
-        context.context.pattern_locations[self].clone()
+        context.current_context().pattern_locations[self].clone()
     }
 }
 
 impl Locateable for PathId {
     fn locate(self, context: &TypeChecker) -> Location {
-        context.context.path_locations[self].clone()
+        context.current_context().path_locations[self].clone()
     }
 }

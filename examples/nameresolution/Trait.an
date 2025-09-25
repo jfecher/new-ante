@@ -13,18 +13,18 @@ main () =
 
 // args: --show-resolved
 // expected stdout:
-// // id = c1m88_37
-// trait Foo_c1m88_37 a_1 b_2 with
+// // id = c1m488_1237
+// trait Foo_c1m488_1237 a_1 b_2 with
 //     foo_3: fn a_1 -> b_2
 //     bar_6: a_1
 // 
-// // id = c1m88_10
-// impl foo_i32_string_c1m88_10: Foo_c1m88_37 I32 String_b with
+// // id = c1m488_7510
+// impl foo_i32_string_c1m488_7510: Foo_c1m488_1237 I32 String_b with
 //     foo_1 _x_2 = "test"
 //     baz_3 = 2
 // 
-// // id = c1m88_44
-// main_c1m88_44 () =
+// // id = c1m488_1944
+// main_c1m488_1944 () =
 //     foo_? 3
 //     bar_?: Unit_?
 

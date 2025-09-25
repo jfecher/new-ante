@@ -39,7 +39,7 @@ use std::{
 
 use crate::{
     diagnostics::Errors,
-    incremental::{DbStorage, TypeCheckSCC},
+    incremental::{DbStorage, TypeCheck},
 };
 
 // All the compiler passes:
@@ -171,7 +171,7 @@ fn display_type_checking(compiler: &Db) -> BTreeSet<Diagnostic> {
         let parse = Parse(*file).get(compiler);
 
         for item in &parse.cst.top_level_items {
-            let resolve_diagnostics: BTreeSet<_> = compiler.get_accumulated(TypeCheckSCC(item.id));
+            let resolve_diagnostics: BTreeSet<_> = compiler.get_accumulated(TypeCheck(item.id));
             diagnostics.extend(resolve_diagnostics);
         }
 

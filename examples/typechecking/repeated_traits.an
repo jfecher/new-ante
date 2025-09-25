@@ -6,9 +6,9 @@ foo a =
 
 // args: --show-types
 // expected stdout:
-// (foo: _0) (a: _7) =
-//     (print: (error)) (a: _7)
-//     (print: (error)) (a: _7)
+// (foo: _1) (a: _8) =
+//     (print: (error)) (a: _8)
+//     (print: (error)) (a: _8)
 
 // expected stderr:
 // examples/typechecking/repeated_traits.an:2:4	error: `print` is not defined, was it a typo?

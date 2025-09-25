@@ -1,5 +1,6 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use types::{Type, TypeBindings};
 
@@ -10,8 +11,8 @@ use crate::{
     lexer::token::{FloatKind, IntegerKind},
     name_resolution::ResolutionResult,
     parser::{
-        cst::TopLevelItemKind,
-        ids::{ExprId, NameId, PathId},
+        cst::{TopLevelItem, TopLevelItemKind},
+        ids::{ExprId, NameId, PathId, TopLevelId},
         TopLevelContext,
     },
     type_inference::{
@@ -30,88 +31,163 @@ mod get_type;
 pub mod type_context;
 pub mod type_id;
 pub mod types;
-pub mod dependency_tree;
+pub mod dependency_graph;
 
 pub use get_type::get_type_impl;
 
 /// Actually type check a statement and its contents.
 /// Unlike `get_type_impl`, this always type checks the expressions inside a statement
 /// to ensure they type check correctly.
-pub fn type_check_impl(context: &TypeCheckSCC, compiler: &DbHandle) -> TypeCheckResult {
+pub fn type_check_impl(context: &TypeCheckSCC, compiler: &DbHandle) -> TypeCheckSCCResult {
     incremental::enter_query();
-    let (item, item_context) = GetItem(context.0).get(compiler);
-    incremental::println(format!("Type checking {:?}", item.id));
+    let items = TypeChecker::item_contexts(&context.0, compiler);
+    let mut checker = TypeChecker::new(&items, compiler);
 
-    let resolve = Resolve(context.0).get(compiler);
-    let mut checker = TypeChecker::new(resolve, &item_context, compiler);
+    for item_id in &context.0 {
+        incremental::println(format!("Type checking {item_id:?}"));
+        checker.current_item = Some(*item_id);
 
-    let typ = match &item.kind {
-        TopLevelItemKind::Definition(definition) => checker.check_definition(definition),
-        TopLevelItemKind::TypeDefinition(_) => GeneralizedType::unit(),
-        TopLevelItemKind::TraitDefinition(_) => GeneralizedType::unit(),
-        TopLevelItemKind::TraitImpl(trait_impl) => checker.check_impl(trait_impl),
-        TopLevelItemKind::EffectDefinition(_) => GeneralizedType::unit(),
-        TopLevelItemKind::Extern(extern_) => checker.check_extern(extern_),
-        TopLevelItemKind::Comptime(comptime) => checker.check_comptime(comptime),
-    };
+        let item = &checker.item_contexts[item_id].0;
+        let typ = match &item.kind {
+            TopLevelItemKind::Definition(definition) => checker.check_definition(definition),
+            TopLevelItemKind::TypeDefinition(_) => GeneralizedType::unit(),
+            TopLevelItemKind::TraitDefinition(_) => GeneralizedType::unit(),
+            TopLevelItemKind::TraitImpl(trait_impl) => checker.check_impl(trait_impl),
+            TopLevelItemKind::EffectDefinition(_) => GeneralizedType::unit(),
+            TopLevelItemKind::Extern(extern_) => checker.check_extern(extern_),
+            TopLevelItemKind::Comptime(comptime) => checker.check_comptime(comptime),
+        };
+
+        checker.finish_item(typ);
+    }
 
     incremental::exit_query();
-    checker.finish(typ)
+    checker.finish()
 }
 
+/// A `TypeCheckSCCResult` holds the `IndividualTypeCheckResult` of every item in
+/// the SCC for a particular TopLevelId
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TypeCheckResult {
-    pub typ: GeneralizedType,
-    pub name_types: BTreeMap<NameId, TypeId>,
-    pub path_types: BTreeMap<PathId, TypeId>,
-    pub expr_types: BTreeMap<ExprId, TypeId>,
+pub struct TypeCheckSCCResult {
+    pub items: BTreeMap<TopLevelId, IndividualTypeCheckResult>,
     pub types: TypeContext,
     pub bindings: TypeBindings,
 }
 
-#[allow(unused)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IndividualTypeCheckResult {
+    pub name_types: BTreeMap<NameId, TypeId>,
+    pub path_types: BTreeMap<PathId, TypeId>,
+    pub expr_types: BTreeMap<ExprId, TypeId>,
+    pub typ: GeneralizedType,
+}
+
 struct TypeChecker<'local, 'inner> {
     compiler: &'local DbHandle<'inner>,
-    context: &'local TopLevelContext,
     types: TypeContext,
-    resolve: ResolutionResult,
     name_types: BTreeMap<NameId, TypeId>,
     path_types: BTreeMap<PathId, TypeId>,
     expr_types: BTreeMap<ExprId, TypeId>,
     bindings: TypeBindings,
     next_id: u32,
+    item_contexts: &'local ItemContexts,
+    current_item: Option<TopLevelId>,
+
+    /// Each item in the SCC we've finished inferring.
+    /// Note that the `typ: GeneralizedType` field in here will not
+    /// actually be generalized untill all items are finished with inference.
+    finished_items: BTreeMap<TopLevelId, IndividualTypeCheckResult>,
+
+    /// Types of each top-level item in the current SCC being worked on
+    item_types: Rc<FxHashMap<TopLevelId, TypeId>>,
 }
 
+type ItemContexts = FxHashMap<TopLevelId, (Arc<TopLevelItem>, Arc<TopLevelContext>, ResolutionResult)>;
+
 impl<'local, 'inner> TypeChecker<'local, 'inner> {
-    fn new(resolve: ResolutionResult, context: &'local TopLevelContext, compiler: &'local DbHandle<'inner>) -> Self {
-        Self {
+    fn new(item_contexts: &'local ItemContexts, compiler: &'local DbHandle<'inner>) -> Self {
+        let mut this = Self {
             compiler,
-            context,
             types: TypeContext::new(),
             bindings: Default::default(),
-            resolve,
             next_id: 0,
             name_types: Default::default(),
             path_types: Default::default(),
             expr_types: Default::default(),
+            item_types: Default::default(),
+            finished_items: Default::default(),
+            current_item: None,
+            item_contexts,
+        };
+
+        let mut item_types = FxHashMap::default();
+        for item in item_contexts.keys() {
+            let variable = this.next_type_variable();
+            item_types.insert(*item, variable);
+        }
+        // We have to go through this extra step since `generalize_all` needs an Rc
+        // to clone this field cheaply since `generalize` requires a mutable `self`.
+        let this_item_types = Rc::get_mut(&mut this.item_types).expect("No clones should be possible here");
+        *this_item_types = item_types;
+
+        this
+    }
+
+    fn item_contexts(items: &[TopLevelId], compiler: &DbHandle) -> ItemContexts {
+        items.iter().map(|item_id| {
+            let (item, item_context) = GetItem(*item_id).get(compiler);
+            let resolve = Resolve(*item_id).get(compiler);
+            (*item_id, (item, item_context, resolve))
+        }).collect()
+    }
+
+    fn current_context(&self) -> &'local TopLevelContext {
+        let item = self.current_item.expect("TypeChecker: Expected current_item to be set");
+        &self.item_contexts[&item].1
+    }
+
+    fn current_resolve(&self) -> &'local ResolutionResult {
+        let item = self.current_item.expect("TypeChecker: Expected current_item to be set");
+        &self.item_contexts[&item].2
+    }
+
+    fn finish(mut self) -> TypeCheckSCCResult {
+        for (id, typ) in self.generalize_all() {
+            let item = self.finished_items.get_mut(&id).expect("Expected finished item for id");
+            item.typ = typ;
+        }
+
+        TypeCheckSCCResult {
+            items: self.finished_items,
+            types: self.types,
+            bindings: self.bindings,
         }
     }
 
-    fn finish(self, typ: GeneralizedType) -> TypeCheckResult {
-        TypeCheckResult {
-            expr_types: self.expr_types,
-            name_types: self.name_types,
-            path_types: self.path_types,
-            types: self.types,
+    /// Finishes the current item, adding all bindings to the relevant entry in
+    /// `self.finished_items`, clearing them out in preparation for resolving the next item.
+    fn finish_item(&mut self, typ: GeneralizedType) {
+        use std::mem::take;
+        let id = self.current_item.take().expect("finish_item: expected current item");
+        let result = IndividualTypeCheckResult {
+            name_types: take(&mut self.name_types),
+            path_types: take(&mut self.path_types),
+            expr_types: take(&mut self.expr_types),
             typ,
-            bindings: self.bindings,
-        }
+        };
+        self.finished_items.insert(id, result);
     }
 
     fn next_type_variable(&mut self) -> TypeId {
         let id = TypeVariableId(self.next_id);
         self.next_id += 1;
         self.types.get_or_insert_type(Type::Variable(id))
+    }
+
+    /// Generalize all types in the current SCC
+    fn generalize_all(&mut self) -> Vec<(TopLevelId, GeneralizedType)> {
+        let types = self.item_types.clone();
+        vecmap(types.iter(), |(id, typ)| (*id, self.generalize(*typ)))
     }
 
     /// Generalize a type, making it generic. Any holes in the type become generic types.
@@ -226,7 +302,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     }
 
     fn type_to_string(&self, typ: TypeId) -> String {
-        typ.to_string(&self.types, &self.bindings, &self.context.names, self.compiler)
+        typ.to_string(&self.types, &self.bindings, &self.current_context().names, self.compiler)
     }
 
     /// Try to unify the given types, returning `Err(())` on error without pushing a Diagnostic.
@@ -372,7 +448,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             crate::parser::cst::Type::String => TypeId::STRING,
             crate::parser::cst::Type::Char => TypeId::CHAR,
             crate::parser::cst::Type::Named(path) => {
-                match self.resolve.path_origins.get(path) {
+                match self.current_resolve().path_origins.get(path) {
                     Some(origin) => {
                         if !origin.is_type() {
                             // TODO: Error

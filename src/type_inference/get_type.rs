@@ -1,5 +1,5 @@
 use crate::{
-    incremental::{self, DbHandle, GetItem, GetType, Resolve, TypeCheckSCC},
+    incremental::{self, DbHandle, GetItem, GetType, Resolve},
     name_resolution::ResolutionResult,
     parser::{
         cst::{Definition, Expr, Pattern, TopLevelItemKind},
@@ -24,11 +24,9 @@ pub fn get_type_impl(context: &GetType, compiler: &DbHandle) -> GeneralizedType 
     let typ = match &item.kind {
         TopLevelItemKind::Definition(definition) => {
             let resolve = Resolve(context.0).get(compiler);
-            if let Some(typ) = try_get_type(definition, &item_context, &resolve) {
-                typ
-            } else {
-                TypeCheckSCC(context.0).get(compiler).typ
-            }
+            try_get_type(definition, &item_context, &resolve).unwrap_or_else(|| {
+                panic!("GetType used on definition without a type annotation that has not yet been inferred. This is likely an issue with the order of type checking determined by the dependency graph.")
+            })
         },
         TopLevelItemKind::TypeDefinition(_) => GeneralizedType::unit(),
         TopLevelItemKind::TraitDefinition(_) => GeneralizedType::unit(),

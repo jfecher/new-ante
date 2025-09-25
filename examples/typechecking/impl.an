@@ -18,11 +18,11 @@ c = foo "one" "two"
 // trait Foo a with
 //     (foo: (error)): fn a a -> a
 // 
-// (a: _0) = (foo: (error)) 1 2_I32
+// (a: _1) = (foo: (error)) 1 2_I32
 // 
-// (b: _0) = (foo: (error)) 1 2
+// (b: _1) = (foo: (error)) 1 2
 // 
-// (c: _0) = (foo: (error)) "one" "two"
+// (c: _1) = (foo: (error)) "one" "two"
 
 // expected stderr:
 // examples/typechecking/impl.an:5:5	error: Expected an identifier but found `Foo`

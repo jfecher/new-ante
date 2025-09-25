@@ -49,8 +49,8 @@ impl TopLevelId {
 
 impl Display for TopLevelId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // Limit it to 2 digits, otherwise it is too long and hurts debugging
-        write!(f, "{}_{}", self.source_file, self.content_hash % 100)
+        // Limit it to 4 digits, otherwise it is too long and hurts debugging
+        write!(f, "{}_{}", self.source_file, self.content_hash % 10000)
     }
 }
 

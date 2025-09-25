@@ -17,30 +17,37 @@ a = 3 // already declared
 
 // args: --show-resolved
 // expected stdout:
-// // id = c1m16_23
-// not_an_error_c1m16_23 = 1
+// // id = c1m416_9923
+// not_an_error_c1m416_9923 = 1
 // 
-// // id = c1m16_44
-// main_c1m16_44 () =
-//     not_an_error_c1m16_23 is_an_error_?
+// // id = c1m416_1944
+// main_c1m416_1944 () =
+//     not_an_error_c1m416_9923 is_an_error_?
+//     fn a_4 b_5 -> +_? (+_? a_4 c_?) b_5
 // 
-// // id = c1m16_32
-// foo_c1m16_32 a_1 b_2 =
+// // id = c1m416_3132
+// foo_c1m416_3132 a_1 b_2 =
 //     bar_? c_? d_? =
 //         b_?
 //     ()
 // 
-// // id = c1m16_65
-// a_c1m16_65 = 2
+// // id = c1m416_7365
+// a_c1m416_7365 = 2
 // 
-// // id = c1m16_38
-// a_c1m16_65 = 3
+// // id = c1m416_4138
+// a_c1m416_7365 = 3
 
 // expected stderr:
 // examples/nameresolution/errors.an:5:17	error: `is_an_error` is not defined, was it a typo?
 //     not_an_error is_an_error
 // 
-// examples/nameresolution/errors.an:7:4	error: Expected an unindent but found `fn`
+// examples/nameresolution/errors.an:7:16	error: `+` is not defined, was it a typo?
+//     fn a b -> a + c + b
+// 
+// examples/nameresolution/errors.an:7:18	error: `c` is not defined, was it a typo?
+//     fn a b -> a + c + b
+// 
+// examples/nameresolution/errors.an:7:20	error: `+` is not defined, was it a typo?
 //     fn a b -> a + c + b
 // 
 // examples/nameresolution/errors.an:16:0	warning: `a` was already defined

@@ -21,38 +21,38 @@ type MyRef a = &a
 
 // args: --show-resolved
 // expected stdout:
-// // id = c1m29_67
-// type Struct1_c1m29_67 =
+// // id = c1m929_4067
+// type Struct1_c1m929_4067 =
 //     a_?: I32
 //     b_?: F64
 //     c_?: String_b
 // 
-// // id = c1m29_25
-// type Thingy_c1m29_25 = Struct1_c1m29_67
+// // id = c1m929_1425
+// type Thingy_c1m929_1425 = Struct1_c1m929_4067
 // 
-// // id = c1m29_24
-// type Generic_c1m29_24 =
+// // id = c1m929_2424
+// type Generic_c1m929_2424 =
 //     first_?: a_1
 //     second_?: b_2
 // 
-// // id = c1m29_35
-// type Struct2_c1m29_35 =
-//     a_?: Thingy_c1m29_25
-//     b_?: Generic_c1m29_24 t_1 Thingy_c1m29_25
+// // id = c1m929_5535
+// type Struct2_c1m929_5535 =
+//     a_?: Thingy_c1m929_1425
+//     b_?: Generic_c1m929_2424 t_1 Thingy_c1m929_1425
 // 
-// // id = c1m29_92
-// type Union1_c1m29_92 =
-//     | Variant1_c1m29_92
-//     | Variant2_c1m29_92
+// // id = c1m929_3992
+// type Union1_c1m929_3992 =
+//     | Variant1_c1m929_3992
+//     | Variant2_c1m929_3992
 // 
-// // id = c1m29_8
-// type Option_c1m29_8 =
-//     | Just_c1m29_8 a_1
-//     | Nothing_c1m29_8
+// // id = c1m929_1108
+// type Option_c1m929_1108 =
+//     | Just_c1m929_1108 a_1
+//     | Nothing_c1m929_1108
 // 
-// // id = c1m29_96
-// t_c1m29_96 = Option.Just_c1m29_8 1
+// // id = c1m929_9396
+// t_c1m929_9396 = Option.Just_c1m929_1108 1
 // 
-// // id = c1m29_55
-// type MyRef_c1m29_55 = & a_1
+// // id = c1m929_2555
+// type MyRef_c1m929_2555 = & a_1
 

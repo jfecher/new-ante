@@ -31,7 +31,7 @@ ex2c (a: v) b =
 // args: --show-types
 // expected exit status: 101
 // expected stderr:
-// thread 'main' panicked at src/type_inference/type_context.rs:122:58:
-// not yet implemented: Resolve named types
+// thread 'main' panicked at src/type_inference/get_type.rs:28:17:
+// GetType used on definition without a type annotation that has not yet been inferred. This is likely an issue with the order of type checking determined by the dependency graph.
 // note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

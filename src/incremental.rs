@@ -18,7 +18,7 @@ use crate::{
         ResolutionResult,
     },
     parser::{self, cst::TopLevelItem, ids::TopLevelId, ParseResult, TopLevelContext},
-    type_inference::{self, dependency_tree::TypeCheckOrder, types::GeneralizedType, TypeCheckResult},
+    type_inference::{self, dependency_graph::TypeCheckResult, types::GeneralizedType, TypeCheckSCCResult},
 };
 
 /// A wrapper over inc-complete's database with our specific storage type to hold
@@ -55,7 +55,7 @@ pub struct DbStorage {
     top_level_items: HashMapStorage<GetItem>,
     get_types: HashMapStorage<GetType>,
     type_checks: HashMapStorage<TypeCheckSCC>,
-    type_dependency_tree: SingletonStorage<TypeInferenceDependencyGraph>,
+    type_dependency_tree: HashMapStorage<TypeCheck>,
     compiled_files: HashMapStorage<CompileFile>,
 
     #[inc_complete(accumulate)]
@@ -277,16 +277,16 @@ define_intermediate!(120, GetType -> GeneralizedType, DbStorage, type_inference:
 /// group. Hence the rare case where `TypeCheckSCC` may be given more than one `TopLevelId`.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeCheckSCC(pub Vec<TopLevelId>);
-define_intermediate!(130, TypeCheckSCC -> TypeCheckResult, DbStorage, type_inference::type_check_impl);
+define_intermediate!(130, TypeCheckSCC -> TypeCheckSCCResult, DbStorage, type_inference::type_check_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-/// Construct a dependency graph used to determine the order of type inference. This is somewhat
-/// different from a general dependency tree in that the only dependencies we consider are those
-/// which require type inference beforehand. Dependent definitions which are already annotated can
-/// be checked in any order.
+/// Type checks a given TopLevelId by constructing a dependency graph used to determine the order
+/// of type inference and deferring to TypeCheckSCC. This is somewhat different from a general
+/// dependency graph in that the only dependencies we consider are those which require type
+/// inference beforehand. Dependent definitions which are already annotated can be checked in any order.
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TypeInferenceDependencyGraph(pub TopLevelId);
-define_intermediate!(140, assume_changed TypeInferenceDependencyGraph -> TypeCheckOrder, DbStorage, type_inference::dependency_tree::dependency_tree_impl);
+pub struct TypeCheck(pub TopLevelId);
+define_intermediate!(140, TypeCheck -> TypeCheckResult, DbStorage, type_inference::dependency_graph::type_check_impl);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /// Compile a single file to a string representing python source code of that file.

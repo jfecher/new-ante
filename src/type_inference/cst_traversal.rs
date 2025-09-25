@@ -20,7 +20,7 @@ use crate::{
 
 impl<'local, 'inner> TypeChecker<'local, 'inner> {
     pub(super) fn check_definition(&mut self, definition: &Definition) -> GeneralizedType {
-        let expected_generalized_type = try_get_type(definition, self.context, &self.resolve);
+        let expected_generalized_type = try_get_type(definition, self.current_context(), &self.current_resolve());
         let expected_type = match expected_generalized_type.as_ref() {
             Some(typ) => typ.as_type(&mut self.types),
             None => self.next_type_variable(),
@@ -33,7 +33,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     }
 
     fn check_expr(&mut self, expr: ExprId, expected: TypeId) {
-        match &self.context.exprs[expr] {
+        match &self.current_context().exprs[expr] {
             Expr::Literal(literal) => self.check_literal(literal, expr, expected),
             Expr::Variable(path) => self.check_path(*path, expected),
             Expr::Call(call) => self.check_call(call, expected),
@@ -79,7 +79,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     }
 
     fn check_pattern(&mut self, pattern: PatternId, expected: TypeId) {
-        match &self.context.patterns[pattern] {
+        match &self.current_context().patterns[pattern] {
             Pattern::Error => (),
             Pattern::Variable(name) | Pattern::MethodName { item_name: name, .. } => {
                 if let Some(existing) = self.name_types.get(name) {
@@ -117,10 +117,14 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
     }
 
     fn check_path(&mut self, path: PathId, expected: TypeId) {
-        let actual = match self.resolve.path_origins.get(&path).copied() {
-            Some(Origin::TopLevelDefinition(top_level_id)) => {
-                let typ = GetType(top_level_id).get(self.compiler);
-                self.instantiate(&typ)
+        let actual = match self.current_resolve().path_origins.get(&path).copied() {
+            Some(Origin::TopLevelDefinition(id)) => {
+                if let Some(typ) = self.item_types.get(&id) {
+                    *typ
+                } else {
+                    let typ = GetType(id).get(self.compiler);
+                    self.instantiate(&typ)
+                }
             },
             Some(Origin::Local(name)) => self.name_types[&name],
             Some(Origin::TypeResolution) => todo!("Type check Origin::TypeResolution"),
@@ -205,7 +209,7 @@ impl<'local, 'inner> TypeChecker<'local, 'inner> {
             self.compiler.accumulate(Diagnostic::FunctionArgCountMismatch {
                 actual: lambda.parameters.len(),
                 expected: function_type.parameters.len(),
-                location: self.context.expr_locations[expr].clone(),
+                location: self.current_context().expr_locations[expr].clone(),
             });
             function_type.parameters.resize_with(lambda.parameters.len(), || self.next_type_variable());
         }

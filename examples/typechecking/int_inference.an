@@ -13,7 +13,7 @@ main () =
 
 // args: --show-types
 // expected stdout:
-// (main: _0) () =
+// (main: _1) () =
 //     (print: (error)) 2
 
 // expected stderr:

@@ -10,20 +10,17 @@ main () =
 // expected stdout:
 // import Library.library_int, library_fn
 // 
-// // id = c1m27_32
-// foo_c1m27_32 = (error)
+// // id = c1m27_3132
+// foo_c1m27_3132 = fn __1 b_2 -> b_2
 // 
-// // id = c1m27_44
-// main_c1m27_44 () =
-//     foo_c1m27_32 4 library_int_?
-//     foo_c1m27_32 5 (library_fn_? ())
+// // id = c1m27_1944
+// main_c1m27_1944 () =
+//     foo_c1m27_3132 4 library_int_?
+//     foo_c1m27_3132 5 (library_fn_? ())
 
 // expected stderr:
 // examples/nameresolution/import.an:1:8	error: Could not find crate `Library`
 // import Library.library_int, library_fn
-// 
-// examples/nameresolution/import.an:3:6	error: Expected an expression but found `fn`
-// foo = fn _ b -> b
 // 
 // examples/nameresolution/import.an:6:10	error: `library_int` is not defined, was it a typo?
 //     foo 4 library_int
